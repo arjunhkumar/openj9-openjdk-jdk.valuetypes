@@ -56,10 +56,10 @@ declare -A git_urls
 declare -A shas
 declare -A references
 
-git_urls[openj9]=https://github.com/eclipse-openj9/openj9
+git_urls[openj9]=git@github.com:arjunhkumar/OpenJ9.git
 branches[openj9]=master
 
-git_urls[omr]=https://github.com/eclipse-openj9/openj9-omr
+git_urls[omr]=git@github.com:CompL-IITMandi/openj9-omr.git
 branches[omr]=openj9
 
 pflag=false
