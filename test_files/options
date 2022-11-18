@@ -1,0 +1,5 @@
+#Custom options file for OpenJ9 VM
+#-Xjit:{VTTest.foo()V}(traceFull,log=tracelog16,count=0)
+-XX:ValueTypeFlatteningThreshold=99999
+-Xjit:debugCounters={InlineStatistics*},staticDebugCounters={InlineStatistics*},count=0
+

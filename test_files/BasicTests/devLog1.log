@@ -1,0 +1,15 @@
+Dev log created.
+Store flattened field datastructures/Point.x I to datastructures/Line.p1.x I - field name p1.x
+Allocation Method: datastructures/Line.<init>()V and BCI: 10 for the above flattening operation.
+
+Store flattened field datastructures/Point.y I to datastructures/Line.p1.y I - field name p1.y
+Allocation Method: datastructures/Line.<init>()V and BCI: 10 for the above flattening operation.
+
+Store flattened field datastructures/Point.x I to datastructures/Line.p2.x I - field name p2.x
+Allocation Method: datastructures/Line.<init>()V and BCI: 19 for the above flattening operation.
+
+Store flattened field datastructures/Point.y I to datastructures/Line.p2.y I - field name p2.y
+Allocation Method: datastructures/Line.<init>()V and BCI: 19 for the above flattening operation.
+
+Flattened value type instance field Qdatastructures/Point; accessed at BCI: 1 from the method: datastructures/Line.p1()Qdatastructures/Point; 
+
