@@ -1110,6 +1110,13 @@ final class MemberName implements Member, Cloneable {
                 //
                 // REFC view on PTYPES doesn't matter, since it is used only as a starting point for resolution and doesn't
                 // participate in method selection.
+                /** AR07 Debug point*/
+                // if(("lambda$testStream$1".equalsIgnoreCase(m.getName())) || ("testRefParam".equalsIgnoreCase(m.getName()))){
+                //     System.out.println("Name: "+m.getName());
+                //     System.out.println("Type: "+m.getMethodType());
+                //     System.out.println("Class: "+lookupClass.toString());
+                // }
+                /** AR07 Debug point end*/
                 m = MethodHandleNatives.resolve(m, lookupClass, allowedModes, speculativeResolve);
                 if (m == null && speculativeResolve) {
                     return null;

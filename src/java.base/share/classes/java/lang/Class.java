@@ -4649,13 +4649,21 @@ public final class Class<T> implements java.io.Serializable,
      */
     @Override
     public String descriptorString() {
-        if (isPrimitive())
+    	boolean debugFlag = (null!=getName() && getName().contains("StorageUnit"));
+        System.out.println("descriptorString debug point 0: classname: "+getName());
+    	if(debugFlag) {
+    		System.out.println("descriptorString debug point 1: classname: "+getName());
+    	}
+        if (isPrimitive()) {
+        	if(debugFlag) {
+        		System.out.println("descriptorString debug point 2: isPrimitive: true");
+        	}
             return Wrapper.forPrimitiveType(this).basicTypeString();
-
+        }
         if (isArray()) {
             return "[" + componentType.descriptorString();
         }
-        char typeDesc = isPrimitiveValueType() ? 'Q' : 'L';
+        char typeDesc = (isPrimitiveValueType() && !isPrimaryType()) ? 'Q' : 'L';
         if (isHidden()) {
             String name = getName();
             int index = name.indexOf('/');
@@ -4667,6 +4675,10 @@ public final class Class<T> implements java.io.Serializable,
                     .append(';')
                     .toString();
         } else {
+        	if(debugFlag) {
+        		System.out.println("descriptorString debug point 3: isHidden: false");
+        		System.out.println("descriptorString debug point 4: typeDesc: "+typeDesc);
+        	}
             String name = getName().replace('.', '/');
             return new StringBuilder(name.length() + 2)
                     .append(typeDesc)

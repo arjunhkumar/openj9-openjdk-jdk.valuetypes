@@ -157,5 +157,12 @@ public class BytecodeDescriptor {
         } else {
             sb.append(t.descriptorString());
         }
+        // if(t.descriptorString().contains("StorageUnit")) {
+        //     System.out.println("Class found:"+t.getName());
+        // 	System.out.println("Descriptor found:"+c);
+        //     System.out.println("Complete Descriptor String found:"+t.descriptorString());
+        //     System.out.println("Complete type of Descriptor String found:"+t.toString());
+        // 	System.out.println("Complete Descriptor found:"+sb.toString());
+        // }
     }
 }

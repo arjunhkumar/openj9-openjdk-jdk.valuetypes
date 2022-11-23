@@ -4174,6 +4174,18 @@ return mh1;
             if (!(type instanceof Class || type instanceof MethodType))
                 throw new InternalError("unresolved MemberName");
             MemberName member = new MemberName(refKind, defc, name, type);
+            /** AR07 Debug point*/
+            // if("lambda$testStream$1".equalsIgnoreCase(name)){
+            //         System.out.println("Name1: "+name);
+            //         System.out.println("Type1: "+type.toString());
+            //         if(type instanceof MethodType){
+            //             MethodType methType = (MethodType) type;
+            //             String methdDesc = methType.toMethodDescriptorString();
+            //             System.out.println("methdDesc1: "+methdDesc);
+            //         }
+                    
+            //     }
+            /** AR07 Debug point end*/
             MethodHandle mh = LOOKASIDE_TABLE.get(member);
             if (mh != null) {
                 checkSymbolicClass(defc);
