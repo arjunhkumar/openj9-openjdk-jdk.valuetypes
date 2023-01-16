@@ -3,8 +3,8 @@
 package datastructures;
 
 public final class Line {
-    private Point p1;
-    private Point p2;
+    public Point p1;
+    public Point p2;
 
     public Line() {
         this.p1 = new Point(0,0);

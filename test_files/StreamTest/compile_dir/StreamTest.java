@@ -17,7 +17,6 @@ import datastructures.StorageUnit;
 public class StreamTest {
 
 	public static void main(String args[]) {
-		testRefParam((new StorageUnit(1,"x")));
 		testStream(true);
 		testStream();
 	}
@@ -100,11 +99,6 @@ public class StreamTest {
 				System.out.println(unit.getName()+" : "+unit.getVal());
 			}
 		}
-	}
-	
-	private static boolean testRefParam(StorageUnit.ref refVal) {
-		System.out.println(refVal.getVal());
-		return true;
 	}
 	
 }

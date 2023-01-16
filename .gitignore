@@ -55,4 +55,12 @@ NashornProfile.txt
 /.settings/
 
 # Custom additions
+/test_files/
+/test_files_sys/
 /test_files/**/*.class
+/test_files/**/*.json
+/test_files_sys/**/*.json
+/test_files_sys/
+test_files_sys/test_files/Custom/dataset/movies.json
+test_files_sys/test_files/VTComp/dataset/movies.json
+# test_files_sys/test_files/Custom/dataset/movies.json
