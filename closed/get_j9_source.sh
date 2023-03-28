@@ -57,10 +57,10 @@ declare -A shas
 declare -A references
 
 git_urls[openj9]=https://github.com/arjunhkumar/OpenJ9.git
-branches[openj9]=merged-escape-analysis
+branches[openj9]=devbranch-merged
 
 git_urls[omr]=https://github.com/arjunhkumar/omr.git
-branches[omr]=merged-escape-analysis
+branches[omr]=devbranch-merged
 
 pflag=false
 
