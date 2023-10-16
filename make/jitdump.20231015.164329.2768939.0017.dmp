@@ -1,0 +1,97 @@
+<?xml version="1.0" standalone="no"?>
+<jitDump>
+<ilOfCrashedThread>
+
+        +------------- Byte Code Index
+        |  +-------------------- OpCode
+        |  |                        +------------- First Field
+        |  |                        |     +------------- Branch Target
+        |  |                        |     |      +------- Const Pool Index
+        |  |                        |     |      |    +------------- Constant
+        |  |                        |     |      |    |
+        V  V                        V     V      V    V
+
+        0, JBiconstm1           
+        1, JBiconst5            
+        2, JBlconst0            
+        3, JBlconst0            
+
+<trees
+	title="Trees"
+	method="jdk/internal/misc/Unsafe.objectFieldOffset1(Ljava/lang/Class;Ljava/lang/String;)J"
+	hotness="cold">
+
+Trees: for jdk/internal/misc/Unsafe.objectFieldOffset1(Ljava/lang/Class;Ljava/lang/String;)J
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+n1n       BBStart <block_2>                                                                   [0x7fef7cd7f550] bci=[-1,0,-] rc=0 vc=0 vn=- li=- udi=- nc=0
+n7n       treetop                                                                             [0x7fef7cd7f730] bci=[-1,0,-] rc=0 vc=0 vn=- li=- udi=- nc=1
+n6n         lcall  jdk/internal/misc/Unsafe.objectFieldOffset1(Ljava/lang/Class;Ljava/lang/String;)J[#423  final native virtual Method] [flags 0x20500 0x0 ] ()  [0x7fef7cd7f6e0] bci=[-1,0,-] rc=1 vc=0 vn=- li=- udi=- nc=3 flg=0x20
+n3n           aload  <'this' parm Ljdk/internal/misc/Unsafe;>[#417  Parm] [flags 0x40000107 0x0 ] (X!=0 )  [0x7fef7cd7f5f0] bci=[-1,0,-] rc=1 vc=0 vn=- li=- udi=- nc=0 flg=0x4
+n4n           aload  <parm 1 Ljava/lang/Class;>[#418  Parm] [flags 0x40000107 0x0 ]           [0x7fef7cd7f640] bci=[-1,0,-] rc=1 vc=0 vn=- li=- udi=- nc=0
+n5n           aload  <parm 2 Ljava/lang/String;>[#419  Parm] [flags 0x40000107 0x0 ]          [0x7fef7cd7f690] bci=[-1,0,-] rc=1 vc=0 vn=- li=- udi=- nc=0
+n2n       BBEnd </block_2>                                                                    [0x7fef7cd7f5a0] bci=[-1,0,-] rc=0 vc=0 vn=- li=- udi=- nc=0
+
+index:       node global index
+bci=[x,y,z]: byte-code-info [callee-index, bytecode-index, line-number]
+rc:          reference count
+vc:          visit count
+vn:          value number
+li:          local index
+udi:         use/def index
+nc:          number of children
+addr:        address size in bytes
+flg:         node flags
+
+Symbol References (incremental):
+--------------------------------
+#417:  <'this' parm Ljdk/internal/misc/Unsafe;>[ Parm] [flags 0x40000107 0x0 ] [0x7fef7cd80700] (Address)
+#418:  <parm 1 Ljava/lang/Class;>[ Parm] [flags 0x40000107 0x0 ] [0x7fef7cd808f0] (Address)
+#419:  <parm 2 Ljava/lang/String;>[ Parm] [flags 0x40000107 0x0 ] [0x7fef7cd809c0] (Address)
+#420:  <'this' parm Ljdk/internal/misc/Unsafe;>[ Parm] [flags 0x107 0x0 ] [0x7fef7cdcb300] (Address)
+#421:  <parm 1 Ljava/lang/Class;>[ Parm] [flags 0x107 0x0 ] [0x7fef7cdcb4f0] (Address)
+#422:  <parm 2 Ljava/lang/String;>[ Parm] [flags 0x107 0x0 ] [0x7fef7cdcb5c0] (Address)
+#423:  jdk/internal/misc/Unsafe.objectFieldOffset1(Ljava/lang/Class;Ljava/lang/String;)J[ final native virtual Method] [flags 0x20500 0x0 ] [0x7fef7cdcb170] (NoType)
+
+Number of nodes = 7, symRefCount = 424
+</trees>
+
+<cfg>
+         0 [0x7fef7cd9d230] entry
+                 in        = []
+                 out       = [2(0) ]
+                 exception in  = []
+                 exception out = []
+         1 [0x7fef7cd9d140] exit
+                 in        = [2(0) ]
+                 out       = []
+                 exception in  = []
+                 exception out = []
+         2 [0x7fef7cdcb040] BBStart at 0x7fef7cd7f550
+                 in        = [0(0) ]
+                 out       = [1(0) ]
+                 exception in  = []
+                 exception out = []
+
+</cfg>
+<knownObjectTable size="1"> // 00007FEF7CD86AB0
+  id       JNI Ref            Address          Hash       Class
+  obj0                        NULL
+</knownObjectTable>
+<knownObjectGraph>
+</knownObjectGraph>
+</ilOfCrashedThread>
+<recompilation>
+<compile
+	method="jdk/internal/misc/Unsafe.objectFieldOffset1(Ljava/lang/Class;Ljava/lang/String;)J"
+	hotness="cold"
+	isProfilingCompile=0>
+</compile>
+
+
+=======>jdk/internal/misc/Unsafe.objectFieldOffset1(Ljava/lang/Class;Ljava/lang/String;)J
+<ilgen
+	method="jdk/internal/misc/Unsafe.objectFieldOffset1(Ljava/lang/Class;Ljava/lang/String;)J">
+   <request> {JitDumpMethod(<NULL>)} </request>
+</recompilation rc=0 queued=1>
+</jitDump>

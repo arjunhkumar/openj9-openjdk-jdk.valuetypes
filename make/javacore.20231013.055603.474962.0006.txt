@@ -1,0 +1,377 @@
+0SECTION       TITLE subcomponent dump routine
+NULL           ===============================
+1TICHARSET     ANSI_X3.4-1968
+1TISIGINFO     Dump Event "gpf" (00002000) received
+1TIDATETIMEUTC Date: 2023/10/13 at 05:56:21:063 (UTC)
+1TIDATETIME    Date: 2023/10/13 at 05:56:21:063
+1TITIMEZONE    Timezone: UTC (UTC)
+1TINANOTIME    System nanotime: 85916009751445
+1TIFILENAME    Javacore filename:    /openj9-openjdk-jdk.valuetypes/make/javacore.20231013.055603.474962.0006.txt
+1TIREQFLAGS    Request Flags: 0x41 (exclusive+preempt)
+1TIPREPSTATE   Prep State: 0x80 (trace_disabled)
+1TIPREPINFO    Exclusive VM access not taken: data may not be consistent across javacore sections
+NULL           ------------------------------------------------------------------------
+0SECTION       GPINFO subcomponent dump routine
+NULL           ================================
+2XHOSLEVEL     OS Level         : Linux 5.15.0-86-generic
+2XHCPUS        Processors -
+3XHCPUARCH       Architecture   : amd64
+3XHNUMCPUS       How Many       : 20
+3XHNUMASUP       NUMA is either not supported or has been disabled by user
+NULL
+1XHEXCPCODE    J9Generic_Signal_Number: 00000018
+1XHEXCPCODE    Signal_Number: 0000000B
+1XHEXCPCODE    Error_Value: 00000000
+1XHEXCPCODE    Signal_Code: 00000002
+1XHEXCPCODE    Handler1: 00007F159CE7800A
+1XHEXCPCODE    Handler2: 00007F159CA41BDE
+1XHEXCPCODE    InaccessibleAddress: 0000000003210008
+NULL
+1XHEXCPMODULE  Module: /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk/lib/default/libj9vm29.so
+1XHEXCPMODULE  Module_base_address: 00007F159CE16000
+NULL
+1XHREGISTERS   Registers:
+2XHREGISTER      RDI: 0000000000025A00
+2XHREGISTER      RSI: 0000000003210020
+2XHREGISTER      RAX: 0000000003210000
+2XHREGISTER      RBX: 0000000000006024
+2XHREGISTER      RCX: 0000000003210020
+2XHREGISTER      RDX: 0000000000025A00
+2XHREGISTER      R8: 000000070B0E5018
+2XHREGISTER      R9: 0000000000000000
+2XHREGISTER      R10: 00007F15980008D0
+2XHREGISTER      R11: 00007F1598000080
+2XHREGISTER      R12: 0000000000000000
+2XHREGISTER      R13: 0000000000000008
+2XHREGISTER      R14: 00007F159D14E4D2
+2XHREGISTER      R15: 0000000000000003
+2XHREGISTER      xmm0: 00007F1598240D70
+2XHREGISTER      xmm1: 00007F1598240D70
+2XHREGISTER      xmm2: 402F36A092834DF1
+2XHREGISTER      xmm3: 00007F15980004A0
+2XHREGISTER      xmm4: 000000003F35AB20
+2XHREGISTER      xmm5: 00007F1598000080
+2XHREGISTER      xmm6: BFD57BF7808CAADE
+2XHREGISTER      xmm7: 2F676E616C2F6176
+2XHREGISTER      xmm8: 3A001AB80B152B00
+2XHREGISTER      xmm9: 0000000000000000
+2XHREGISTER      xmm10: 0000000000000000
+2XHREGISTER      xmm11: 0000000000000000
+2XHREGISTER      xmm12: 0000000000000000
+2XHREGISTER      xmm13: 0000000000000000
+2XHREGISTER      xmm14: 0000000000000000
+2XHREGISTER      xmm15: 0000000000000000
+2XHREGISTER      RIP: 00007F159CE991F4
+2XHREGISTER      GS: 0000
+2XHREGISTER      FS: 0000
+2XHREGISTER      RSP: 00007F159D2DFE30
+2XHREGISTER      EFlags: 0000000000010206
+2XHREGISTER      CS: 0033
+2XHREGISTER      RBP: 00007F159D2DFE60
+2XHREGISTER      ERR: 0000000000000004
+2XHREGISTER      TRAPNO: 000000000000000E
+2XHREGISTER      OLDMASK: 0000000000000000
+2XHREGISTER      CR2: 0000000003210008
+NULL
+1XHFLAGS       VM flags:0000000000000000
+NULL
+NULL           ------------------------------------------------------------------------
+0SECTION       ENVINFO subcomponent dump routine
+NULL           =================================
+1CIJAVAVERSION JRE 21 Linux amd64-64
+1CIVMVERSION   20230921_000000
+1CIJ9VMVERSION cc09fa03d
+1CIJITVERSION  j9jit_20230407_0938_
+1CIOMRVERSION  abb472da1_CMPRSS
+1CIJCLVERSION  dd3b0a792ba based on jdk-21+10
+1CIVENDOR      Eclipse OpenJ9
+1CIPRODUCT     OpenJDK Runtime Environment
+1CIEXTVERSION  21.0.0.0-ea
+1CIJITMODES    JIT enabled, AOT enabled, FSD disabled, HCR enabled
+1CIRUNNINGAS   Running as an embedded JVM
+1CIVMIDLESTATE VM Idle State: ACTIVE
+1CICONTINFO    Running in container : TRUE
+1CICGRPINFO    JVM support for cgroups enabled : TRUE
+1CISTARTTIME   JVM start time: 2023/10/13 at 05:56:02:902
+1CISTARTNANO   JVM start nanotime: 85897848912074
+1CIPROCESSID   Process ID: 474962 (0x73F52)
+1CICMDLINE     /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk/bin/jmod create --module-version 21-internal --target-platform linux-amd64 --module-path /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/images/jmods --libs /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_libs/java.base --cmds /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_cmds/java.base --config /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_conf/java.base --class-path /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk/modules/java.base --header-files /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_include/java.base --man-pages /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_man/java.base --legal-notices /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_legal/common:/openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_legal/java.base --module-path /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/images/jmods --hash-modules ^(?!java.compiler$) --exclude **{_the.*,_*.marker*,*.diz,*.debuginfo,*.dSYM/**,*.dSYM} --compress zip-6 --date 2023-09-21T08:35:55Z /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/images/jmods/java.base.jmod
+1CIJAVAHOMEDIR Java Home Dir:   /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk
+1CIJAVADLLDIR  Java DLL Dir:    /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk/bin
+1CISYSCP       Sys Classpath:   
+1CIUSERARGS    UserArgs:
+2CIUSERARG               -Xoptionsfile=/openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk/lib/options.default
+2CIUSERARG               -Xlockword:mode=default,noLockword=java/lang/String,noLockword=java/util/MapEntry,noLockword=java/util/HashMap$Entry,noLockword=org/apache/harmony/luni/util/ModifiedMap$Entry,noLockword=java/util/Hashtable$Entry,noLockword=java/lang/invoke/MethodType,noLockword=java/lang/invoke/MethodHandle,noLockword=java/lang/invoke/CollectHandle,noLockword=java/lang/invoke/ConstructorHandle,noLockword=java/lang/invoke/ConvertHandle,noLockword=java/lang/invoke/ArgumentConversionHandle,noLockword=java/lang/invoke/AsTypeHandle,noLockword=java/lang/invoke/ExplicitCastHandle,noLockword=java/lang/invoke/FilterReturnHandle,noLockword=java/lang/invoke/DirectHandle,noLockword=java/lang/invoke/ReceiverBoundHandle,noLockword=java/lang/invoke/DynamicInvokerHandle,noLockword=java/lang/invoke/FieldHandle,noLockword=java/lang/invoke/FieldGetterHandle,noLockword=java/lang/invoke/FieldSetterHandle,noLockword=java/lang/invoke/StaticFieldGetterHandle,noLockword=java/lang/invoke/StaticFieldSetterHandle,noLockword=java/lang/invoke/IndirectHandle,noLockword=java/lang/invoke/InterfaceHandle,noLockword=java/lang/invoke/VirtualHandle,noLockword=java/lang/invoke/PrimitiveHandle,noLockword=java/lang/invoke/InvokeExactHandle,noLockword=java/lang/invoke/InvokeGenericHandle,noLockword=java/lang/invoke/VarargsCollectorHandle,noLockword=java/lang/invoke/ThunkTuple
+2CIUSERARG               -XX:+EnsureHashed:java/lang/Class,java/lang/Thread
+2CIUSERARG               -Xjcl:jclse29
+2CIUSERARG               -Dcom.ibm.oti.vm.bootstrap.library.path=/openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk/lib/default:/openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk/lib
+2CIUSERARG               -Dsun.boot.library.path=/openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk/lib/default:/openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk/lib
+2CIUSERARG               -Djava.library.path=/openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk/lib/default:/openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk/lib:/usr/lib64:/usr/lib
+2CIUSERARG               -Djava.home=/openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk
+2CIUSERARG               -Duser.dir=/openj9-openjdk-jdk.valuetypes/make
+2CIUSERARG               -Denv.class.path=
+2CIUSERARG               -Dapplication.home=/openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk
+2CIUSERARG               -Xms8m
+2CIUSERARG               -Djdk.module.main=jdk.jlink
+2CIUSERARG               -Dsun.java.command=jdk.jlink/jdk.tools.jmod.Main create --module-version 21-internal --target-platform linux-amd64 --module-path /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/images/jmods --libs /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_libs/java.base --cmds /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_cmds/java.base --config /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_conf/java.base --class-path /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk/modules/java.base --header-files /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_include/java.base --man-pages /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_man/java.base --legal-notices /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_legal/common:/openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_legal/java.base --module-path /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/images/jmods --hash-modules ^(?!java.compiler$) --exclude **{_the.*,_*.marker*,*.diz,*.debuginfo,*.dSYM/**,*.dSYM} --compress zip-6 --date 2023-09-21T08:35:55Z /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/images/jmods/java.base.jmod
+2CIUSERARG               -Dsun.java.launcher=SUN_STANDARD
+NULL
+1CIUSERLIMITS  User Limits (in bytes except for NOFILE and NPROC)
+NULL           ------------------------------------------------------------------------
+NULL           type                            soft limit           hard limit
+2CIUSERLIMIT   RLIMIT_AS                        unlimited            unlimited
+2CIUSERLIMIT   RLIMIT_CORE                      unlimited            unlimited
+2CIUSERLIMIT   RLIMIT_CPU                       unlimited            unlimited
+2CIUSERLIMIT   RLIMIT_DATA                      unlimited            unlimited
+2CIUSERLIMIT   RLIMIT_FSIZE                     unlimited            unlimited
+2CIUSERLIMIT   RLIMIT_LOCKS                     unlimited            unlimited
+2CIUSERLIMIT   RLIMIT_MEMLOCK                       65536                65536
+2CIUSERLIMIT   RLIMIT_NOFILE                      1048576              1048576
+2CIUSERLIMIT   RLIMIT_NPROC                     unlimited            unlimited
+2CIUSERLIMIT   RLIMIT_RSS                       unlimited            unlimited
+2CIUSERLIMIT   RLIMIT_STACK                       8388608            unlimited
+2CIUSERLIMIT   RLIMIT_MSGQUEUE                     819200               819200
+2CIUSERLIMIT   RLIMIT_NICE                              0                    0
+2CIUSERLIMIT   RLIMIT_RTPRIO                            0                    0
+2CIUSERLIMIT   RLIMIT_SIGPENDING                    62240                62240
+NULL
+1CIENVVARS     Environment Variables
+NULL           ------------------------------------------------------------------------
+2CIENVVAR      SHELL=/bin/bash
+2CIENVVAR      COLORTERM=truecolor
+2CIENVVAR      no_proxy=*.test.example.com,.example2.com,127.0.0.0/8
+2CIENVVAR      TERM_PROGRAM_VERSION=1.83.0
+2CIENVVAR      EXTRA_CMAKE_ARGS=-DOMR_SEPARATE_DEBUG_INFO=OFF
+2CIENVVAR      USER_MAKE_VARS=EXTRA_CMAKE_ARGS=-DOMR_SEPARATE_DEBUG_INFO=OFF
+2CIENVVAR      MODULE=java.base
+2CIENVVAR      LOG_LEVEL=warn
+2CIENVVAR      HOSTNAME=21cdcea74234
+2CIENVVAR      MAKE_TERMOUT=/dev/pts/7
+2CIENVVAR      LOG_PROFILE_TIMES_FILE=
+2CIENVVAR      SSH_AUTH_SOCK=/tmp/vscode-ssh-auth-7fcd463c-daec-4a63-98cd-f545cb7af0dc.sock
+2CIENVVAR      REMOTE_CONTAINERS_IPC=/tmp/vscode-remote-containers-ipc-7fcd463c-daec-4a63-98cd-f545cb7af0dc.sock
+2CIENVVAR      PARALLEL_TARGETS=all
+2CIENVVAR      PWD=/openj9-openjdk-jdk.valuetypes/make
+2CIENVVAR      SOURCE_DATE_EPOCH=1695285355
+2CIENVVAR      LOG_PROFILE_TIMES_LOG=
+2CIENVVAR      MAKEOVERRIDES=${-*-command-variables-*-}
+2CIENVVAR      CXX=/usr/bin/g++-7
+2CIENVVAR      VSCODE_GIT_ASKPASS_NODE=/root/.vscode-server/bin/e7e037083ff4455cf320e344325dacb480062c3c/node
+2CIENVVAR      LOG_REPORT=
+2CIENVVAR      HOME=/root
+2CIENVVAR      LANG=en_US.UTF-8
+2CIENVVAR      LS_COLORS=
+2CIENVVAR      REMOTE_CONTAINERS=true
+2CIENVVAR      ACTUAL_TOPDIR=/openj9-openjdk-jdk.valuetypes
+2CIENVVAR      ac_cv_prog_CXX=/usr/bin/g++-7
+2CIENVVAR      GIT_ASKPASS=/root/.vscode-server/bin/e7e037083ff4455cf320e344325dacb480062c3c/extensions/git/dist/askpass.sh
+2CIENVVAR      https_proxy=http://s21008:10StevenGerrard07@gateway.iitmandi.ac.in:8080
+2CIENVVAR      MAKE_LOG_FLAGS=-s
+2CIENVVAR      HAS_SPEC=true
+2CIENVVAR      ac_cv_prog_CC=/usr/bin/gcc-7
+2CIENVVAR      INIT_TARGETS=
+2CIENVVAR      MFLAGS=-rRs -I/openj9-openjdk-jdk.valuetypes/make/common -I/openj9-openjdk-jdk.valuetypes/make/common -j15 --jobserver-auth=3,4
+2CIENVVAR      VSCODE_GIT_ASKPASS_EXTRA_ARGS=
+2CIENVVAR      LOG_CMDLINES=
+2CIENVVAR      SPEC=/openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/spec.gmk
+2CIENVVAR      MAKEFLAGS=rRs -I/openj9-openjdk-jdk.valuetypes/make/common -I/openj9-openjdk-jdk.valuetypes/make/common -j15 --jobserver-auth=3,4 -- MODULE=java.base SPEC=/openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/spec.gmk MAKE_LOG_FLAGS=-s LOG_LEVEL=warn LOG_NOFILE= LOG_CMDLINES= LOG_REPORT= LOG_PROFILE_TIMES_LOG= LOG_PROFILE_TIMES_FILE= EXTRA_CMAKE_ARGS=-DOMR_SEPARATE_DEBUG_INFO=OFF
+2CIENVVAR      TERM=xterm-256color
+2CIENVVAR      SEQUENTIAL_TARGETS=
+2CIENVVAR      REMOTE_CONTAINERS_SOCKETS=["/tmp/vscode-ssh-auth-7fcd463c-daec-4a63-98cd-f545cb7af0dc.sock","/tmp/.X11-unix/X94","/root/.gnupg/S.gpg-agent"]
+2CIENVVAR      NO_PROXY=*.test.example.com,.example2.com,127.0.0.0/8
+2CIENVVAR      MAKE_TERMERR=/dev/pts/7
+2CIENVVAR      VSCODE_GIT_IPC_HANDLE=/tmp/vscode-git-c3d3440a97.sock
+2CIENVVAR      DISPLAY=:94
+2CIENVVAR      SHLVL=4
+2CIENVVAR      MAKELEVEL=4
+2CIENVVAR      HTTPS_PROXY=http://gateway.iitmandi.ac.in:8080
+2CIENVVAR      HTTP_PROXY=http://gateway.iitmandi.ac.in:8080
+2CIENVVAR      http_proxy=http://s21008:10StevenGerrard07@gateway.iitmandi.ac.in:8080
+2CIENVVAR      CLASSPATH=
+2CIENVVAR      LC_ALL=C
+2CIENVVAR      VSCODE_GIT_ASKPASS_MAIN=/root/.vscode-server/bin/e7e037083ff4455cf320e344325dacb480062c3c/extensions/git/dist/askpass-main.js
+2CIENVVAR      BROWSER=/root/.vscode-server/bin/e7e037083ff4455cf320e344325dacb480062c3c/bin/helpers/browser.sh
+2CIENVVAR      PATH=/root/.vscode-server/bin/e7e037083ff4455cf320e344325dacb480062c3c/bin/remote-cli:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+2CIENVVAR      CC=/usr/bin/gcc-7
+2CIENVVAR      LOG_NOFILE=
+2CIENVVAR      REMOTE_CONTAINERS_DISPLAY_SOCK=/tmp/.X11-unix/X94
+2CIENVVAR      OLDPWD=/openj9-openjdk-jdk.valuetypes
+2CIENVVAR      TERM_PROGRAM=vscode
+2CIENVVAR      VSCODE_IPC_HOOK_CLI=/tmp/vscode-ipc-bc05c51a-9b17-4b36-b040-0ca82a84efd4.sock
+2CIENVVAR      _=/openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk/bin/jmod
+2CIENVVAR      OPENJ9_JAVA_COMMAND_LINE=/openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk/bin/jmod create --module-version 21-internal --target-platform linux-amd64 --module-path /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/images/jmods --libs /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_libs/java.base --cmds /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_cmds/java.base --config /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_conf/java.base --class-path /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/jdk/modules/java.base --header-files /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_include/java.base --man-pages /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_man/java.base --legal-notices /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_legal/common:/openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/modules_legal/java.base --module-path /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/images/jmods --hash-modules ^(?!java.compiler$) --exclude **{_the.*,_*.marker*,*.diz,*.debuginfo,*.dSYM/**,*.dSYM} --compress zip-6 --date 2023-09-21T08:35:55Z /openj9-openjdk-jdk.valuetypes/build/linux-x86_64-server-release/support/images/jmods/java.base.jmod
+NULL
+1CISYSINFO     System Information
+NULL           ------------------------------------------------------------------------
+2CISYSINFO     /proc/sys/kernel/core_pattern = |/usr/share/apport/apport -p%p -s%s -c%c -d%d -P%P -u%u -g%g -- %E
+2CISYSINFO     /proc/sys/kernel/core_uses_pid = 0
+NULL
+1CICPUINFO     CPU Information
+NULL           ------------------------------------------------------------------------
+2CIPHYSCPU     Physical CPUs: 20
+2CIONLNCPU     Online CPUs: 20
+2CIBOUNDCPU    Bound CPUs: 20
+2CIACTIVECPU   Active CPUs: 0
+2CITARGETCPU   Target CPUs: 20
+2CIJITFEATURE  CPU features (JIT): fpu cx8 cmov mmx sse sse2 sse3 ssse3 fma sse4_1 sse4_2 popcnt aesni osxsave avx fdp_excptn_only
+2CIAOTFEATURE  CPU features (AOT): fpu cx8 cmov mmx sse sse2 sse3 ssse3 sse4_1 popcnt aesni avx
+NULL
+1CICGRPINFO    Cgroup Information
+NULL           ------------------------------------------------------------------------
+2CICGRPINFO    subsystem : memory
+2CICGRPINFO    cgroup name : /
+3CICGRPINFO        Memory Limit : Not Set
+3CICGRPINFO        Memory + Swap Limit : Not Set
+3CICGRPINFO        Memory Usage : 11755356160 bytes
+3CICGRPINFO        Memory + Swap Usage : 13274165248 bytes
+3CICGRPINFO        Memory Max Usage : 13656399872 bytes
+3CICGRPINFO        Memory + Swap Max Usage : 15176642560 bytes
+3CICGRPINFO        Memory limit exceeded count : 0
+3CICGRPINFO        Memory + Swap limit exceeded count : 0
+3CICGRPINFO        OOM Killer Disabled : 0
+3CICGRPINFO        Under OOM : 0
+2CICGRPINFO    subsystem : cpu
+2CICGRPINFO    cgroup name : /
+3CICGRPINFO        CPU Period : 100000 microseconds
+3CICGRPINFO        CPU Quota : Not Set
+3CICGRPINFO        CPU Shares : 1024
+3CICGRPINFO        Period intervals elapsed count : 0
+3CICGRPINFO        Throttled count : 0
+3CICGRPINFO        Total throttle time : 0 nanoseconds
+2CICGRPINFO    subsystem : cpuset
+2CICGRPINFO    cgroup name : /
+3CICGRPINFO        CPU exclusive : 0
+3CICGRPINFO        Mem exclusive : 0
+3CICGRPINFO        CPUs : 0-19
+3CICGRPINFO        Mems : 0
+NULL
+NULL           ------------------------------------------------------------------------
+0SECTION       NATIVEMEMINFO subcomponent dump routine
+NULL           =================================
+0MEMUSER
+1MEMUSER       JRE: 4,702,862,456 bytes / 1941 allocations
+1MEMUSER       |
+2MEMUSER       +--VM: 4,414,403,280 bytes / 1830 allocations
+2MEMUSER       |  |
+3MEMUSER       |  +--Classes: 2,781,600 bytes / 86 allocations
+2MEMUSER       |  |
+3MEMUSER       |  +--Modules: 5,200 bytes / 7 allocations
+2MEMUSER       |  |
+3MEMUSER       |  +--Memory Manager (GC): 4,191,741,840 bytes / 642 allocations
+3MEMUSER       |  |  |
+4MEMUSER       |  |  +--Java Heap: 4,109,561,856 bytes / 1 allocation
+3MEMUSER       |  |  |
+4MEMUSER       |  |  +--Other: 82,179,984 bytes / 641 allocations
+2MEMUSER       |  |
+3MEMUSER       |  +--Threads: 9,542,480 bytes / 121 allocations
+3MEMUSER       |  |  |
+4MEMUSER       |  |  +--Java Stack: 135,960 bytes / 11 allocations
+3MEMUSER       |  |  |
+4MEMUSER       |  |  +--Native Stack: 9,306,112 bytes / 11 allocations
+3MEMUSER       |  |  |
+4MEMUSER       |  |  +--Other: 100,408 bytes / 99 allocations
+2MEMUSER       |  |
+3MEMUSER       |  +--Trace: 121,288 bytes / 249 allocations
+2MEMUSER       |  |
+3MEMUSER       |  +--JVMTI: 22,160 bytes / 16 allocations
+2MEMUSER       |  |
+3MEMUSER       |  +--JNI: 15,664 bytes / 14 allocations
+2MEMUSER       |  |
+3MEMUSER       |  +--Port Library: 208,988,936 bytes / 79 allocations
+3MEMUSER       |  |  |
+4MEMUSER       |  |  +--Unused <32bit allocation regions: 208,976,632 bytes / 1 allocation
+3MEMUSER       |  |  |
+4MEMUSER       |  |  +--Other: 12,304 bytes / 78 allocations
+2MEMUSER       |  |
+3MEMUSER       |  +--Other: 1,184,112 bytes / 616 allocations
+1MEMUSER       |
+2MEMUSER       +--JIT: 288,449,048 bytes / 101 allocations
+2MEMUSER       |  |
+3MEMUSER       |  +--JIT Code Cache: 268,435,456 bytes / 1 allocation
+2MEMUSER       |  |
+3MEMUSER       |  +--JIT Data Cache: 2,097,216 bytes / 1 allocation
+2MEMUSER       |  |
+3MEMUSER       |  +--Other: 17,916,376 bytes / 99 allocations
+1MEMUSER       |
+2MEMUSER       +--Class Libraries: 10,128 bytes / 10 allocations
+2MEMUSER       |  |
+3MEMUSER       |  +--VM Class Libraries: 10,128 bytes / 10 allocations
+NULL
+NULL           ------------------------------------------------------------------------
+0SECTION       MEMINFO subcomponent dump routine
+NULL           =================================
+NULL
+1STHEAPTYPE    Object Memory
+NULL           id                 start              end                size               space/region
+1STHEAPSPACE   0x00007F15980E4EF0         --                 --                 --         Generational
+1STHEAPREGION  0x00007F15980E7060 0x000000070B0E0000 0x000000070B6E0000 0x0000000000600000 Generational/Tenured Region
+1STHEAPREGION  0x00007F15980E6010 0x00000007FFE00000 0x00000007FFF00000 0x0000000000100000 Generational/Nursery Region
+1STHEAPREGION  0x00007F15980E4FC0 0x00000007FFF00000 0x0000000800000000 0x0000000000100000 Generational/Nursery Region
+NULL
+1STHEAPTOTAL   Total memory:                     8388608 (0x0000000000800000)
+1STHEAPINUSE   Total memory in use:              1096304 (0x000000000010BA70)
+1STHEAPFREE    Total memory free:                7292304 (0x00000000006F4590)
+NULL
+1STSEGTYPE     Internal Memory
+NULL           segment            start              alloc              end                type       size
+1STSEGMENT     0x00007F15980AC8C0 0x00007F1580D0F000 0x00007F1580D0F000 0x00007F1581D0F000 0x01000440 0x0000000001000000
+1STSEGMENT     0x00007F15980AC7F8 0x00007F1591E10030 0x00007F1591E93290 0x00007F1591F10030 0x00800040 0x0000000000100000
+NULL
+1STSEGTOTAL    Total memory:                    17825792 (0x0000000001100000)
+1STSEGINUSE    Total memory in use:               537184 (0x0000000000083260)
+1STSEGFREE     Total memory free:               17288608 (0x000000000107CDA0)
+NULL
+1STSEGTYPE     Class Memory
+NULL           segment            start              alloc              end                type       size
+1STSEGMENT     0x00007F159814F580 0x00000000000BC8A0 0x00000000000C48A0 0x00000000000C48A0 0x00010040 0x0000000000008000
+1STSEGMENT     0x00007F159814F4B8 0x00007F15982534E0 0x00007F159826A3E8 0x00007F15982734E0 0x00020040 0x0000000000020000
+1STSEGMENT     0x00007F159814F3F0 0x00000000000B4850 0x00000000000BC850 0x00000000000BC850 0x00010040 0x0000000000008000
+1STSEGMENT     0x00007F159814F328 0x00000000000AC800 0x00000000000B4800 0x00000000000B4800 0x00010040 0x0000000000008000
+1STSEGMENT     0x00007F159814F260 0x00007F1598233490 0x00007F1598252F18 0x00007F1598253490 0x00020040 0x0000000000020000
+1STSEGMENT     0x00007F159814F198 0x00000000000A47B0 0x00000000000AC7B0 0x00000000000AC7B0 0x00010040 0x0000000000008000
+1STSEGMENT     0x00007F159814A3E0 0x00007F1598213440 0x00007F159822E460 0x00007F1598233440 0x00020040 0x0000000000020000
+1STSEGMENT     0x00007F159814A318 0x000000000009C760 0x00000000000A4760 0x00000000000A4760 0x00010040 0x0000000000008000
+1STSEGMENT     0x00007F159814A250 0x0000000000094710 0x000000000009C710 0x000000000009C710 0x00010040 0x0000000000008000
+1STSEGMENT     0x00007F159814A188 0x00007F15981F33F0 0x00007F1598212E80 0x00007F15982133F0 0x00020040 0x0000000000020000
+1STSEGMENT     0x00007F159814A0C0 0x000000000008C6C0 0x00000000000946C0 0x00000000000946C0 0x00010040 0x0000000000008000
+1STSEGMENT     0x00007F1598149FF8 0x0000000000084670 0x000000000008C670 0x000000000008C670 0x00010040 0x0000000000008000
+1STSEGMENT     0x00007F1598149F30 0x00007F15981D33A0 0x00007F15981F16F0 0x00007F15981F33A0 0x00020040 0x0000000000020000
+1STSEGMENT     0x00007F1598149E68 0x000000000007C620 0x0000000000084620 0x0000000000084620 0x00010040 0x0000000000008000
+1STSEGMENT     0x00007F1598149DA0 0x00000000000745D0 0x000000000007C5D0 0x000000000007C5D0 0x00010040 0x0000000000008000
+1STSEGMENT     0x00007F1598149CD8 0x00007F15981B3350 0x00007F15981D2D98 0x00007F15981D3350 0x00020040 0x0000000000020000
+1STSEGMENT     0x00007F15980AD900 0x000000000006C580 0x0000000000074580 0x0000000000074580 0x00010040 0x0000000000008000
+1STSEGMENT     0x00007F15980AD838 0x0000000000064530 0x000000000006C530 0x000000000006C530 0x00010040 0x0000000000008000
+1STSEGMENT     0x00007F15980AD770 0x00007F1598193300 0x00007F15981B2C78 0x00007F15981B3300 0x00020040 0x0000000000020000
+1STSEGMENT     0x00007F15980AD6A8 0x000000000005C4E0 0x00000000000644E0 0x00000000000644E0 0x00010040 0x0000000000008000
+1STSEGMENT     0x00007F15980AD5E0 0x00007F15981732B0 0x00007F1598192A40 0x00007F15981932B0 0x00020040 0x0000000000020000
+1STSEGMENT     0x00007F15980AD518 0x00007F159D1E6B30 0x00007F159D1E7218 0x00007F159D1E7218 0x04020104 0x0000000000000718
+1STSEGMENT     0x00007F15980AD450 0x00007F159D1E7250 0x00007F159D1E78C0 0x00007F159D1E78C0 0x04200104 0x00000000000006A0
+1STSEGMENT     0x00007F15980AD388 0x0000000000054490 0x000000000005C490 0x000000000005C490 0x00010040 0x0000000000008000
+1STSEGMENT     0x00007F15980AD2C0 0x000000000004C440 0x0000000000054440 0x0000000000054440 0x00010040 0x0000000000008000
+1STSEGMENT     0x00007F15980AD1F8 0x00007F15804D1030 0x00007F15804EF778 0x00007F15804F1030 0x00020040 0x0000000000020000
+NULL
+1STSEGTOTAL    Total memory:                     1674680 (0x0000000000198DB8)
+1STSEGINUSE    Total memory in use:              1595264 (0x0000000000185780)
+1STSEGFREE     Total memory free:                  79416 (0x0000000000013638)
+NULL
+1STSEGTYPE     JIT Code Cache
+NULL           segment            start              alloc              end                type       size
+1STSEGMENT     0x00007F159811E318 0x00007F1581E10000 0x00007F1581E11120 0x00007F1591E10000 0x00000068 0x0000000010000000
+NULL
+1STSEGTOTAL    Total memory:                   268435456 (0x0000000010000000)
+1STSEGINUSE    Total memory in use:                 4384 (0x0000000000001120)
+1STSEGFREE     Total memory free:              268431072 (0x000000000FFFEEE0)
+1STSEGLIMIT    Allocation limit:               268435456 (0x0000000010000000)
+NULL
+1STSEGTYPE     JIT Data Cache
+NULL           segment            start              alloc              end                type       size
+1STSEGMENT     0x00007F159811E608 0x00007F158028F030 0x00007F158048F030 0x00007F158048F030 0x00000048 0x0000000000200000
+NULL
+1STSEGTOTAL    Total memory:                     2097152 (0x0000000000200000)
+1STSEGINUSE    Total memory in use:              2097152 (0x0000000000200000)
+1STSEGFREE     Total memory free:                      0 (0x0000000000000000)
+1STSEGLIMIT    Allocation limit:               402653184 (0x0000000018000000)
+NULL
+1STGCHTYPE     GC History
+NULL
+NULL           ------------------------------------------------------------------------

@@ -1,0 +1,90 @@
+<?xml version="1.0" standalone="no"?>
+<jitDump>
+<ilOfCrashedThread>
+
+        +------------- Byte Code Index
+        |  +-------------------- OpCode
+        |  |                        +------------- First Field
+        |  |                        |     +------------- Branch Target
+        |  |                        |     |      +------- Const Pool Index
+        |  |                        |     |      |    +------------- Constant
+        |  |                        |     |      |    |
+        V  V                        V     V      V    V
+
+        0, JBaconstnull         
+        1, JBlconst0            
+        2, JBiconst3            
+
+<trees
+	title="Trees"
+	method="java/lang/System.getSysPropBeforePropertiesInitialized(I)Ljava/lang/String;"
+	hotness="cold">
+
+Trees: for java/lang/System.getSysPropBeforePropertiesInitialized(I)Ljava/lang/String;
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+n1n       BBStart <block_2>                                                                   [0x7fed72204540] bci=[-1,0,-] rc=0 vc=0 vn=- li=- udi=- nc=0
+n5n       treetop                                                                             [0x7fed72204680] bci=[-1,0,-] rc=0 vc=0 vn=- li=- udi=- nc=1
+n4n         acall  java/lang/System.getSysPropBeforePropertiesInitialized(I)Ljava/lang/String;[#419  final native static Method] [flags 0x20500 0x0 ]  [0x7fed72204630] bci=[-1,0,-] rc=1 vc=0 vn=- li=- udi=- nc=1
+n3n           iload  <parm 0 I>[#417  Parm] [flags 0x40000103 0x0 ]                           [0x7fed722045e0] bci=[-1,0,-] rc=1 vc=0 vn=- li=- udi=- nc=0
+n2n       BBEnd </block_2>                                                                    [0x7fed72204590] bci=[-1,0,-] rc=0 vc=0 vn=- li=- udi=- nc=0
+
+index:       node global index
+bci=[x,y,z]: byte-code-info [callee-index, bytecode-index, line-number]
+rc:          reference count
+vc:          visit count
+vn:          value number
+li:          local index
+udi:         use/def index
+nc:          number of children
+addr:        address size in bytes
+flg:         node flags
+
+Symbol References (incremental):
+--------------------------------
+#417:  <parm 0 I>[ Parm] [flags 0x40000103 0x0 ] [0x7fed722056f0] (Int32)
+#418:  <parm 0 I>[ Parm] [flags 0x103 0x0 ] [0x7fed72250300] (Int32)
+#419:  java/lang/System.getSysPropBeforePropertiesInitialized(I)Ljava/lang/String;[ final native static Method] [flags 0x20500 0x0 ] [0x7fed72250170] (NoType)
+
+Number of nodes = 5, symRefCount = 420
+</trees>
+
+<cfg>
+         0 [0x7fed72222230] entry
+                 in        = []
+                 out       = [2(0) ]
+                 exception in  = []
+                 exception out = []
+         1 [0x7fed72222140] exit
+                 in        = [2(0) ]
+                 out       = []
+                 exception in  = []
+                 exception out = []
+         2 [0x7fed72250040] BBStart at 0x7fed72204540
+                 in        = [0(0) ]
+                 out       = [1(0) ]
+                 exception in  = []
+                 exception out = []
+
+</cfg>
+<knownObjectTable size="1"> // 00007FED7220B8B0
+  id       JNI Ref            Address          Hash       Class
+  obj0                        NULL
+</knownObjectTable>
+<knownObjectGraph>
+</knownObjectGraph>
+</ilOfCrashedThread>
+<recompilation>
+<compile
+	method="java/lang/System.getSysPropBeforePropertiesInitialized(I)Ljava/lang/String;"
+	hotness="cold"
+	isProfilingCompile=0>
+</compile>
+
+
+=======>java/lang/System.getSysPropBeforePropertiesInitialized(I)Ljava/lang/String;
+<ilgen
+	method="java/lang/System.getSysPropBeforePropertiesInitialized(I)Ljava/lang/String;">
+   <request> {JitDumpMethod(<NULL>)} </request>
+</recompilation rc=0 queued=1>
+</jitDump>
