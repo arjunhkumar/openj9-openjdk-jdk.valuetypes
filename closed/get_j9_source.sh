@@ -57,7 +57,7 @@ declare -A shas
 declare -A references
 
 git_urls[openj9]=git@github.com:arjunhkumar/OpenJ9.git
-branches[openj9]=devbranch-merged
+branches[openj9]=devbranch-merged-profiling
 
 git_urls[omr]=git@github.com:arjunhkumar/omr.git
 branches[omr]=devbranch-merged
