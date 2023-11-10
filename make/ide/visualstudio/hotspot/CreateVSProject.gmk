@@ -90,7 +90,7 @@ ifeq ($(call isTargetOs, windows), true)
       DISABLED_WARNINGS := auxiliaryclass deprecation rawtypes unchecked cast options, \
       SRC := $(TOPDIR)/make/ide/visualstudio/hotspot/src/classes, \
       BIN := $(TOOLS_OUTPUTDIR), \
-      JAVAC_FLAGS := -XDstringConcat=inline, \
+      JAVAC_FLAGS := -XDstringConcat=inline \
   ))
 
   TARGETS += $(BUILD_PROJECT_CREATOR)

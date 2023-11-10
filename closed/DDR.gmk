@@ -71,7 +71,7 @@ $(eval $(call SetupJavaCompilation,BUILD_DDR_TOOLS, \
 	TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
 	BIN := $(DDR_TOOLS_BIN), \
 	CLASSPATH := $(JDK_OUTPUTDIR)/modules/java.base, \
-	JAVAC_FLAGS := --add-exports=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED, \
+	JAVAC_FLAGS := --add-exports=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED,-XDenablePrimitiveClasses \
 	SRC := $(DDR_VM_SRC_ROOT), \
 	INCLUDE_FILES := \
 		com/ibm/j9ddr/BytecodeGenerator.java \
@@ -165,7 +165,7 @@ ifneq (,$(wildcard $(DDR_GENSRC_DIR)))
 # as they would be dynamically generated from the blob.
 $(eval $(call SetupJavaCompilation,BUILD_J9DDR_TEST_CLASSES, \
 	DEPENDS := $(DDR_CLASSES_MARKER), \
-	JAVAC_FLAGS := \
+	JAVAC_FLAGS := -XDenablePrimitiveClasses\
 		--patch-module openj9.dtfj=$(DDR_CLASSES_BIN) \
 		--upgrade-module-path $(JDK_OUTPUTDIR)/modules \
 		--system none, \

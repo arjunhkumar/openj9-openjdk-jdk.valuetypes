@@ -91,7 +91,7 @@ public interface PrimitiveIterator<T, T_CONS> extends Iterator<T> {
      * An Iterator specialized for {@code int} values.
      * @since 1.8
      */
-    public static interface OfInt extends PrimitiveIterator<Integer, IntConsumer> {
+    public static interface OfInt extends PrimitiveIterator<Integer.ref, IntConsumer> {
 
         /**
          * Returns the next {@code int} element in the iteration.
@@ -139,7 +139,7 @@ public interface PrimitiveIterator<T, T_CONS> extends Iterator<T> {
          * and then passed to {@link #forEachRemaining}.
          */
         @Override
-        default void forEachRemaining(Consumer<? super Integer> action) {
+        default void forEachRemaining(Consumer<? super Integer.ref> action) {
             if (action instanceof IntConsumer) {
                 forEachRemaining((IntConsumer) action);
             }

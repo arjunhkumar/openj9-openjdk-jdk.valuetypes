@@ -77,7 +77,7 @@ $(eval $(call SetupJavaCompilation, COMPILE_DEPEND, \
     INCLUDES := build/tools/depend, \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/depend, \
     DISABLED_WARNINGS := options, \
-    JAVAC_FLAGS := \
+    JAVAC_FLAGS := -XDenablePrimitiveClasses\
         --add-exports jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED \
         --add-exports jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED \
         --add-exports jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED \

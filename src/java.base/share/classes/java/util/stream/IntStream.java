@@ -70,7 +70,7 @@ import java.util.function.Supplier;
  * @see Stream
  * @see <a href="package-summary.html">java.util.stream</a>
  */
-public interface IntStream extends BaseStream<Integer, IntStream> {
+public interface IntStream extends BaseStream<Integer.ref, IntStream> {
 
     /**
      * Returns a stream consisting of the elements of this stream that match
@@ -864,7 +864,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      * @return a {@code Stream} consistent of the elements of this stream,
      * each boxed to an {@code Integer}
      */
-    Stream<Integer> boxed();
+    Stream<Integer.ref> boxed();
 
     @Override
     IntStream sequential();

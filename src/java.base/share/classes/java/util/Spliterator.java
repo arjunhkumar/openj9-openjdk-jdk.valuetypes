@@ -659,7 +659,7 @@ public interface Spliterator<T> {
      * A Spliterator specialized for {@code int} values.
      * @since 1.8
      */
-    public interface OfInt extends OfPrimitive<Integer, IntConsumer, OfInt> {
+    public interface OfInt extends OfPrimitive<Integer.ref, IntConsumer, OfInt> {
 
         @Override
         OfInt trySplit();
@@ -683,7 +683,7 @@ public interface Spliterator<T> {
          * {@link #tryAdvance(java.util.function.IntConsumer)}.
          */
         @Override
-        default boolean tryAdvance(Consumer<? super Integer> action) {
+        default boolean tryAdvance(Consumer<? super Integer.ref> action) {
             if (action instanceof IntConsumer) {
                 return tryAdvance((IntConsumer) action);
             }
@@ -706,7 +706,7 @@ public interface Spliterator<T> {
          * {@link #forEachRemaining(java.util.function.IntConsumer)}.
          */
         @Override
-        default void forEachRemaining(Consumer<? super Integer> action) {
+        default void forEachRemaining(Consumer<? super Integer.ref> action) {
             if (action instanceof IntConsumer) {
                 forEachRemaining((IntConsumer) action);
             }

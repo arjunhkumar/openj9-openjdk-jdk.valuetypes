@@ -70,8 +70,8 @@ import static java.lang.String.UTF16;
  * @since 1.0
  */
 @jdk.internal.ValueBased
-public final class Integer extends Number
-        implements Comparable<Integer>, Constable, ConstantDesc {
+public primitive class Integer extends Number
+        implements Comparable<Integer.ref>, Constable, ConstantDesc {
     /**
      * A constant holding the minimum value an {@code int} can
      * have, -2<sup>31</sup>.
@@ -91,7 +91,7 @@ public final class Integer extends Number
      * @since   1.1
      */
     @SuppressWarnings("unchecked")
-    public static final Class<Integer>  TYPE = (Class<Integer>) Class.getPrimitiveClass("int");
+    public static final Class<Integer.ref>  TYPE = (Class<Integer>) Class.getPrimitiveClass("int");
 
     /**
      * All possible chars for representing a number as a String
@@ -2072,7 +2072,7 @@ public final class Integer extends Number
      * @since 12
      */
     @Override
-    public Optional<Integer> describeConstable() {
+    public Optional<Integer.ref> describeConstable() {
         return Optional.of(this);
     }
 
