@@ -219,7 +219,7 @@ public final class SharedUtils {
         throw new IllegalArgumentException("String too large");
     }
 
-    static Map<VMStorage, Integer> indexMap(Binding.Move[] moves) {
+    static Map<VMStorage, Integer.ref> indexMap(Binding.Move[] moves) {
         return IntStream.range(0, moves.length)
                         .boxed()
                         .collect(Collectors.toMap(i -> moves[i].storage(), i -> i));

@@ -325,7 +325,7 @@ public class DatagramSocketAdaptor
         }
     }
 
-    private void setIntOption(SocketOption<Integer> name, int value)
+    private void setIntOption(SocketOption<Integer.ref> name, int value)
         throws SocketException
     {
         try {
@@ -344,7 +344,7 @@ public class DatagramSocketAdaptor
         }
     }
 
-    private int getIntOption(SocketOption<Integer> name) throws SocketException {
+    private int getIntOption(SocketOption<Integer.ref> name) throws SocketException {
         try {
             return dc.getOption(name).intValue();
         } catch (IOException x) {

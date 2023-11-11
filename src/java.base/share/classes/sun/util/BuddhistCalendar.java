@@ -195,7 +195,7 @@ public class BuddhistCalendar extends GregorianCalendar {
     }
 
     @Override
-    public Map<String,Integer> getDisplayNames(int field, int style, Locale locale) {
+    public Map<String,Integer.ref> getDisplayNames(int field, int style, Locale locale) {
         if (field != ERA) {
             return super.getDisplayNames(field, style, locale);
         }

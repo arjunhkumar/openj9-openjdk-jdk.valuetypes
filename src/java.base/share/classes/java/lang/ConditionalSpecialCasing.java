@@ -89,7 +89,7 @@ final class ConditionalSpecialCasing {
     };
 
     // A hash table that contains the above entries
-    private static final HashMap<Integer, HashSet<Entry>> entryTable = new HashMap<>();
+    private static final HashMap<Integer.ref, HashSet<Entry>> entryTable = new HashMap<>();
     static {
         // create hashtable from the entry
         for (Entry cur : entry) {

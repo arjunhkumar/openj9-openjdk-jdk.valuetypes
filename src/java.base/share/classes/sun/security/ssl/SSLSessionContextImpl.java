@@ -76,7 +76,7 @@ final class SSLSessionContextImpl implements SSLSessionContext {
     // The current session ticket encryption key ID (only used in server context)
     private int currentKeyID;
     // Session ticket encryption keys and IDs map (only used in server context)
-    private final Map<Integer, SessionTicketExtension.StatelessKey> keyHashMap;
+    private final Map<Integer.ref, SessionTicketExtension.StatelessKey> keyHashMap;
 
     // Default setting for stateless session resumption support (RFC 5077)
     private boolean statelessSession = true;

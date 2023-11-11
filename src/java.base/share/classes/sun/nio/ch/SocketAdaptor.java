@@ -205,7 +205,7 @@ class SocketAdaptor
         }
     }
 
-    private void setIntOption(SocketOption<Integer> name, int value)
+    private void setIntOption(SocketOption<Integer.ref> name, int value)
         throws SocketException
     {
         try {
@@ -224,7 +224,7 @@ class SocketAdaptor
         }
     }
 
-    private int getIntOption(SocketOption<Integer> name) throws SocketException {
+    private int getIntOption(SocketOption<Integer.ref> name) throws SocketException {
         try {
             return sc.getOption(name).intValue();
         } catch (IOException x) {

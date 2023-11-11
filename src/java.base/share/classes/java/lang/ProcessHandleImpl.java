@@ -107,7 +107,7 @@ final class ProcessHandleImpl implements ProcessHandle {
                 return Executors.newCachedThreadPool(threadFactory);
             });
 
-    private static class ExitCompletion extends CompletableFuture<Integer> {
+    private static class ExitCompletion extends CompletableFuture<Integer.ref> {
         final boolean isReaping;
 
         ExitCompletion(boolean isReaping) {
@@ -137,7 +137,7 @@ final class ProcessHandleImpl implements ProcessHandle {
      *
      * @param shouldReap true if the exit value should be reaped
      */
-    static CompletableFuture<Integer> completion(long pid, boolean shouldReap) {
+    static CompletableFuture<Integer.ref> completion(long pid, boolean shouldReap) {
         // check canonicalizing cache 1st
         ExitCompletion completion = completions.get(pid);
         // re-try until we get a completion that shouldReap => isReaping

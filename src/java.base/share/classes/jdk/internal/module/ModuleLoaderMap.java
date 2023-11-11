@@ -58,7 +58,7 @@ public final class ModuleLoaderMap {
          * Map from module to a class loader index. The index is resolved to the
          * actual class loader in {@code apply}.
          */
-        private final Map<String, Integer> map;
+        private final Map<String, Integer.ref> map;
 
         /**
          * Creates a Mapper to map module names in the given Configuration to

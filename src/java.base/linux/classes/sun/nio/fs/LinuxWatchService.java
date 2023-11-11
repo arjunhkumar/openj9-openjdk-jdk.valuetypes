@@ -179,7 +179,7 @@ class LinuxWatchService
         // socketpair used to shutdown polling thread
         private final int socketpair[];
         // maps watch descriptor to Key
-        private final Map<Integer,LinuxWatchKey> wdToKey;
+        private final Map<Integer.ref,LinuxWatchKey> wdToKey;
         // address of read buffer
         private final long address;
 

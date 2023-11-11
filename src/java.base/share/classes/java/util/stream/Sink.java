@@ -186,7 +186,7 @@ interface Sink<T> extends Consumer<T> {
      * {@code accept(int)}, and wires {@code accept(Integer)} to bridge to
      * {@code accept(int)}.
      */
-    interface OfInt extends Sink<Integer>, IntConsumer {
+    interface OfInt extends Sink<Integer.ref>, IntConsumer {
         @Override
         void accept(int value);
 

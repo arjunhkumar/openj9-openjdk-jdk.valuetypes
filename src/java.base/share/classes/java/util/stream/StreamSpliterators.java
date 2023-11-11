@@ -317,23 +317,23 @@ class StreamSpliterators {
     }
 
     static final class IntWrappingSpliterator<P_IN>
-            extends AbstractWrappingSpliterator<P_IN, Integer, SpinedBuffer.OfInt>
+            extends AbstractWrappingSpliterator<P_IN, Integer.ref, SpinedBuffer.OfInt>
             implements Spliterator.OfInt {
 
-        IntWrappingSpliterator(PipelineHelper<Integer> ph,
+        IntWrappingSpliterator(PipelineHelper<Integer.ref> ph,
                                Supplier<Spliterator<P_IN>> supplier,
                                boolean parallel) {
             super(ph, supplier, parallel);
         }
 
-        IntWrappingSpliterator(PipelineHelper<Integer> ph,
+        IntWrappingSpliterator(PipelineHelper<Integer.ref> ph,
                                Spliterator<P_IN> spliterator,
                                boolean parallel) {
             super(ph, spliterator, parallel);
         }
 
         @Override
-        AbstractWrappingSpliterator<P_IN, Integer, ?> wrap(Spliterator<P_IN> s) {
+        AbstractWrappingSpliterator<P_IN, Integer.ref, ?> wrap(Spliterator<P_IN> s) {
             return new IntWrappingSpliterator<>(ph, s, isParallel);
         }
 
@@ -573,7 +573,7 @@ class StreamSpliterators {
         }
 
         static final class OfInt
-                extends OfPrimitive<Integer, IntConsumer, Spliterator.OfInt>
+                extends OfPrimitive<Integer.ref, IntConsumer, Spliterator.OfInt>
                 implements Spliterator.OfInt {
 
             OfInt(Supplier<Spliterator.OfInt> supplier) {
@@ -815,7 +815,7 @@ class StreamSpliterators {
             protected abstract T_CONS emptyConsumer();
         }
 
-        static final class OfInt extends OfPrimitive<Integer, Spliterator.OfInt, IntConsumer>
+        static final class OfInt extends OfPrimitive<Integer.ref, Spliterator.OfInt, IntConsumer>
                 implements Spliterator.OfInt {
             OfInt(Spliterator.OfInt s, long sliceOrigin, long sliceFence) {
                 super(s, sliceOrigin, sliceFence);
@@ -1129,7 +1129,7 @@ class StreamSpliterators {
         }
 
         static final class OfInt
-                extends OfPrimitive<Integer, IntConsumer, ArrayBuffer.OfInt, Spliterator.OfInt>
+                extends OfPrimitive<Integer.ref, IntConsumer, ArrayBuffer.OfInt, Spliterator.OfInt>
                 implements Spliterator.OfInt, IntConsumer {
 
             int tmpValue;
@@ -1367,7 +1367,7 @@ class StreamSpliterators {
             }
         }
 
-        static final class OfInt extends InfiniteSupplyingSpliterator<Integer>
+        static final class OfInt extends InfiniteSupplyingSpliterator<Integer.ref>
                 implements Spliterator.OfInt {
             final IntSupplier s;
 

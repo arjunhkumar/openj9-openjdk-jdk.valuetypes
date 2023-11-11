@@ -81,7 +81,7 @@ final class ForEachOps {
      * @param ordered whether an ordered traversal is requested
      * @return the {@code TerminalOp} instance
      */
-    public static TerminalOp<Integer, Void> makeInt(IntConsumer action,
+    public static TerminalOp<Integer.ref, Void> makeInt(IntConsumer action,
                                                     boolean ordered) {
         Objects.requireNonNull(action);
         return new ForEachOp.OfInt(action, ordered);
@@ -185,7 +185,7 @@ final class ForEachOps {
         }
 
         /** Implementation class for {@code IntStream} */
-        static final class OfInt extends ForEachOp<Integer>
+        static final class OfInt extends ForEachOp<Integer.ref>
                 implements Sink.OfInt {
             final IntConsumer consumer;
 

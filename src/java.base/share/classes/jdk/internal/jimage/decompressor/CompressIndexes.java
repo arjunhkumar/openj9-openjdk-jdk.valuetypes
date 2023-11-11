@@ -46,7 +46,7 @@ public class CompressIndexes {
     private static final int HEADER_WIDTH = 3;
     private static final int HEADER_SHIFT = Byte.SIZE - HEADER_WIDTH;
 
-    public static List<Integer> decompressFlow(byte[] values) {
+    public static List<Integer.ref> decompressFlow(byte[] values) {
         List<Integer> lst = new ArrayList<>();
 
         for (int i = 0; i < values.length; i += getHeaderLength(values[i])) {

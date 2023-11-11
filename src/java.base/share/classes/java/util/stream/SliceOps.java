@@ -223,7 +223,7 @@ final class SliceOps {
      * @param limit The maximum size of the resulting stream, or -1 if no limit
      *        is to be imposed
      */
-    public static IntStream makeInt(AbstractPipeline<?, Integer, ?> upstream,
+    public static IntStream makeInt(AbstractPipeline<?, Integer.ref, ?> upstream,
                                     long skip, long limit) {
         if (skip < 0)
             throw new IllegalArgumentException("Skip must be non-negative: " + skip);

@@ -51,10 +51,10 @@ public final class ParameterCache {
     }
 
     // cache of DSA parameters
-    private static final Map<Integer,DSAParameterSpec> dsaCache;
+    private static final Map<Integer.ref,DSAParameterSpec> dsaCache;
 
     // cache of DH parameters
-    private static final Map<Integer,DHParameterSpec> dhCache;
+    private static final Map<Integer.ref,DHParameterSpec> dhCache;
 
     // convert DHParameterSpec to SafeDHParameterSpec if its parameters are
     // safe primes; validation takes time but should be worthwhile for the

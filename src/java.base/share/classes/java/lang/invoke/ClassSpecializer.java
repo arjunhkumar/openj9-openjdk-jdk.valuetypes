@@ -609,12 +609,12 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
         private final int SPECIES_DATA_MODS = sdAccessor.getModifiers();
         private final List<String> TRANSFORM_NAMES;  // derived from transformMethods
         private final List<MethodType> TRANSFORM_TYPES;
-        private final List<Integer> TRANSFORM_MODS;
+        private final List<Integer.ref> TRANSFORM_MODS;
         {
             // Tear apart transformMethods to get the names, types, and modifiers.
             List<String> tns = new ArrayList<>();
             List<MethodType> tts = new ArrayList<>();
-            List<Integer> tms = new ArrayList<>();
+            List<Integer.ref> tms = new ArrayList<>();
             for (int i = 0; i < transformMethods.size(); i++) {
                 MemberName tm = transformMethods.get(i);
                 tns.add(tm.getName());

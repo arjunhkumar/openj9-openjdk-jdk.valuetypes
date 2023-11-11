@@ -1659,7 +1659,7 @@ public class SimpleDateFormat extends DateFormat {
      * String[].
      */
     private int matchString(String text, int start, int field,
-                            Map<String,Integer> data, CalendarBuilder calb) {
+                            Map<String,Integer.ref> data, CalendarBuilder calb) {
         if (data != null) {
             // TODO: make this default when it's in the spec.
             if (data instanceof SortedMap) {
@@ -2441,7 +2441,7 @@ public class SimpleDateFormat extends DateFormat {
     private static final int[] REST_OF_STYLES = {
         Calendar.SHORT_STANDALONE, Calendar.LONG_FORMAT, Calendar.LONG_STANDALONE,
     };
-    private Map<String, Integer> getDisplayNamesMap(int field, Locale locale) {
+    private Map<String, Integer.ref> getDisplayNamesMap(int field, Locale locale) {
         Map<String, Integer> map = calendar.getDisplayNames(field, Calendar.SHORT_FORMAT, locale);
         // Get all SHORT and LONG styles (avoid NARROW styles).
         for (int style : REST_OF_STYLES) {
@@ -2457,8 +2457,8 @@ public class SimpleDateFormat extends DateFormat {
      * Obtains display names map, taking the context into account. Currently only
      * the month name pattern 'M' is context dependent.
      */
-    private Map<String, Integer> getDisplayContextNamesMap(int field, Locale locale) {
-        Map<String, Integer> map = calendar.getDisplayNames(field,
+    private Map<String, Integer.ref> getDisplayContextNamesMap(int field, Locale locale) {
+        Map<String, Integer.ref> map = calendar.getDisplayNames(field,
             forceStandaloneForm ? Calendar.SHORT_STANDALONE : Calendar.SHORT_FORMAT, locale);
         // Get the LONG style
         Map<String, Integer> m = calendar.getDisplayNames(field,

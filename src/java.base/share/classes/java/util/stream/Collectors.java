@@ -637,7 +637,7 @@ public final class Collectors {
      * @param mapper a function extracting the property to be summed
      * @return a {@code Collector} that produces the sum of a derived property
      */
-    public static <T> Collector<T, ?, Integer>
+    public static <T> Collector<T, ?, Integer.ref>
     summingInt(ToIntFunction<? super T> mapper) {
         return new CollectorImpl<>(
                 () -> new int[1],

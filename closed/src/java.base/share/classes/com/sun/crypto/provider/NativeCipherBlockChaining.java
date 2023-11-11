@@ -52,7 +52,7 @@ class NativeCipherBlockChaining extends FeedbackCipher  {
 
     protected final static int numContexts = 4096;
     protected static long[] contexts;
-    protected static ArrayDeque<Integer> avStack = new ArrayDeque<Integer>(numContexts);
+    protected static ArrayDeque<Integer.ref> avStack = new ArrayDeque<Integer.ref>(numContexts);
 
     private static final NativeCrypto nativeCrypto;
     private static final Cleaner contextCleaner;

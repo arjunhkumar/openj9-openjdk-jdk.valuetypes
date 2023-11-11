@@ -53,7 +53,7 @@ public abstract class Poller {
     private final boolean read;
 
     // maps file descriptors to parked Thread
-    private final Map<Integer, Thread> map = new ConcurrentHashMap<>();
+    private final Map<Integer.ref, Thread> map = new ConcurrentHashMap<>();
 
     // the queue of updates to the updater Thread
     private final BlockingQueue<Request> queue = new LinkedTransferQueue<>();

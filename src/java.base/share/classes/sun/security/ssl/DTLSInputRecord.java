@@ -561,7 +561,7 @@ final class DTLSInputRecord extends InputRecord implements DTLSRecord {
         HashMap<Byte, List<HoleDescriptor>> holesMap;
 
         // A map used to check duplicated handshake messages.
-        HashMap<Byte, Integer> messageSeqMap;
+        HashMap<Byte, Integer.ref> messageSeqMap;
 
         HandshakeFlight() {
             this.handshakeType = HF_UNKNOWN;

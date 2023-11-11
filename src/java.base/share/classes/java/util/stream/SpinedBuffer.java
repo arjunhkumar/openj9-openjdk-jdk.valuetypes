@@ -720,7 +720,7 @@ class SpinedBuffer<E>
     /**
      * An ordered collection of {@code int} values.
      */
-    static class OfInt extends SpinedBuffer.OfPrimitive<Integer, int[], IntConsumer>
+    static class OfInt extends SpinedBuffer.OfPrimitive<Integer.ref, int[], IntConsumer>
             implements IntConsumer {
         OfInt() { }
 
@@ -729,7 +729,7 @@ class SpinedBuffer<E>
         }
 
         @Override
-        public void forEach(Consumer<? super Integer> consumer) {
+        public void forEach(Consumer<? super Integer.ref> consumer) {
             if (consumer instanceof IntConsumer) {
                 forEach((IntConsumer) consumer);
             }

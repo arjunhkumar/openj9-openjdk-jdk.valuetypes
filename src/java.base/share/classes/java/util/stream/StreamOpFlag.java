@@ -397,9 +397,9 @@ enum StreamOpFlag {
     }
 
     private static class MaskBuilder {
-        final Map<Type, Integer> map;
+        final Map<Type, Integer.ref> map;
 
-        MaskBuilder(Map<Type, Integer> map) {
+        MaskBuilder(Map<Type, Integer.ref> map) {
             this.map = map;
         }
 
@@ -420,7 +420,7 @@ enum StreamOpFlag {
             return mask(t, PRESERVE_BITS);
         }
 
-        Map<Type, Integer> build() {
+        Map<Type, Integer.ref> build() {
             for (Type t : Type.values()) {
                 map.putIfAbsent(t, 0b00);
             }
@@ -432,7 +432,7 @@ enum StreamOpFlag {
      * The mask table for a flag, this is used to determine if a flag
      * corresponds to a certain flag type and for creating mask constants.
      */
-    private final Map<Type, Integer> maskTable;
+    private final Map<Type, Integer.ref> maskTable;
 
     /**
      * The bit position in the bit mask.

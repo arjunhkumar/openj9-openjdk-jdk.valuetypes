@@ -130,7 +130,7 @@ class VersionProps {
     }
 
     // This method is reflectively used by regression tests.
-    static List<Integer> parseVersionNumbers(String version) {
+    static List<Integer.ref> parseVersionNumbers(String version) {
         // Let's find the size of an array required to hold $VNUM components
         int size = 0;
         int prevIndex = 0;
@@ -159,7 +159,7 @@ class VersionProps {
         return List.of(verNumbers);
     }
 
-    static List<Integer> versionNumbers() {
+    static List<Integer.ref> versionNumbers() {
         return parseVersionNumbers(VERSION_NUMBER);
     }
 
@@ -167,7 +167,7 @@ class VersionProps {
         return optionalOf(VERSION_PRE);
     }
 
-    static Optional<Integer> build() {
+    static Optional<Integer.ref> build() {
         return VERSION_BUILD.isEmpty() ?
                 Optional.empty() :
                 Optional.of(Integer.parseInt(VERSION_BUILD));

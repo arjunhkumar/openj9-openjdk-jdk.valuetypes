@@ -202,7 +202,7 @@ interface Node<T> {
         /**
          * Specialized {@code Node.Builder} for int elements
          */
-        interface OfInt extends Node.Builder<Integer>, Sink.OfInt {
+        interface OfInt extends Node.Builder<Integer.ref>, Sink.OfInt {
             @Override
             Node.OfInt build();
         }
@@ -314,7 +314,7 @@ interface Node<T> {
     /**
      * Specialized {@code Node} for int elements
      */
-    interface OfInt extends OfPrimitive<Integer, IntConsumer, int[], Spliterator.OfInt, OfInt> {
+    interface OfInt extends OfPrimitive<Integer.ref, IntConsumer, int[], Spliterator.OfInt, OfInt> {
 
         /**
          * {@inheritDoc}
@@ -325,7 +325,7 @@ interface Node<T> {
          *        elements may be processed without boxing.
          */
         @Override
-        default void forEach(Consumer<? super Integer> consumer) {
+        default void forEach(Consumer<? super Integer.ref> consumer) {
             if (consumer instanceof IntConsumer) {
                 forEach((IntConsumer) consumer);
             }

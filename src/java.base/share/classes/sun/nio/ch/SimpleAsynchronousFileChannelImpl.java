@@ -290,10 +290,10 @@ public class SimpleAsynchronousFileChannelImpl
     }
 
     @Override
-    <A> Future<Integer> implRead(final ByteBuffer dst,
+    <A> Future<Integer.ref> implRead(final ByteBuffer dst,
                                  final long position,
                                  final A attachment,
-                                 final CompletionHandler<Integer,? super A> handler)
+                                 final CompletionHandler<Integer.ref,? super A> handler)
     {
         if (position < 0)
             throw new IllegalArgumentException("Negative position");
@@ -346,10 +346,10 @@ public class SimpleAsynchronousFileChannelImpl
     }
 
     @Override
-    <A> Future<Integer> implWrite(final ByteBuffer src,
+    <A> Future<Integer.ref> implWrite(final ByteBuffer src,
                                   final long position,
                                   final A attachment,
-                                  final CompletionHandler<Integer,? super A> handler)
+                                  final CompletionHandler<Integer.ref,? super A> handler)
     {
         if (position < 0)
             throw new IllegalArgumentException("Negative position");

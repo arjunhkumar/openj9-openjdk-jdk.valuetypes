@@ -115,7 +115,7 @@ final class WhileOps {
      * @param upstream a reference stream with element type T
      * @param predicate the predicate that returns false to halt taking.
      */
-    static IntStream makeTakeWhileInt(AbstractPipeline<?, Integer, ?> upstream,
+    static IntStream makeTakeWhileInt(AbstractPipeline<?, Integer.ref, ?> upstream,
                                       IntPredicate predicate) {
         Objects.requireNonNull(predicate);
         return new IntPipeline.StatefulOp<Integer>(upstream, StreamShape.INT_VALUE, TAKE_FLAGS) {
@@ -403,7 +403,7 @@ final class WhileOps {
      * @param upstream a reference stream with element type T
      * @param predicate the predicate that returns false to halt dropping.
      */
-    static IntStream makeDropWhileInt(AbstractPipeline<?, Integer, ?> upstream,
+    static IntStream makeDropWhileInt(AbstractPipeline<?, Integer.ref, ?> upstream,
                                       IntPredicate predicate) {
         Objects.requireNonNull(predicate);
         class Op extends IntPipeline.StatefulOp<Integer> implements DropWhileOp<Integer> {
@@ -820,7 +820,7 @@ final class WhileOps {
             }
         }
 
-        abstract static class OfInt extends UnorderedWhileSpliterator<Integer, Spliterator.OfInt> implements IntConsumer, Spliterator.OfInt {
+        abstract static class OfInt extends UnorderedWhileSpliterator<Integer.ref, Spliterator.OfInt> implements IntConsumer, Spliterator.OfInt {
             final IntPredicate p;
             int t;
 

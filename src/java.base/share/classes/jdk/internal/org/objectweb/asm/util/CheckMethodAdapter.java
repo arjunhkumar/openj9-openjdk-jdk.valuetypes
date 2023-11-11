@@ -355,7 +355,7 @@ public class CheckMethodAdapter extends MethodVisitor {
     private int insnCount;
 
     /** The index of the instruction designated by each visited label. */
-    private final Map<Label, Integer> labelInsnIndices;
+    private final Map<Label, Integer.ref> labelInsnIndices;
 
     /** The labels referenced by the visited method. */
     private Set<Label> referencedLabels;
@@ -399,7 +399,7 @@ public class CheckMethodAdapter extends MethodVisitor {
       * @throws IllegalStateException If a subclass calls this constructor.
       */
     public CheckMethodAdapter(
-            final MethodVisitor methodVisitor, final Map<Label, Integer> labelInsnIndices) {
+            final MethodVisitor methodVisitor, final Map<Label, Integer.ref> labelInsnIndices) {
         this(/* latest api = */ Opcodes.ASM9, methodVisitor, labelInsnIndices);
         if (getClass() != CheckMethodAdapter.class) {
             throw new IllegalStateException();
@@ -419,7 +419,7 @@ public class CheckMethodAdapter extends MethodVisitor {
     protected CheckMethodAdapter(
             final int api,
             final MethodVisitor methodVisitor,
-            final Map<Label, Integer> labelInsnIndices) {
+            final Map<Label, Integer.ref> labelInsnIndices) {
         super(api, methodVisitor);
         this.labelInsnIndices = labelInsnIndices;
         this.referencedLabels = new HashSet<>();
@@ -445,7 +445,7 @@ public class CheckMethodAdapter extends MethodVisitor {
             final String name,
             final String descriptor,
             final MethodVisitor methodVisitor,
-            final Map<Label, Integer> labelInsnIndices) {
+            final Map<Label, Integer.ref> labelInsnIndices) {
         this(
                 /* latest api = */ Opcodes.ASM9, access, name, descriptor, methodVisitor, labelInsnIndices);
         if (getClass() != CheckMethodAdapter.class) {
@@ -473,7 +473,7 @@ public class CheckMethodAdapter extends MethodVisitor {
             final String name,
             final String descriptor,
             final MethodVisitor methodVisitor,
-            final Map<Label, Integer> labelInsnIndices) {
+            final Map<Label, Integer.ref> labelInsnIndices) {
         this(
                 api,
                 new MethodNode(api, access, name, descriptor, null, null) {

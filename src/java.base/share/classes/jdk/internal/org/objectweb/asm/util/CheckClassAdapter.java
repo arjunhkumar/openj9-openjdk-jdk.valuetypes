@@ -181,7 +181,7 @@ public class CheckClassAdapter extends ClassVisitor {
     private boolean visitEndCalled;
 
     /** The index of the instruction designated by each visited label so far. */
-    private Map<Label, Integer> labelInsnIndices;
+    private Map<Label, Integer.ref> labelInsnIndices;
 
     // -----------------------------------------------------------------------------------------------
     // Constructors

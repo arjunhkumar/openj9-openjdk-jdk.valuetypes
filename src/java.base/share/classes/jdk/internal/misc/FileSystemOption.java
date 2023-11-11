@@ -47,11 +47,11 @@ public final class FileSystemOption<T> {
         new FileSystemOption<>(ExtendedOptions.FILE_TREE);
     public static final FileSystemOption<Void> DIRECT =
         new FileSystemOption<>(ExtendedOptions.DIRECT);
-    public static final FileSystemOption<Integer> SENSITIVITY_HIGH =
+    public static final FileSystemOption<Integer.ref> SENSITIVITY_HIGH =
         new FileSystemOption<>(ExtendedOptions.SENSITIVITY_HIGH);
-    public static final FileSystemOption<Integer> SENSITIVITY_MEDIUM =
+    public static final FileSystemOption<Integer.ref> SENSITIVITY_MEDIUM =
         new FileSystemOption<>(ExtendedOptions.SENSITIVITY_MEDIUM);
-    public static final FileSystemOption<Integer> SENSITIVITY_LOW =
+    public static final FileSystemOption<Integer.ref> SENSITIVITY_LOW =
         new FileSystemOption<>(ExtendedOptions.SENSITIVITY_LOW);
 
     private final ExtendedOptions.InternalOption<T> internalOption;

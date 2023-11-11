@@ -42,7 +42,7 @@ final class SSLExtensions {
     private int encodedLength;
 
     // Extension map for debug logging
-    private final Map<Integer, byte[]> logMap =
+    private final Map<Integer.ref, byte[]> logMap =
             SSLLogger.isOn ? new LinkedHashMap<>() : null;
 
     SSLExtensions(HandshakeMessage handshakeMessage) {

@@ -452,7 +452,7 @@ public class SPILocaleProviderAdapter extends AuxLocaleProviderAdapter {
         }
 
         @Override
-        public Map<String, Integer> getDisplayNames(String calendarType,
+        public Map<String, Integer.ref> getDisplayNames(String calendarType,
                                                              int field, int style,
                                                              Locale locale) {
             locale = CalendarDataUtility.findRegionOverride(locale);

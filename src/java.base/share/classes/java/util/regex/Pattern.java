@@ -1017,7 +1017,7 @@ public final class Pattern
      * Map the "name" of the "named capturing group" to its group id
      * node.
      */
-    transient volatile Map<String, Integer> namedGroups;
+    transient volatile Map<String, Integer.ref> namedGroups;
 
     /**
      * Temporary storage used while parsing group references.
@@ -1880,7 +1880,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
         topClosureNodes = null;
     }
 
-    private Map<String, Integer> namedGroupsMap() {
+    private Map<String, Integer.ref> namedGroupsMap() {
         Map<String, Integer> groups = namedGroups;
         if (groups == null) {
             namedGroups = groups = new HashMap<>(2);
@@ -1896,7 +1896,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
      *
      * @since 20
      */
-    public Map<String, Integer> namedGroups() {
+    public Map<String, Integer.ref> namedGroups() {
         return Map.copyOf(namedGroupsMap());
     }
 

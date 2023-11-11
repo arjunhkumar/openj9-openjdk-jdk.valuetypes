@@ -1816,7 +1816,7 @@ class LambdaForm {
     @interface Compiled {
     }
 
-    private static final HashMap<String,Integer> DEBUG_NAME_COUNTERS;
+    private static final HashMap<String,Integer.ref> DEBUG_NAME_COUNTERS;
     private static final HashMap<LambdaForm,String> DEBUG_NAMES;
     static {
         if (debugEnabled()) {

@@ -198,7 +198,7 @@ public class BreakIteratorProviderImpl extends BreakIteratorProvider
     static final class GraphemeBreakIterator extends BreakIterator {
         CharacterIterator ci;
         int offset;
-        List<Integer> boundaries;
+        List<Integer.ref> boundaries;
         int boundaryIndex;
 
         GraphemeBreakIterator() {

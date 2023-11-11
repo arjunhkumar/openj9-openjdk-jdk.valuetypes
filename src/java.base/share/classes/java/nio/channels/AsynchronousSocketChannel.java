@@ -407,7 +407,7 @@ public abstract class AsynchronousSocketChannel
                                   long timeout,
                                   TimeUnit unit,
                                   A attachment,
-                                  CompletionHandler<Integer,? super A> handler);
+                                  CompletionHandler<Integer.ref,? super A> handler);
 
     /**
      * @throws  IllegalArgumentException        {@inheritDoc}
@@ -420,7 +420,7 @@ public abstract class AsynchronousSocketChannel
     @Override
     public final <A> void read(ByteBuffer dst,
                                A attachment,
-                               CompletionHandler<Integer,? super A> handler)
+                               CompletionHandler<Integer.ref,? super A> handler)
     {
         read(dst, 0L, TimeUnit.MILLISECONDS, attachment, handler);
     }
@@ -432,7 +432,7 @@ public abstract class AsynchronousSocketChannel
      *          If this channel is not yet connected
      */
     @Override
-    public abstract Future<Integer> read(ByteBuffer dst);
+    public abstract Future<Integer.ref> read(ByteBuffer dst);
 
     /**
      * Reads a sequence of bytes from this channel into a subsequence of the
@@ -564,7 +564,7 @@ public abstract class AsynchronousSocketChannel
                                    long timeout,
                                    TimeUnit unit,
                                    A attachment,
-                                   CompletionHandler<Integer,? super A> handler);
+                                   CompletionHandler<Integer.ref,? super A> handler);
 
     /**
      * @throws  WritePendingException          {@inheritDoc}
@@ -576,7 +576,7 @@ public abstract class AsynchronousSocketChannel
     @Override
     public final <A> void write(ByteBuffer src,
                                 A attachment,
-                                CompletionHandler<Integer,? super A> handler)
+                                CompletionHandler<Integer.ref,? super A> handler)
 
     {
         write(src, 0L, TimeUnit.MILLISECONDS, attachment, handler);
@@ -588,7 +588,7 @@ public abstract class AsynchronousSocketChannel
      *          If this channel is not yet connected
      */
     @Override
-    public abstract Future<Integer> write(ByteBuffer src);
+    public abstract Future<Integer.ref> write(ByteBuffer src);
 
     /**
      * Writes a sequence of bytes to this channel from a subsequence of the given

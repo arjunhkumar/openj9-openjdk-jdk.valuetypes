@@ -76,7 +76,7 @@ public class LookupSwitchInsnNode extends AbstractInsnNode {
     public LabelNode dflt;
 
     /** The values of the keys. */
-    public List<Integer> keys;
+    public List<Integer.ref> keys;
 
     /** Beginnings of the handler blocks. */
     public List<LabelNode> labels;

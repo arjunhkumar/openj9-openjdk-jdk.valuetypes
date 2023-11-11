@@ -194,8 +194,8 @@ public class CoderResult {
         static final Cache INSTANCE = new Cache();
         private Cache() {}
 
-        final Map<Integer, CoderResult> unmappable = new ConcurrentHashMap<>();
-        final Map<Integer, CoderResult> malformed  = new ConcurrentHashMap<>();
+        final Map<Integer.ref, CoderResult> unmappable = new ConcurrentHashMap<>();
+        final Map<Integer.ref, CoderResult> malformed  = new ConcurrentHashMap<>();
     }
 
     private static final CoderResult[] malformed4 = new CoderResult[] {

@@ -72,7 +72,7 @@ import java.util.Objects;
  */
 public final class Signal {
     private static final Hashtable<Signal, Signal.Handler> handlers = new Hashtable<>(4);
-    private static final Hashtable<Integer, Signal> signals = new Hashtable<>(4);
+    private static final Hashtable<Integer.ref, Signal> signals = new Hashtable<>(4);
 
     private int number;
     private String name;

@@ -63,7 +63,7 @@ class EPollSelectorImpl extends SelectorImpl {
     private final EventFD eventfd;
 
     // maps file descriptor to selection key, synchronize on selector
-    private final Map<Integer, SelectionKeyImpl> fdToKey = new HashMap<>();
+    private final Map<Integer.ref, SelectionKeyImpl> fdToKey = new HashMap<>();
 
     // pending new registrations/updates, queued by setEventOps
     private final Object updateLock = new Object();

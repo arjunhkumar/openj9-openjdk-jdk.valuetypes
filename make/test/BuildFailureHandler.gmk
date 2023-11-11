@@ -55,7 +55,7 @@ $(eval $(call SetupJavaCompilation, BUILD_FAILURE_HANDLER, \
     COPY := .properties, \
     CLASSPATH := $(JTREG_JAR) $(TOOLS_JAR), \
     JAR := $(FH_JAR), \
-    JAVAC_FLAGS := -XDstringConcat=inline, \
+    JAVAC_FLAGS := -XDenablePrimitiveClasses -XDstringConcat=inline, \
 ))
 
 TARGETS += $(BUILD_FAILURE_HANDLER)

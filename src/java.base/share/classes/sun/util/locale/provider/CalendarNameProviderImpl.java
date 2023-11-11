@@ -135,7 +135,7 @@ public class CalendarNameProviderImpl extends CalendarNameProvider implements Av
     };
 
     @Override
-    public Map<String, Integer> getDisplayNames(String calendarType, int field, int style, Locale locale) {
+    public Map<String, Integer.ref> getDisplayNames(String calendarType, int field, int style, Locale locale) {
         Map<String, Integer> names;
         if (style == ALL_STYLES) {
             names = getDisplayNamesImpl(calendarType, field, SHORT_FORMAT, locale, false);
@@ -150,13 +150,13 @@ public class CalendarNameProviderImpl extends CalendarNameProvider implements Av
     }
 
     // NOTE: This method should be used ONLY BY JSR 310 classes.
-    public Map<String, Integer> getJavaTimeDisplayNames(String calendarType, int field, int style, Locale locale) {
+    public Map<String, Integer.ref> getJavaTimeDisplayNames(String calendarType, int field, int style, Locale locale) {
         Map<String, Integer> names;
         names = getDisplayNamesImpl(calendarType, field, style, locale, true);
         return names.isEmpty() ? null : names;
     }
 
-    private Map<String, Integer> getDisplayNamesImpl(String calendarType, int field,
+    private Map<String, Integer.ref> getDisplayNamesImpl(String calendarType, int field,
                                                      int style, Locale locale, boolean javatime) {
         String key = getResourceKey(calendarType, field, style, javatime);
         Map<String, Integer> map = new TreeMap<>(LengthBasedComparator.INSTANCE);

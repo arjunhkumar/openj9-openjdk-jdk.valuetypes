@@ -108,17 +108,17 @@ public class CalendarDataUtility {
         return name;
     }
 
-    public static Map<String, Integer> retrieveFieldValueNames(String id, int field, int style, Locale locale) {
+    public static Map<String, Integer.ref> retrieveFieldValueNames(String id, int field, int style, Locale locale) {
         LocaleServiceProviderPool pool =
             LocaleServiceProviderPool.getPool(CalendarNameProvider.class);
         return pool.getLocalizedObject(CalendarFieldValueNamesMapGetter.INSTANCE, locale,
                                        normalizeCalendarType(id), field, style, false);
     }
 
-    public static Map<String, Integer> retrieveJavaTimeFieldValueNames(String id, int field, int style, Locale locale) {
+    public static Map<String, Integer.ref> retrieveJavaTimeFieldValueNames(String id, int field, int style, Locale locale) {
         LocaleServiceProviderPool pool =
             LocaleServiceProviderPool.getPool(CalendarNameProvider.class);
-        Map<String, Integer> map;
+        Map<String, Integer.ref> map;
         map = pool.getLocalizedObject(CalendarFieldValueNamesMapGetter.INSTANCE, locale,
                                        normalizeCalendarType(id), field, style, true);
         if (map == null) {
@@ -207,12 +207,12 @@ public class CalendarDataUtility {
      */
     private static class CalendarFieldValueNamesMapGetter
         implements LocaleServiceProviderPool.LocalizedObjectGetter<CalendarNameProvider,
-                                                                   Map<String, Integer>> {
+                                                                   Map<String, Integer.ref>> {
         private static final CalendarFieldValueNamesMapGetter INSTANCE =
             new CalendarFieldValueNamesMapGetter();
 
         @Override
-        public Map<String, Integer> getObject(CalendarNameProvider calendarNameProvider,
+        public Map<String, Integer.ref> getObject(CalendarNameProvider calendarNameProvider,
                                               Locale locale,
                                               String requestID, // calendarType
                                               Object... params) {
@@ -235,7 +235,7 @@ public class CalendarDataUtility {
 
     private static class CalendarWeekParameterGetter
         implements LocaleServiceProviderPool.LocalizedObjectGetter<CalendarDataProvider,
-                                                                   Integer> {
+                                                                   Integer.ref> {
         private static final CalendarWeekParameterGetter INSTANCE =
             new CalendarWeekParameterGetter();
 

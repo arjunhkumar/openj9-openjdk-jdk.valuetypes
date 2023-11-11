@@ -69,7 +69,7 @@ final class SortedOps {
      * @param <T> the type of both input and output elements
      * @param upstream a reference stream with element type T
      */
-    static <T> IntStream makeInt(AbstractPipeline<?, Integer, ?> upstream) {
+    static <T> IntStream makeInt(AbstractPipeline<?, Integer.ref, ?> upstream) {
         return new OfInt(upstream);
     }
 
@@ -164,14 +164,14 @@ final class SortedOps {
     /**
      * Specialized subtype for sorting int streams.
      */
-    private static final class OfInt extends IntPipeline.StatefulOp<Integer> {
-        OfInt(AbstractPipeline<?, Integer, ?> upstream) {
+    private static final class OfInt extends IntPipeline.StatefulOp<Integer.ref> {
+        OfInt(AbstractPipeline<?, Integer.ref, ?> upstream) {
             super(upstream, StreamShape.INT_VALUE,
                   StreamOpFlag.IS_ORDERED | StreamOpFlag.IS_SORTED);
         }
 
         @Override
-        public Sink<Integer> opWrapSink(int flags, Sink<Integer> sink) {
+        public Sink<Integer.ref> opWrapSink(int flags, Sink<Integer.ref> sink) {
             Objects.requireNonNull(sink);
 
             if (StreamOpFlag.SORTED.isKnown(flags))
@@ -183,7 +183,7 @@ final class SortedOps {
         }
 
         @Override
-        public <P_IN> Node<Integer> opEvaluateParallel(PipelineHelper<Integer> helper,
+        public <P_IN> Node<Integer.ref> opEvaluateParallel(PipelineHelper<Integer.ref> helper,
                                                        Spliterator<P_IN> spliterator,
                                                        IntFunction<Integer[]> generator) {
             if (StreamOpFlag.SORTED.isKnown(helper.getStreamAndOpFlags())) {
@@ -413,11 +413,11 @@ final class SortedOps {
     /**
      * Abstract {@link Sink} for implementing sort on int streams.
      */
-    private abstract static class AbstractIntSortingSink extends Sink.ChainedInt<Integer> {
+    private abstract static class AbstractIntSortingSink extends Sink.ChainedInt<Integer.ref> {
         // true if cancellationRequested() has been called
         protected boolean cancellationRequestedCalled;
 
-        AbstractIntSortingSink(Sink<? super Integer> downstream) {
+        AbstractIntSortingSink(Sink<? super Integer.ref> downstream) {
             super(downstream);
         }
 
@@ -435,7 +435,7 @@ final class SortedOps {
         private int[] array;
         private int offset;
 
-        SizedIntSortingSink(Sink<? super Integer> downstream) {
+        SizedIntSortingSink(Sink<? super Integer.ref> downstream) {
             super(downstream);
         }
 
@@ -474,7 +474,7 @@ final class SortedOps {
     private static final class IntSortingSink extends AbstractIntSortingSink {
         private SpinedBuffer.OfInt b;
 
-        IntSortingSink(Sink<? super Integer> sink) {
+        IntSortingSink(Sink<? super Integer.ref> sink) {
             super(sink);
         }
 

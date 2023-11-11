@@ -118,7 +118,7 @@ public class ASMifier extends Printer {
                             "Opcodes.NULL",
                             "Opcodes.UNINITIALIZED_THIS"));
 
-    private static final Map<Integer, String> CLASS_VERSIONS;
+    private static final Map<Integer.ref, String> CLASS_VERSIONS;
 
     static {
         HashMap<Integer, String> classVersions = new HashMap<>();

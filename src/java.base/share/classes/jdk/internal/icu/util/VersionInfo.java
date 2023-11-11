@@ -171,7 +171,7 @@ public final class VersionInfo
     /**
      * Map of singletons
      */
-    private static final HashMap<Integer, Object> MAP_ = new HashMap<>();
+    private static final HashMap<Integer.ref, Object> MAP_ = new HashMap<>();
     /**
      * Error statement string
      */

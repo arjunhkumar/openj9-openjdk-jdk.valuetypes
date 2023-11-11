@@ -141,7 +141,7 @@ final class Util {
         return charList;
     }
 
-    static List<Integer> asArrayList(final int[] intArray) {
+    static List<Integer.ref> asArrayList(final int[] intArray) {
         if (intArray == null) {
             return new ArrayList<>();
         }

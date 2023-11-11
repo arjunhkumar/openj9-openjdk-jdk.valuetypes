@@ -909,7 +909,7 @@ public final class Spliterators {
         }
 
         private static final class OfInt
-                extends EmptySpliterator<Integer, Spliterator.OfInt, IntConsumer>
+                extends EmptySpliterator<Integer.ref, Spliterator.OfInt, IntConsumer>
                 implements Spliterator.OfInt {
             OfInt() { }
         }
@@ -1129,7 +1129,7 @@ public final class Spliterators {
         }
 
         @Override
-        public Comparator<? super Integer> getComparator() {
+        public Comparator<? super Integer.ref> getComparator() {
             if (hasCharacteristics(Spliterator.SORTED))
                 return null;
             throw new IllegalStateException();
@@ -2049,7 +2049,7 @@ public final class Spliterators {
         public int characteristics() { return characteristics; }
 
         @Override
-        public Comparator<? super Integer> getComparator() {
+        public Comparator<? super Integer.ref> getComparator() {
             if (hasCharacteristics(Spliterator.SORTED))
                 return null;
             throw new IllegalStateException();

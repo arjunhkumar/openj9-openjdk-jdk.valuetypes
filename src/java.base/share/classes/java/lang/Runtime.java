@@ -1027,9 +1027,9 @@ public class Runtime {
     public static final class Version
         implements Comparable<Version>
     {
-        private final List<Integer>     version;
+        private final List<Integer.ref>     version;
         private final Optional<String>  pre;
-        private final Optional<Integer> build;
+        private final Optional<Integer.ref> build;
         private final Optional<String>  optional;
 
         /*
@@ -1038,9 +1038,9 @@ public class Runtime {
          * unmodifiable list, the caller MUST hand the list over to this
          * constructor and never change the underlying list.
          */
-        private Version(List<Integer> unmodifiableListOfVersions,
+        private Version(List<Integer.ref> unmodifiableListOfVersions,
                         Optional<String> pre,
-                        Optional<Integer> build,
+                        Optional<Integer.ref> build,
                         Optional<String> optional)
         {
             this.version = unmodifiableListOfVersions;
@@ -1249,7 +1249,7 @@ public class Runtime {
          * @return  An unmodifiable list of the integers
          *          represented in the version number
          */
-        public List<Integer> version() {
+        public List<Integer.ref> version() {
             return version;
         }
 
@@ -1267,7 +1267,7 @@ public class Runtime {
          *
          * @return  The optional build number.
          */
-        public Optional<Integer> build() {
+        public Optional<Integer.ref> build() {
             return build;
         }
 

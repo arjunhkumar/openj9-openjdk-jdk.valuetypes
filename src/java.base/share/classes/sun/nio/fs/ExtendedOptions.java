@@ -139,7 +139,7 @@ public final class ExtendedOptions {
 
     public static final InternalOption<Void> DIRECT = new InternalOption<>();
 
-    public static final InternalOption<Integer> SENSITIVITY_HIGH = new InternalOption<>();
-    public static final InternalOption<Integer> SENSITIVITY_MEDIUM = new InternalOption<>();
-    public static final InternalOption<Integer> SENSITIVITY_LOW = new InternalOption<>();
+    public static final InternalOption<Integer.ref> SENSITIVITY_HIGH = new InternalOption<>();
+    public static final InternalOption<Integer.ref> SENSITIVITY_MEDIUM = new InternalOption<>();
+    public static final InternalOption<Integer.ref> SENSITIVITY_LOW = new InternalOption<>();
 }

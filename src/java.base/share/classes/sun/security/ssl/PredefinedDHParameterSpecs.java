@@ -224,10 +224,10 @@ final class PredefinedDHParameterSpecs {
             "\\{([0-9A-Fa-f]+),([0-9A-Fa-f]+)}");
 
     // cache of predefined default DH ephemeral parameters
-    static final Map<Integer, DHParameterSpec> definedParams;
+    static final Map<Integer.ref, DHParameterSpec> definedParams;
 
     // cache of Finite Field DH Ephemeral parameters (RFC 7919/FFDHE)
-    static final Map<Integer, DHParameterSpec> ffdheParams;
+    static final Map<Integer.ref, DHParameterSpec> ffdheParams;
 
     static {
         @SuppressWarnings("removal")

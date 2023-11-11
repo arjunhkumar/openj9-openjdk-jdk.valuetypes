@@ -943,7 +943,7 @@ public final class HijrahChronology extends AbstractChronology implements Serial
      * @param years a Map of year to the array of 12 month lengths
      * @return array of epochDays for each month from min to max
      */
-    private int[] createEpochMonths(int epochDay, int minYear, int maxYear, Map<Integer, int[]> years) {
+    private int[] createEpochMonths(int epochDay, int minYear, int maxYear, Map<Integer.ref, int[]> years) {
         // Compute the size for the array of dates
         int numMonths = (maxYear - minYear + 1) * 12 + 1;
 

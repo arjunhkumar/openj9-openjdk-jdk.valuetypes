@@ -278,7 +278,7 @@ abstract class AsynchronousSocketChannelImpl
     }
 
     @Override
-    public final Future<Integer> read(ByteBuffer dst) {
+    public final Future<Integer.ref> read(ByteBuffer dst) {
         if (dst.isReadOnly())
             throw new IllegalArgumentException("Read-only buffer");
         return read(false, dst, null, 0L, TimeUnit.MILLISECONDS, null, null);
@@ -289,7 +289,7 @@ abstract class AsynchronousSocketChannelImpl
                                long timeout,
                                TimeUnit unit,
                                A attachment,
-                               CompletionHandler<Integer,? super A> handler)
+                               CompletionHandler<Integer.ref,? super A> handler)
     {
         if (handler == null)
             throw new NullPointerException("'handler' is null");
@@ -383,7 +383,7 @@ abstract class AsynchronousSocketChannelImpl
     }
 
     @Override
-    public final Future<Integer> write(ByteBuffer src) {
+    public final Future<Integer.ref> write(ByteBuffer src) {
         return write(false, src, null, 0L, TimeUnit.MILLISECONDS, null, null);
     }
 
@@ -392,7 +392,7 @@ abstract class AsynchronousSocketChannelImpl
                                 long timeout,
                                 TimeUnit unit,
                                 A attachment,
-                                CompletionHandler<Integer,? super A> handler)
+                                CompletionHandler<Integer.ref,? super A> handler)
     {
         if (handler == null)
             throw new NullPointerException("'handler' is null");

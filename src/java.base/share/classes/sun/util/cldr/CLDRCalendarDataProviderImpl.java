@@ -47,8 +47,8 @@ import sun.util.locale.provider.CalendarDataUtility;
  */
 public class CLDRCalendarDataProviderImpl extends CalendarDataProviderImpl {
 
-    private static Map<String, Integer> firstDay = new ConcurrentHashMap<>();
-    private static Map<String, Integer> minDays = new ConcurrentHashMap<>();
+    private static Map<String, Integer.ref> firstDay = new ConcurrentHashMap<>();
+    private static Map<String, Integer.ref> minDays = new ConcurrentHashMap<>();
 
     public CLDRCalendarDataProviderImpl(Type type, Set<String> langtags) {
         super(type, langtags);
@@ -97,7 +97,7 @@ public class CLDRCalendarDataProviderImpl extends CalendarDataProviderImpl {
         return val;
     }
 
-    private static Optional<Integer> retrieveInteger(String src, String region) {
+    private static Optional<Integer.ref> retrieveInteger(String src, String region) {
         int regionIndex = src.indexOf(region);
         if (regionIndex >= 0) {
             int start = src.lastIndexOf(';', regionIndex) + 1;

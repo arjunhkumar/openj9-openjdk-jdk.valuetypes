@@ -50,8 +50,8 @@ abstract class Port extends AsynchronousChannelGroupImpl {
 
     // maps fd to "pollable" channel
     protected final ReadWriteLock fdToChannelLock = new ReentrantReadWriteLock();
-    protected final Map<Integer,PollableChannel> fdToChannel =
-        new HashMap<Integer,PollableChannel>();
+    protected final Map<Integer.ref,PollableChannel> fdToChannel =
+        new HashMap<Integer.ref,PollableChannel>();
 
 
     Port(AsynchronousChannelProvider provider, ThreadPool pool) {

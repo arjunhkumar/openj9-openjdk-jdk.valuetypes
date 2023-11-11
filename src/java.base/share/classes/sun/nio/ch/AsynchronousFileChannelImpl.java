@@ -208,13 +208,13 @@ abstract class AsynchronousFileChannelImpl
 
     // -- reading and writing --
 
-    abstract <A> Future<Integer> implRead(ByteBuffer dst,
+    abstract <A> Future<Integer.ref> implRead(ByteBuffer dst,
                                          long position,
                                          A attachment,
-                                         CompletionHandler<Integer,? super A> handler);
+                                         CompletionHandler<Integer.ref,? super A> handler);
 
     @Override
-    public final Future<Integer> read(ByteBuffer dst, long position) {
+    public final Future<Integer.ref> read(ByteBuffer dst, long position) {
         return implRead(dst, position, null, null);
     }
 
@@ -222,21 +222,21 @@ abstract class AsynchronousFileChannelImpl
     public final <A> void read(ByteBuffer dst,
                                long position,
                                A attachment,
-                               CompletionHandler<Integer,? super A> handler)
+                               CompletionHandler<Integer.ref,? super A> handler)
     {
         if (handler == null)
             throw new NullPointerException("'handler' is null");
         implRead(dst, position, attachment, handler);
     }
 
-    abstract <A> Future<Integer> implWrite(ByteBuffer src,
+    abstract <A> Future<Integer.ref> implWrite(ByteBuffer src,
                                            long position,
                                            A attachment,
-                                           CompletionHandler<Integer,? super A> handler);
+                                           CompletionHandler<Integer.ref,? super A> handler);
 
 
     @Override
-    public final Future<Integer> write(ByteBuffer src, long position) {
+    public final Future<Integer.ref> write(ByteBuffer src, long position) {
         return implWrite(src, position, null, null);
     }
 
@@ -244,7 +244,7 @@ abstract class AsynchronousFileChannelImpl
     public final <A> void write(ByteBuffer src,
                                 long position,
                                 A attachment,
-                                CompletionHandler<Integer,? super A> handler)
+                                CompletionHandler<Integer.ref,? super A> handler)
     {
         if (handler == null)
             throw new NullPointerException("'handler' is null");

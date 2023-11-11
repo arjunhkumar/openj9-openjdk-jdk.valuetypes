@@ -2191,7 +2191,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      *        if {@code locale} is null
      * @since 1.6
      */
-    public Map<String, Integer> getDisplayNames(int field, int style, Locale locale) {
+    public Map<String, Integer.ref> getDisplayNames(int field, int style, Locale locale) {
         if (!checkDisplayNameParams(field, style, ALL_STYLES, NARROW_FORMAT, locale,
                                     ERA_MASK|MONTH_MASK|DAY_OF_WEEK_MASK|AM_PM_MASK)) {
             return null;
@@ -2220,7 +2220,7 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
         return getDisplayNamesImpl(field, style, locale);
     }
 
-    private Map<String,Integer> getDisplayNamesImpl(int field, int style, Locale locale) {
+    private Map<String,Integer.ref> getDisplayNamesImpl(int field, int style, Locale locale) {
         DateFormatSymbols symbols = DateFormatSymbols.getInstance(locale);
         String[] strings = getFieldStrings(field, style, symbols);
         if (strings != null) {

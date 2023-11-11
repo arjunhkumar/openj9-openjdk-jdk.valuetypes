@@ -107,7 +107,7 @@ public interface AsynchronousByteChannel
      */
     <A> void read(ByteBuffer dst,
                   A attachment,
-                  CompletionHandler<Integer,? super A> handler);
+                  CompletionHandler<Integer.ref,? super A> handler);
 
     /**
      * Reads a sequence of bytes from this channel into the given buffer.
@@ -133,7 +133,7 @@ public interface AsynchronousByteChannel
      *          If the channel does not allow more than one read to be outstanding
      *          and a previous read has not completed
      */
-    Future<Integer> read(ByteBuffer dst);
+    Future<Integer.ref> read(ByteBuffer dst);
 
     /**
      * Writes a sequence of bytes to this channel from the given buffer.
@@ -186,7 +186,7 @@ public interface AsynchronousByteChannel
      */
     <A> void write(ByteBuffer src,
                    A attachment,
-                   CompletionHandler<Integer,? super A> handler);
+                   CompletionHandler<Integer.ref,? super A> handler);
 
     /**
      * Writes a sequence of bytes to this channel from the given buffer.
@@ -209,5 +209,5 @@ public interface AsynchronousByteChannel
      *          If the channel does not allow more than one write to be outstanding
      *          and a previous write has not completed
      */
-    Future<Integer> write(ByteBuffer src);
+    Future<Integer.ref> write(ByteBuffer src);
 }

@@ -60,12 +60,12 @@ class PinnedThreadPrinter {
     };
 
     @SuppressWarnings("serial")
-    private static class Hashes extends LinkedHashMap<Integer, Boolean> {
+    private static class Hashes extends LinkedHashMap<Integer.ref, Boolean> {
         boolean add(int hash) {
             return (putIfAbsent(hash, Boolean.TRUE) == null);
         }
         @Override
-        protected boolean removeEldestEntry(Map.Entry<Integer, Boolean> oldest) {
+        protected boolean removeEldestEntry(Map.Entry<Integer.ref, Boolean> oldest) {
             // limit number of hashes
             return size() > 8;
         }

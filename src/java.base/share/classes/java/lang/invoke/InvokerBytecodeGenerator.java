@@ -173,7 +173,7 @@ class InvokerBytecodeGenerator {
     }
 
     /** instance counters for dumped classes */
-    private static final HashMap<String,Integer> DUMP_CLASS_FILES_COUNTERS;
+    private static final HashMap<String,Integer.ref> DUMP_CLASS_FILES_COUNTERS;
     /** debugging flag for saving generated class files */
     private static final File DUMP_CLASS_FILES_DIR;
 

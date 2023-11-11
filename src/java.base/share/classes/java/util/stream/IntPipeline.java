@@ -56,7 +56,7 @@ import java.util.function.Supplier;
  * @since 1.8
  */
 abstract class IntPipeline<E_IN>
-        extends AbstractPipeline<E_IN, Integer, IntStream>
+        extends AbstractPipeline<E_IN, Integer.ref, IntStream>
         implements IntStream {
 
     /**
@@ -67,7 +67,7 @@ abstract class IntPipeline<E_IN>
      *        {@link StreamOpFlag}
      * @param parallel {@code true} if the pipeline is parallel
      */
-    IntPipeline(Supplier<? extends Spliterator<Integer>> source,
+    IntPipeline(Supplier<? extends Spliterator<Integer.ref>> source,
                 int sourceFlags, boolean parallel) {
         super(source, sourceFlags, parallel);
     }
@@ -80,7 +80,7 @@ abstract class IntPipeline<E_IN>
      *        {@link StreamOpFlag}
      * @param parallel {@code true} if the pipeline is parallel
      */
-    IntPipeline(Spliterator<Integer> source,
+    IntPipeline(Spliterator<Integer.ref> source,
                 int sourceFlags, boolean parallel) {
         super(source, sourceFlags, parallel);
     }
@@ -100,7 +100,7 @@ abstract class IntPipeline<E_IN>
      * Adapt a {@code Sink<Integer> to an {@code IntConsumer}, ideally simply
      * by casting.
      */
-    private static IntConsumer adapt(Sink<Integer> sink) {
+    private static IntConsumer adapt(Sink<Integer.ref> sink) {
         if (sink instanceof IntConsumer) {
             return (IntConsumer) sink;
         }
@@ -119,7 +119,7 @@ abstract class IntPipeline<E_IN>
      * The implementation attempts to cast to a Spliterator.OfInt, and throws an
      * exception if this cast is not possible.
      */
-    private static Spliterator.OfInt adapt(Spliterator<Integer> s) {
+    private static Spliterator.OfInt adapt(Spliterator<Integer.ref> s) {
         if (s instanceof Spliterator.OfInt) {
             return (Spliterator.OfInt) s;
         }
@@ -140,7 +140,7 @@ abstract class IntPipeline<E_IN>
     }
 
     @Override
-    final <P_IN> Node<Integer> evaluateToNode(PipelineHelper<Integer> helper,
+    final <P_IN> Node<Integer.ref> evaluateToNode(PipelineHelper<Integer.ref> helper,
                                               Spliterator<P_IN> spliterator,
                                               boolean flattenTree,
                                               IntFunction<Integer[]> generator) {
@@ -148,7 +148,7 @@ abstract class IntPipeline<E_IN>
     }
 
     @Override
-    final <P_IN> Spliterator<Integer> wrap(PipelineHelper<Integer> ph,
+    final <P_IN> Spliterator<Integer.ref> wrap(PipelineHelper<Integer.ref> ph,
                                            Supplier<Spliterator<P_IN>> supplier,
                                            boolean isParallel) {
         return new StreamSpliterators.IntWrappingSpliterator<>(ph, supplier, isParallel);
@@ -156,12 +156,12 @@ abstract class IntPipeline<E_IN>
 
     @Override
     @SuppressWarnings("unchecked")
-    final Spliterator.OfInt lazySpliterator(Supplier<? extends Spliterator<Integer>> supplier) {
+    final Spliterator.OfInt lazySpliterator(Supplier<? extends Spliterator<Integer.ref>> supplier) {
         return new StreamSpliterators.DelegatingSpliterator.OfInt((Supplier<Spliterator.OfInt>) supplier);
     }
 
     @Override
-    final boolean forEachWithCancel(Spliterator<Integer> spliterator, Sink<Integer> sink) {
+    final boolean forEachWithCancel(Spliterator<Integer.ref> spliterator, Sink<Integer.ref> sink) {
         Spliterator.OfInt spl = adapt(spliterator);
         IntConsumer adaptedSink = adapt(sink);
         boolean cancelled;
@@ -170,7 +170,7 @@ abstract class IntPipeline<E_IN>
     }
 
     @Override
-    final Node.Builder<Integer> makeNodeBuilder(long exactSizeIfKnown,
+    final Node.Builder<Integer.ref> makeNodeBuilder(long exactSizeIfKnown,
                                                 IntFunction<Integer[]> generator) {
         return Nodes.intBuilder(exactSizeIfKnown);
     }
@@ -234,7 +234,7 @@ abstract class IntPipeline<E_IN>
     }
 
     @Override
-    public final Stream<Integer> boxed() {
+    public final Stream<Integer.ref> boxed() {
         return mapToObj(Integer::valueOf, 0);
     }
 
@@ -609,7 +609,7 @@ abstract class IntPipeline<E_IN>
          *                    in {@link StreamOpFlag}
          * @param parallel {@code true} if the pipeline is parallel
          */
-        Head(Supplier<? extends Spliterator<Integer>> source,
+        Head(Supplier<? extends Spliterator<Integer.ref>> source,
              int sourceFlags, boolean parallel) {
             super(source, sourceFlags, parallel);
         }
@@ -622,7 +622,7 @@ abstract class IntPipeline<E_IN>
          *                    in {@link StreamOpFlag}
          * @param parallel {@code true} if the pipeline is parallel
          */
-        Head(Spliterator<Integer> source,
+        Head(Spliterator<Integer.ref> source,
              int sourceFlags, boolean parallel) {
             super(source, sourceFlags, parallel);
         }
@@ -633,7 +633,7 @@ abstract class IntPipeline<E_IN>
         }
 
         @Override
-        final Sink<E_IN> opWrapSink(int flags, Sink<Integer> sink) {
+        final Sink<E_IN> opWrapSink(int flags, Sink<Integer.ref> sink) {
             throw new UnsupportedOperationException();
         }
 
@@ -714,7 +714,7 @@ abstract class IntPipeline<E_IN>
         }
 
         @Override
-        abstract <P_IN> Node<Integer> opEvaluateParallel(PipelineHelper<Integer> helper,
+        abstract <P_IN> Node<Integer.ref> opEvaluateParallel(PipelineHelper<Integer.ref> helper,
                                                          Spliterator<P_IN> spliterator,
                                                          IntFunction<Integer[]> generator);
     }

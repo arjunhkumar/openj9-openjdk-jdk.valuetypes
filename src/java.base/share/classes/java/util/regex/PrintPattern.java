@@ -35,7 +35,7 @@ import static java.util.regex.ASCII.*;
 
 class PrintPattern {
 
-    private static HashMap<Pattern.Node, Integer> ids = new HashMap<>();
+    private static HashMap<Pattern.Node, Integer.ref> ids = new HashMap<>();
 
     private static void print(Pattern.Node node, String text, int depth) {
         if (!ids.containsKey(node))

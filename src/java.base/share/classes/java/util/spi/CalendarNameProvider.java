@@ -299,7 +299,7 @@ public abstract class CalendarNameProvider extends LocaleServiceProvider {
      *         if {@code locale} is {@code null}
      * @see Calendar#getDisplayNames(int, int, Locale)
      */
-    public abstract Map<String, Integer> getDisplayNames(String calendarType,
+    public abstract Map<String, Integer.ref> getDisplayNames(String calendarType,
                                                          int field, int style,
                                                          Locale locale);
 }

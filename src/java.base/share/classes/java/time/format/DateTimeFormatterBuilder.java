@@ -4515,9 +4515,9 @@ public final class DateTimeFormatterBuilder {
         }
 
         // cache per instance for now
-        private final Map<Locale, Entry<Integer, SoftReference<PrefixTree>>>
+        private final Map<Locale, Entry<Integer.ref, SoftReference<PrefixTree>>>
             cachedTree = new HashMap<>();
-        private final Map<Locale, Entry<Integer, SoftReference<PrefixTree>>>
+        private final Map<Locale, Entry<Integer.ref, SoftReference<PrefixTree>>>
             cachedTreeCI = new HashMap<>();
 
         @Override
@@ -4616,8 +4616,8 @@ public final class DateTimeFormatterBuilder {
         /**
          * The cached tree to speed up parsing.
          */
-        private static volatile Entry<Integer, PrefixTree> cachedPrefixTree;
-        private static volatile Entry<Integer, PrefixTree> cachedPrefixTreeCI;
+        private static volatile Entry<Integer.ref, PrefixTree> cachedPrefixTree;
+        private static volatile Entry<Integer.ref, PrefixTree> cachedPrefixTreeCI;
 
         protected PrefixTree getTree(DateTimeParseContext context) {
             // prepare parse tree

@@ -128,7 +128,7 @@ final class Streams {
         }
 
         @Override
-        public Comparator<? super Integer> getComparator() {
+        public Comparator<? super Integer.ref> getComparator() {
             return null;
         }
 
@@ -420,7 +420,7 @@ final class Streams {
     }
 
     static final class IntStreamBuilderImpl
-            extends AbstractStreamBuilderImpl<Integer, Spliterator.OfInt>
+            extends AbstractStreamBuilderImpl<Integer.ref, Spliterator.OfInt>
             implements IntStream.Builder, Spliterator.OfInt {
         // The first element in the stream
         // valid if count == 1
@@ -810,7 +810,7 @@ final class Streams {
         }
 
         static class OfInt
-                extends ConcatSpliterator.OfPrimitive<Integer, IntConsumer, Spliterator.OfInt>
+                extends ConcatSpliterator.OfPrimitive<Integer.ref, IntConsumer, Spliterator.OfInt>
                 implements Spliterator.OfInt {
             OfInt(Spliterator.OfInt aSpliterator, Spliterator.OfInt bSpliterator) {
                 super(aSpliterator, bSpliterator);

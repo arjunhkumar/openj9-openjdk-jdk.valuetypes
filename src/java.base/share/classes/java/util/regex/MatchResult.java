@@ -315,7 +315,7 @@ public interface MatchResult {
      *
      * @since 20
      */
-    default Map<String,Integer> namedGroups() {
+    default Map<String,Integer.ref> namedGroups() {
         throw new UnsupportedOperationException("namedGroups()");
     }
 

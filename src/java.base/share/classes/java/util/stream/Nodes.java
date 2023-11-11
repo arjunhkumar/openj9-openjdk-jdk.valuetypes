@@ -351,7 +351,7 @@ final class Nodes {
      *                    describing an array before returning
      * @return a {@link Node.OfInt} describing the output elements
      */
-    public static <P_IN> Node.OfInt collectInt(PipelineHelper<Integer> helper,
+    public static <P_IN> Node.OfInt collectInt(PipelineHelper<Integer.ref> helper,
                                                Spliterator<P_IN> spliterator,
                                                boolean flattenTree) {
         long size = helper.exactOutputSizeIfKnown(spliterator);
@@ -583,7 +583,7 @@ final class Nodes {
         }
 
         private static final class OfInt
-                extends EmptyNode<Integer, int[], IntConsumer>
+                extends EmptyNode<Integer.ref, int[], IntConsumer>
                 implements Node.OfInt {
 
             OfInt() { } // Avoid creation of special accessor
@@ -881,7 +881,7 @@ final class Nodes {
         }
 
         static final class OfInt
-                extends ConcNode.OfPrimitive<Integer, IntConsumer, int[], Spliterator.OfInt, Node.OfInt>
+                extends ConcNode.OfPrimitive<Integer.ref, IntConsumer, int[], Spliterator.OfInt, Node.OfInt>
                 implements Node.OfInt {
 
             OfInt(Node.OfInt left, Node.OfInt right) {
@@ -1161,7 +1161,7 @@ final class Nodes {
         }
 
         private static final class OfInt
-                extends OfPrimitive<Integer, IntConsumer, int[], Spliterator.OfInt, Node.OfInt>
+                extends OfPrimitive<Integer.ref, IntConsumer, int[], Spliterator.OfInt, Node.OfInt>
                 implements Spliterator.OfInt {
 
             OfInt(Node.OfInt cur) {
@@ -1926,11 +1926,11 @@ final class Nodes {
 
         @SuppressWarnings("serial")
         static final class OfInt<P_IN>
-                extends SizedCollectorTask<P_IN, Integer, Sink.OfInt, OfInt<P_IN>>
+                extends SizedCollectorTask<P_IN, Integer.ref, Sink.OfInt, OfInt<P_IN>>
                 implements Sink.OfInt {
             private final int[] array;
 
-            OfInt(Spliterator<P_IN> spliterator, PipelineHelper<Integer> helper, int[] array) {
+            OfInt(Spliterator<P_IN> spliterator, PipelineHelper<Integer.ref> helper, int[] array) {
                 super(spliterator, helper, array.length);
                 this.array = array;
             }
@@ -2123,7 +2123,7 @@ final class Nodes {
 
         @SuppressWarnings("serial")
         private static final class OfInt
-                extends OfPrimitive<Integer, IntConsumer, int[], Spliterator.OfInt, Node.OfInt> {
+                extends OfPrimitive<Integer.ref, IntConsumer, int[], Spliterator.OfInt, Node.OfInt> {
             private OfInt(Node.OfInt node, int[] array, int offset) {
                 super(node, array, offset);
             }
@@ -2202,8 +2202,8 @@ final class Nodes {
 
         @SuppressWarnings("serial")
         private static final class OfInt<P_IN>
-                extends CollectorTask<P_IN, Integer, Node.OfInt, Node.Builder.OfInt> {
-            OfInt(PipelineHelper<Integer> helper, Spliterator<P_IN> spliterator) {
+                extends CollectorTask<P_IN, Integer.ref, Node.OfInt, Node.Builder.OfInt> {
+            OfInt(PipelineHelper<Integer.ref> helper, Spliterator<P_IN> spliterator) {
                 super(helper, spliterator, Nodes::intBuilder, ConcNode.OfInt::new);
             }
         }

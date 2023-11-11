@@ -81,7 +81,7 @@ public class RSAPSSSignature extends SignatureSpi {
 
     private static final byte[] EIGHT_BYTES_OF_ZEROS = new byte[8];
 
-    private static final Hashtable<KnownOIDs, Integer> DIGEST_LENGTHS =
+    private static final Hashtable<KnownOIDs, Integer.ref> DIGEST_LENGTHS =
             new Hashtable<>();
     static {
         DIGEST_LENGTHS.put(KnownOIDs.SHA_1, 20);

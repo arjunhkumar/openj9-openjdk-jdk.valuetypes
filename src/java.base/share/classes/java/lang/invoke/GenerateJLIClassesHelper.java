@@ -49,7 +49,7 @@ import static java.lang.invoke.LambdaForm.Kind.*;
  */
 class GenerateJLIClassesHelper {
     // Map from DirectMethodHandle method type name to index to LambdForms
-    static final Map<String, Integer> DMH_METHOD_TYPE_MAP =
+    static final Map<String, Integer.ref> DMH_METHOD_TYPE_MAP =
             Map.of(
                     DIRECT_INVOKE_VIRTUAL.methodName,     LF_INVVIRTUAL,
                     DIRECT_INVOKE_STATIC.methodName,      LF_INVSTATIC,

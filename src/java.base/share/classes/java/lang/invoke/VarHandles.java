@@ -46,7 +46,7 @@ import static java.lang.invoke.MethodHandleStatics.newIllegalArgumentException;
 
 final class VarHandles {
 
-    static ClassValue<ConcurrentMap<Integer, MethodHandle>> ADDRESS_FACTORIES = new ClassValue<>() {
+    static ClassValue<ConcurrentMap<Integer.ref, MethodHandle>> ADDRESS_FACTORIES = new ClassValue<>() {
         @Override
         protected ConcurrentMap<Integer, MethodHandle> computeValue(Class<?> type) {
             return new ConcurrentHashMap<>();

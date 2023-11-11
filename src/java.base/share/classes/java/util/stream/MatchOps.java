@@ -105,11 +105,11 @@ final class MatchOps {
      * @return a {@code TerminalOp} implementing the desired quantified match
      *         criteria
      */
-    public static TerminalOp<Integer, Boolean> makeInt(IntPredicate predicate,
+    public static TerminalOp<Integer.ref, Boolean> makeInt(IntPredicate predicate,
                                                        MatchKind matchKind) {
         Objects.requireNonNull(predicate);
         Objects.requireNonNull(matchKind);
-        class MatchSink extends BooleanTerminalSink<Integer> implements Sink.OfInt {
+        class MatchSink extends BooleanTerminalSink<Integer.ref> implements Sink.OfInt {
             MatchSink() {
                 super(matchKind);
             }

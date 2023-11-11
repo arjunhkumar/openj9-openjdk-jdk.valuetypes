@@ -853,7 +853,7 @@ enum CipherSuite {
 
     final boolean exportable;
 
-    private static final Map<Integer, CipherSuite> cipherSuiteIds;
+    private static final Map<Integer.ref, CipherSuite> cipherSuiteIds;
     private static final Map<String, CipherSuite> cipherSuiteNames;
     private static final List<CipherSuite> allowedCipherSuites;
     private static final List<CipherSuite> defaultCipherSuites;

@@ -6169,7 +6169,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
     @SuppressWarnings("serial")
     static final class MapReduceKeysToIntTask<K,V>
-        extends BulkTask<K,V,Integer> {
+        extends BulkTask<K,V,Integer.ref> {
         final ToIntFunction<? super K> transformer;
         final IntBinaryOperator reducer;
         final int basis;
@@ -6219,7 +6219,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
     @SuppressWarnings("serial")
     static final class MapReduceValuesToIntTask<K,V>
-        extends BulkTask<K,V,Integer> {
+        extends BulkTask<K,V,Integer.ref> {
         final ToIntFunction<? super V> transformer;
         final IntBinaryOperator reducer;
         final int basis;
@@ -6269,7 +6269,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
     @SuppressWarnings("serial")
     static final class MapReduceEntriesToIntTask<K,V>
-        extends BulkTask<K,V,Integer> {
+        extends BulkTask<K,V,Integer.ref> {
         final ToIntFunction<Map.Entry<K,V>> transformer;
         final IntBinaryOperator reducer;
         final int basis;
@@ -6319,7 +6319,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
     @SuppressWarnings("serial")
     static final class MapReduceMappingsToIntTask<K,V>
-        extends BulkTask<K,V,Integer> {
+        extends BulkTask<K,V,Integer.ref> {
         final ToIntBiFunction<? super K, ? super V> transformer;
         final IntBinaryOperator reducer;
         final int basis;

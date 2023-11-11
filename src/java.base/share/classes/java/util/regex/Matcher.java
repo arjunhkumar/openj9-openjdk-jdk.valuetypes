@@ -230,7 +230,7 @@ public final class Matcher implements MatchResult {
      */
     int modCount;
 
-    private Map<String, Integer> namedGroups;
+    private Map<String, Integer.ref> namedGroups;
 
     /**
      * No default constructor.
@@ -291,11 +291,11 @@ public final class Matcher implements MatchResult {
         private final int[] groups;
         private final int groupCount;
         private final String text;
-        private final Map<String, Integer> namedGroups;
+        private final Map<String, Integer.ref> namedGroups;
 
         ImmutableMatchResult(int first, int last, int groupCount,
                              int[] groups, String text,
-                             Map<String, Integer> namedGroups)
+                             Map<String, Integer.ref> namedGroups)
         {
             this.first = first;
             this.last = last;
@@ -352,7 +352,7 @@ public final class Matcher implements MatchResult {
         }
 
         @Override
-        public Map<String, Integer> namedGroups() {
+        public Map<String, Integer.ref> namedGroups() {
             return namedGroups;
         }
 
@@ -1829,7 +1829,7 @@ public final class Matcher implements MatchResult {
      * @since {@inheritDoc}
      */
     @Override
-    public Map<String, Integer> namedGroups() {
+    public Map<String, Integer.ref> namedGroups() {
         if (namedGroups == null) {
             return namedGroups = parentPattern.namedGroups();
         }

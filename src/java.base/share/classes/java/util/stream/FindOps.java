@@ -67,7 +67,7 @@ final class FindOps {
      *        first element in the encounter order
      * @return a {@code TerminalOp} implementing the find operation
      */
-    public static TerminalOp<Integer, OptionalInt> makeInt(boolean mustFindFirst) {
+    public static TerminalOp<Integer.ref, OptionalInt> makeInt(boolean mustFindFirst) {
         return mustFindFirst ? FindSink.OfInt.OP_FIND_FIRST : FindSink.OfInt.OP_FIND_ANY;
     }
 
@@ -204,7 +204,7 @@ final class FindOps {
         }
 
         /** Specialization of {@code FindSink} for int streams */
-        static final class OfInt extends FindSink<Integer, OptionalInt>
+        static final class OfInt extends FindSink<Integer.ref, OptionalInt>
                 implements Sink.OfInt {
             @Override
             public void accept(int value) {
@@ -217,10 +217,10 @@ final class FindOps {
                 return hasValue ? OptionalInt.of(value) : null;
             }
 
-            static final TerminalOp<Integer, OptionalInt> OP_FIND_FIRST = new FindOp<>(true,
+            static final TerminalOp<Integer.ref, OptionalInt> OP_FIND_FIRST = new FindOp<>(true,
                     StreamShape.INT_VALUE, OptionalInt.empty(),
                     OptionalInt::isPresent, FindSink.OfInt::new);
-            static final TerminalOp<Integer, OptionalInt> OP_FIND_ANY = new FindOp<>(false,
+            static final TerminalOp<Integer.ref, OptionalInt> OP_FIND_ANY = new FindOp<>(false,
                     StreamShape.INT_VALUE, OptionalInt.empty(),
                     OptionalInt::isPresent, FindSink.OfInt::new);
         }

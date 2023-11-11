@@ -44,14 +44,14 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
 
 public final class ModuleInfoWriter {
 
-    private static final Map<ModuleDescriptor.Modifier, Integer>
+    private static final Map<ModuleDescriptor.Modifier, Integer.ref>
         MODULE_MODS_TO_FLAGS = Map.of(
             ModuleDescriptor.Modifier.OPEN, ACC_OPEN,
             ModuleDescriptor.Modifier.SYNTHETIC, ACC_SYNTHETIC,
             ModuleDescriptor.Modifier.MANDATED, ACC_MANDATED
         );
 
-    private static final Map<ModuleDescriptor.Requires.Modifier, Integer>
+    private static final Map<ModuleDescriptor.Requires.Modifier, Integer.ref>
         REQUIRES_MODS_TO_FLAGS = Map.of(
             ModuleDescriptor.Requires.Modifier.TRANSITIVE, ACC_TRANSITIVE,
             ModuleDescriptor.Requires.Modifier.STATIC, ACC_STATIC_PHASE,
@@ -59,13 +59,13 @@ public final class ModuleInfoWriter {
             ModuleDescriptor.Requires.Modifier.MANDATED, ACC_MANDATED
         );
 
-    private static final Map<ModuleDescriptor.Exports.Modifier, Integer>
+    private static final Map<ModuleDescriptor.Exports.Modifier, Integer.ref>
         EXPORTS_MODS_TO_FLAGS = Map.of(
             ModuleDescriptor.Exports.Modifier.SYNTHETIC, ACC_SYNTHETIC,
             ModuleDescriptor.Exports.Modifier.MANDATED, ACC_MANDATED
         );
 
-    private static final Map<ModuleDescriptor.Opens.Modifier, Integer>
+    private static final Map<ModuleDescriptor.Opens.Modifier, Integer.ref>
         OPENS_MODS_TO_FLAGS = Map.of(
             ModuleDescriptor.Opens.Modifier.SYNTHETIC, ACC_SYNTHETIC,
             ModuleDescriptor.Opens.Modifier.MANDATED, ACC_MANDATED

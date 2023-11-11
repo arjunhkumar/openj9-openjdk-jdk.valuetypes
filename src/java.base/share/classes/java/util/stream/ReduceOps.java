@@ -282,7 +282,7 @@ final class ReduceOps {
      * @param operator the combining function
      * @return a {@code TerminalOp} implementing the reduction
      */
-    public static TerminalOp<Integer, Integer>
+    public static TerminalOp<Integer.ref, Integer.ref>
     makeInt(int identity, IntBinaryOperator operator) {
         Objects.requireNonNull(operator);
         class ReducingSink
@@ -324,7 +324,7 @@ final class ReduceOps {
      * @param operator the combining function
      * @return a {@code TerminalOp} implementing the reduction
      */
-    public static TerminalOp<Integer, OptionalInt>
+    public static TerminalOp<Integer.ref, OptionalInt>
     makeInt(IntBinaryOperator operator) {
         Objects.requireNonNull(operator);
         class ReducingSink
@@ -378,7 +378,7 @@ final class ReduceOps {
      * @param combiner a function to combine an accumulator into another
      * @return A {@code ReduceOp} implementing the reduction
      */
-    public static <R> TerminalOp<Integer, R>
+    public static <R> TerminalOp<Integer.ref, R>
     makeInt(Supplier<R> supplier,
             ObjIntConsumer<R> accumulator,
             BinaryOperator<R> combiner) {
@@ -419,7 +419,7 @@ final class ReduceOps {
      *
      * @return a {@code TerminalOp} implementing the counting
      */
-    public static TerminalOp<Integer, Long>
+    public static TerminalOp<Integer.ref, Long>
     makeIntCounting() {
         return new ReduceOp<Integer, Long, CountingSink<Integer>>(StreamShape.INT_VALUE) {
             @Override
@@ -832,7 +832,7 @@ final class ReduceOps {
             }
         }
 
-        static final class OfInt extends CountingSink<Integer> implements Sink.OfInt {
+        static final class OfInt extends CountingSink<Integer.ref> implements Sink.OfInt {
             @Override
             public void accept(int t) {
                 count++;

@@ -89,7 +89,7 @@ public class LocalVariableAnnotationNode extends TypeAnnotationNode {
       * The local variable's index in each range. This list must have the same size as the 'start'
       * list. Must not be {@literal null}.
       */
-    public List<Integer> index;
+    public List<Integer.ref> index;
 
     /**
       * Constructs a new {@link LocalVariableAnnotationNode}. <i>Subclasses must not use this

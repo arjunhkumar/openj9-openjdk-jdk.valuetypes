@@ -146,7 +146,7 @@ public final class ZoneRules implements Serializable {
     /**
      * The map of recent transitions.
      */
-    private final transient ConcurrentMap<Integer, ZoneOffsetTransition[]> lastRulesCache;
+    private final transient ConcurrentMap<Integer.ref, ZoneOffsetTransition[]> lastRulesCache;
     /**
      * The zero-length long array.
      */

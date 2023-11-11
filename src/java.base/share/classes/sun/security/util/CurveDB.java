@@ -48,7 +48,7 @@ public class CurveDB {
             new LinkedHashMap<>();
     private static final Map<String,NamedCurve> nameMap =
             new HashMap<>();
-    private static final Map<Integer,NamedCurve> lengthMap =
+    private static final Map<Integer.ref,NamedCurve> lengthMap =
             new HashMap<>();
 
     private static final Collection<? extends NamedCurve> specCollection;

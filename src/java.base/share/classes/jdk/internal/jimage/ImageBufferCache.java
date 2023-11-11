@@ -60,7 +60,7 @@ class ImageBufferCache {
      * with thread local are bootstrap types and so no metaspace leak.
      */
     @SuppressWarnings("unchecked")
-    private static final ThreadLocal<Map.Entry<WeakReference<ByteBuffer>, Integer>[]> CACHE =
+    private static final ThreadLocal<Map.Entry<WeakReference<ByteBuffer>, Integer.ref>[]> CACHE =
         new ThreadLocal<Map.Entry<WeakReference<ByteBuffer>, Integer>[]>() {
             @Override
             protected Map.Entry<WeakReference<ByteBuffer>, Integer>[] initialValue() {
@@ -134,20 +134,20 @@ class ImageBufferCache {
         cache[MAX_CACHED_BUFFERS] = null;
     }
 
-    private static Map.Entry<WeakReference<ByteBuffer>, Integer> newCacheEntry(ByteBuffer bb) {
-        return new AbstractMap.SimpleEntry<WeakReference<ByteBuffer>, Integer>(
+    private static Map.Entry<WeakReference<ByteBuffer>, Integer.ref> newCacheEntry(ByteBuffer bb) {
+        return new AbstractMap.SimpleEntry<WeakReference<ByteBuffer>, Integer.ref>(
                     new WeakReference<ByteBuffer>(bb), bb.capacity());
     }
 
-    private static int getCapacity(Map.Entry<WeakReference<ByteBuffer>, Integer> e) {
+    private static int getCapacity(Map.Entry<WeakReference<ByteBuffer>, Integer.ref> e) {
         return e == null? 0 : e.getValue();
     }
 
-    private static ByteBuffer getByteBuffer(Map.Entry<WeakReference<ByteBuffer>, Integer> e) {
+    private static ByteBuffer getByteBuffer(Map.Entry<WeakReference<ByteBuffer>, Integer.ref> e) {
         return e == null? null : e.getKey().get();
     }
 
-    private static Comparator<Map.Entry<WeakReference<ByteBuffer>, Integer>> DECREASING_CAPACITY_NULLS_LAST =
+    private static Comparator<Map.Entry<WeakReference<ByteBuffer>, Integer.ref>> DECREASING_CAPACITY_NULLS_LAST =
         new Comparator<Map.Entry<WeakReference<ByteBuffer>, Integer>>() {
             @Override
             public int compare(Map.Entry<WeakReference<ByteBuffer>, Integer> br1,

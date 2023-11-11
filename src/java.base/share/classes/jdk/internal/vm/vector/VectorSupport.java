@@ -466,13 +466,13 @@ public class VectorSupport {
     public static
     <C,
      V extends Vector<?>,
-     W extends Vector<Integer>,
+     W extends Vector<Integer.ref>,
      S extends VectorSpecies<E>,
      M extends VectorMask<E>,
      E>
     V loadWithMap(Class<? extends V> vClass, Class<M> mClass, Class<E> eClass,
                   int length,
-                  Class<? extends Vector<Integer>> vectorIndexClass,
+                  Class<? extends Vector<Integer.ref>> vectorIndexClass,
                   Object base, long offset,
                   W index_vector,
                   M m, C container, int index, int[] indexMap, int indexM, S s,
@@ -534,12 +534,12 @@ public class VectorSupport {
     public static
     <C,
      V extends Vector<E>,
-     W extends Vector<Integer>,
+     W extends Vector<Integer.ref>,
      M extends VectorMask<E>,
      E>
     void storeWithMap(Class<? extends V> vClass, Class<M> mClass, Class<E> eClass,
                       int length,
-                      Class<? extends Vector<Integer>> vectorIndexClass,
+                      Class<? extends Vector<Integer.ref>> vectorIndexClass,
                       Object base, long offset,
                       W index_vector,
                       V v, M m, C container, int index, int[] indexMap, int indexM,

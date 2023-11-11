@@ -712,7 +712,7 @@ public abstract class AsynchronousFileChannel
     public abstract <A> void read(ByteBuffer dst,
                                   long position,
                                   A attachment,
-                                  CompletionHandler<Integer,? super A> handler);
+                                  CompletionHandler<Integer.ref,? super A> handler);
 
     /**
      * Reads a sequence of bytes from this channel into the given buffer,
@@ -744,7 +744,7 @@ public abstract class AsynchronousFileChannel
      * @throws  NonReadableChannelException
      *          If this channel was not opened for reading
      */
-    public abstract Future<Integer> read(ByteBuffer dst, long position);
+    public abstract Future<Integer.ref> read(ByteBuffer dst, long position);
 
     /**
      * Writes a sequence of bytes to this channel from the given buffer, starting
@@ -778,7 +778,7 @@ public abstract class AsynchronousFileChannel
     public abstract <A> void write(ByteBuffer src,
                                    long position,
                                    A attachment,
-                                   CompletionHandler<Integer,? super A> handler);
+                                   CompletionHandler<Integer.ref,? super A> handler);
 
     /**
      * Writes a sequence of bytes to this channel from the given buffer, starting
@@ -811,5 +811,5 @@ public abstract class AsynchronousFileChannel
      * @throws  NonWritableChannelException
      *          If this channel was not opened for writing
      */
-    public abstract Future<Integer> write(ByteBuffer src, long position);
+    public abstract Future<Integer.ref> write(ByteBuffer src, long position);
 }
