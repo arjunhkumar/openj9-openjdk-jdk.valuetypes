@@ -58,7 +58,7 @@ $(eval $(call SetupJavaCompilation, COMPILE_CREATE_SYMBOLS, \
     INCLUDES := build/tools/symbolgenerator com/sun/tools/classfile, \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/create_symbols, \
     DISABLED_WARNINGS := options, \
-    JAVAC_FLAGS := \
+    JAVAC_FLAGS := -XDenablePrimitiveClasses \
         $(INTERIM_LANGTOOLS_ARGS) \
         $(COMPILECREATESYMBOLS_ADD_EXPORTS), \
 ))

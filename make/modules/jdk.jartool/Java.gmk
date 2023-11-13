@@ -24,4 +24,4 @@
 #
 
 DISABLED_WARNINGS_java += missing-explicit-ctor
-JAVAC_FLAGS += -XDstringConcat=inline
+JAVAC_FLAGS += -XDenablePrimitiveClasses -XDstringConcat=inline

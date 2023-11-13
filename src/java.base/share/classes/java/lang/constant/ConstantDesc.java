@@ -85,7 +85,8 @@ public sealed interface ConstantDesc
                 Float,
                 Integer,
                 Long,
-                String {
+                String,
+                PrimitiveInteger {
     /**
      * Resolves this descriptor reflectively, emulating the resolution behavior
      * of JVMS {@jvms 5.4.3} and the access control behavior of JVMS {@jvms 5.4.4}.  The resolution
