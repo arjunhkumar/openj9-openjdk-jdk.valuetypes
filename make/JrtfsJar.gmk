@@ -47,13 +47,14 @@ JIMAGE_PKGS := \
     #
 
 $(eval $(call SetupJavaCompilation, BUILD_JRTFS, \
-    COMPILER := bootjdk, \
+    COMPILER := interim, \
     DISABLED_WARNINGS := options, \
-    TARGET_RELEASE := $(TARGET_RELEASE_JDK8), \
+    TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
     SRC := $(TOPDIR)/src/java.base/share/classes, \
     EXCLUDE_FILES := module-info.java, \
     INCLUDES := $(JIMAGE_PKGS), \
     BIN := $(SUPPORT_OUTPUTDIR)/jrtfs_classes, \
+    JAVAC_FLAGS := -XDenablePrimitiveClasses, \
 ))
 
 # Because of the explicit INCLUDES in the compilation setup above, the service provider
