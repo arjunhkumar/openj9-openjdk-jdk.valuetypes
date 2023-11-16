@@ -61,11 +61,11 @@ class ImageBufferCache {
      */
     @SuppressWarnings("unchecked")
     private static final ThreadLocal<Map.Entry<WeakReference<ByteBuffer>, Integer.ref>[]> CACHE =
-        new ThreadLocal<Map.Entry<WeakReference<ByteBuffer>, Integer>[]>() {
+        new ThreadLocal<Map.Entry<WeakReference<ByteBuffer>, Integer.ref>[]>() {
             @Override
-            protected Map.Entry<WeakReference<ByteBuffer>, Integer>[] initialValue() {
+            protected Map.Entry<WeakReference<ByteBuffer>, Integer.ref>[] initialValue() {
                 // 1 extra slot to simplify logic of releaseBuffer()
-                return (Map.Entry<WeakReference<ByteBuffer>, Integer>[])new Map.Entry<?,?>[MAX_CACHED_BUFFERS + 1];
+                return (Map.Entry<WeakReference<ByteBuffer>, Integer.ref>[])new Map.Entry<?,?>[MAX_CACHED_BUFFERS + 1];
             }
         };
 
@@ -83,12 +83,12 @@ class ImageBufferCache {
         if (size > LARGE_BUFFER) {
             result = allocateBuffer(size);
         } else {
-            Map.Entry<WeakReference<ByteBuffer>, Integer>[] cache = CACHE.get();
+            Map.Entry<WeakReference<ByteBuffer>, Integer.ref>[] cache = CACHE.get();
 
             // buffers are ordered by decreasing capacity
             // cache[MAX_CACHED_BUFFERS] is always null
             for (int i = MAX_CACHED_BUFFERS - 1; i >= 0; i--) {
-                Map.Entry<WeakReference<ByteBuffer>, Integer> reference = cache[i];
+                Map.Entry<WeakReference<ByteBuffer>, Integer.ref> reference = cache[i];
 
                 if (reference != null) {
                     ByteBuffer buffer = getByteBuffer(reference);
@@ -117,11 +117,11 @@ class ImageBufferCache {
             return;
         }
 
-        Map.Entry<WeakReference<ByteBuffer>, Integer>[] cache = CACHE.get();
+        Map.Entry<WeakReference<ByteBuffer>, Integer.ref>[] cache = CACHE.get();
 
         // expunge cleared BufferRef(s)
         for (int i = 0; i < MAX_CACHED_BUFFERS; i++) {
-            Map.Entry<WeakReference<ByteBuffer>, Integer> reference = cache[i];
+            Map.Entry<WeakReference<ByteBuffer>, Integer.ref> reference = cache[i];
             if (reference != null && getByteBuffer(reference) == null) {
                 cache[i] = null;
             }
@@ -136,7 +136,7 @@ class ImageBufferCache {
 
     private static Map.Entry<WeakReference<ByteBuffer>, Integer.ref> newCacheEntry(ByteBuffer bb) {
         return new AbstractMap.SimpleEntry<WeakReference<ByteBuffer>, Integer.ref>(
-                    new WeakReference<ByteBuffer>(bb), bb.capacity());
+                    new WeakReference<ByteBuffer>(bb), Integer.valueOf(bb.capacity()));
     }
 
     private static int getCapacity(Map.Entry<WeakReference<ByteBuffer>, Integer.ref> e) {
@@ -148,10 +148,10 @@ class ImageBufferCache {
     }
 
     private static Comparator<Map.Entry<WeakReference<ByteBuffer>, Integer.ref>> DECREASING_CAPACITY_NULLS_LAST =
-        new Comparator<Map.Entry<WeakReference<ByteBuffer>, Integer>>() {
+        new Comparator<Map.Entry<WeakReference<ByteBuffer>, Integer.ref>>() {
             @Override
-            public int compare(Map.Entry<WeakReference<ByteBuffer>, Integer> br1,
-                        Map.Entry<WeakReference<ByteBuffer>, Integer> br2) {
+            public int compare(Map.Entry<WeakReference<ByteBuffer>, Integer.ref> br1,
+                        Map.Entry<WeakReference<ByteBuffer>, Integer.ref> br2) {
                 return Integer.compare(getCapacity(br1), getCapacity(br2));
             }
         };

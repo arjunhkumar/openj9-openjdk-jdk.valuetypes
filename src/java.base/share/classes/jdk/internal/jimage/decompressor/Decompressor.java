@@ -45,7 +45,7 @@ import jdk.internal.jimage.decompressor.ResourceDecompressor.StringsProvider;
  */
 public final class Decompressor {
 
-    private final Map<Integer, ResourceDecompressor> pluginsCache = new HashMap<>();
+    private final Map<Integer.ref, ResourceDecompressor> pluginsCache = new HashMap<>();
 
     public Decompressor() {
     }
@@ -68,7 +68,7 @@ public final class Decompressor {
             header = CompressedResourceHeader.readFromResource(order, content);
             if (header != null) {
                 ResourceDecompressor decompressor =
-                        pluginsCache.get(header.getDecompressorNameOffset());
+                        pluginsCache.get(Integer.valueOf(header.getDecompressorNameOffset()));
                 if (decompressor == null) {
                     String pluginName =
                             provider.getString(header.getDecompressorNameOffset());
@@ -90,7 +90,7 @@ public final class Decompressor {
                         throw new IOException("Plugin not found: " + pluginName);
                     }
 
-                    pluginsCache.put(header.getDecompressorNameOffset(), decompressor);
+                    pluginsCache.put(Integer.valueOf(header.getDecompressorNameOffset()), decompressor);
                 }
                 try {
                     content = decompressor.decompress(provider, content,

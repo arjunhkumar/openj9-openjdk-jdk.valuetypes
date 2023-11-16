@@ -35,8 +35,12 @@ include MakeBase.gmk
 define tzdb_copyfiles
 	$(call MakeTargetDir)
 	$(RM) '$@'
-	$(SED) -e "s/package java.time.zone/package build.tools.tzdb/" \
-        < $(<) > $@
+	$(SED) -e "s/package java.time.zone/package build.tools.tzdb/" -e "s/Integer.ref/Integer/" \
+        < $(<) > $@ \
+    #$(SED) -i "s/Integer.ref/Integer/" "$(BUILDTOOLS_OUTPUTDIR)/interim_tzdb_classes/build/tools/tzdb/ZoneRules.java"
+    #$(SED) -e "s/Integer.ref/Integer/"  \
+        #< $(<) > $@
+    #-e "s/ConcurrentMap<Integer.ref, ZoneOffsetTransition[]>/ConcurrentMap<Integer, ZoneOffsetTransition[]>/"
 endef
 
 $(eval $(call SetupCopyFiles,COPY_INTERIM_TZDB, \

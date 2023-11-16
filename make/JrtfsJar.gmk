@@ -41,6 +41,11 @@ $(eval $(call SetupTextFileProcessing, BUILD_JAVA_MANIFEST, \
       @@COMPANY_NAME@@ => $(COMPANY_NAME) , \
 ))
 
+$(eval $(call SetupCopyFiles, COPY_MODIFIED_PRIMITIVES, \
+    FILES := $(TOPDIR)/src/java.base/share/classes/java/lang/Integer.java ,\
+    DEST := $(BUILDTOOLS_OUTPUTDIR)/primitive-tmp/java.base.primitive/java/lang/, \
+))
+
 JIMAGE_PKGS := \
     jdk/internal/jimage \
     jdk/internal/jrtfs \
@@ -49,13 +54,15 @@ JIMAGE_PKGS := \
 $(eval $(call SetupJavaCompilation, BUILD_JRTFS, \
     COMPILER := interim, \
     DISABLED_WARNINGS := options, \
-    TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
+    TARGET_RELEASE := $(TARGET_RELEASE_NEWJDK), \
     SRC := $(TOPDIR)/src/java.base/share/classes, \
     EXCLUDE_FILES := module-info.java, \
     INCLUDES := $(JIMAGE_PKGS), \
     BIN := $(SUPPORT_OUTPUTDIR)/jrtfs_classes, \
-    JAVAC_FLAGS := -XDenablePrimitiveClasses, \
+    JAVAC_FLAGS := -XDenablePrimitiveClasses \
+    --patch-module java.base=$(BUILDTOOLS_OUTPUTDIR)/primitive-tmp/java.base.primitive ,\
 ))
+
 
 # Because of the explicit INCLUDES in the compilation setup above, the service provider
 # file will not be copied unless META-INF/services would also be added to the INCLUDES.
@@ -67,7 +74,7 @@ $(eval $(call SetupCopyFiles, COPY_JIMAGE_SERVICE_PROVIDER, \
     FILES := META-INF/services/java.nio.file.spi.FileSystemProvider))
 
 $(eval $(call SetupJarArchive, BUILD_JRTFS_JAR, \
-    DEPENDENCIES := $(BUILD_JRTFS) $(COPY_JIMAGE_SERVICE_PROVIDER), \
+    DEPENDENCIES := $(COPY_MODIFIED_PRIMITIVES) $(BUILD_JRTFS) $(COPY_JIMAGE_SERVICE_PROVIDER), \
     SRCS := $(SUPPORT_OUTPUTDIR)/jrtfs_classes, \
     JAR := $(SUPPORT_OUTPUTDIR)/modules_libs/java.base/jrt-fs.jar, \
     MANIFEST := $(SUPPORT_OUTPUTDIR)/java-main-manifest.mf, \

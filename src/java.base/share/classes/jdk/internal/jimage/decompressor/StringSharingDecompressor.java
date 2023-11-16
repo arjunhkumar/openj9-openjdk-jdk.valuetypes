@@ -158,7 +158,7 @@ public class StringSharingDecompressor implements ResourceDecompressor {
         int indexes_length = CompressIndexes.readInt(cr);
         byte[] bytes = new byte[indexes_length];
         cr.readFully(bytes);
-        List<Integer> indices = CompressIndexes.decompressFlow(bytes);
+        List<Integer.ref> indices = CompressIndexes.decompressFlow(bytes);
         ByteBuffer buffer = ByteBuffer.allocate(encodedDesc.length * 2);
         buffer.order(ByteOrder.BIG_ENDIAN);
         int argIndex = 0;
