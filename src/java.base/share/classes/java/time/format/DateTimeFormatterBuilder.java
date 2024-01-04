@@ -4531,10 +4531,10 @@ public final class DateTimeFormatterBuilder {
             Set<String> nonRegionIds = new HashSet<>(64);
             int regionIdsSize = regionIds.size();
 
-            Map<Locale, Entry<Integer, SoftReference<PrefixTree>>> cached =
+            Map<Locale, Entry<Integer.ref, SoftReference<PrefixTree>>> cached =
                 isCaseSensitive ? cachedTree : cachedTreeCI;
 
-            Entry<Integer, SoftReference<PrefixTree>> entry = null;
+            Entry<Integer.ref, SoftReference<PrefixTree>> entry = null;
             PrefixTree tree = null;
             String[][] zoneStrings = null;
             if ((entry = cached.get(locale)) == null ||
@@ -4623,7 +4623,7 @@ public final class DateTimeFormatterBuilder {
             // prepare parse tree
             Set<String> regionIds = ZoneRulesProvider.getAvailableZoneIds();
             final int regionIdsSize = regionIds.size();
-            Entry<Integer, PrefixTree> cached = context.isCaseSensitive()
+            Entry<Integer.ref, PrefixTree> cached = context.isCaseSensitive()
                                                 ? cachedPrefixTree : cachedPrefixTreeCI;
             if (cached == null || cached.getKey() != regionIdsSize) {
                 synchronized (this) {

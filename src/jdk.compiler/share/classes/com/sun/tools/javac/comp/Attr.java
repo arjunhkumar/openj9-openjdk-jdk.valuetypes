@@ -605,6 +605,7 @@ public class Attr extends JCTree.Visitor {
                 }
                 @Override
                 public void report(DiagnosticPosition pos, JCDiagnostic details) {
+                    // System.out.println("AR07 : DP16: Type error on object type: ");
                     boolean needsReport = pt == Type.recoveryType ||
                             (details.getDiagnosticPosition() != null &&
                             details.getDiagnosticPosition().getTree().hasTag(LAMBDA));
@@ -676,6 +677,7 @@ public class Attr extends JCTree.Visitor {
             }
             return result;
         } catch (CompletionFailure ex) {
+            // System.out.println("Completion Failure for tree: "+ex);
             tree.type = syms.errType;
             return chk.completionError(tree.pos(), ex);
         } finally {
@@ -1683,6 +1685,7 @@ public class Attr extends JCTree.Visitor {
                 //depending on whether boxing is allowed, we could have incompatibilities
                 @Override
                 public void report(DiagnosticPosition pos, JCDiagnostic details) {
+                    // System.out.println("AR07 : DP18: Type error on object type: ");
                     enclosingContext.report(pos, diags.fragment(Fragments.IncompatibleTypeInSwitchExpression(details)));
                 }
             };
@@ -1926,6 +1929,7 @@ public class Attr extends JCTree.Visitor {
                     CheckContext twrContext = new Check.NestedCheckContext(resultInfo.checkContext) {
                         @Override
                         public void report(DiagnosticPosition pos, JCDiagnostic details) {
+                            // System.out.println("AR07 : DP17: Type error on object type: ");
                             chk.basicHandler.report(pos, diags.fragment(Fragments.TryNotApplicableToType(details)));
                         }
                     };
@@ -2126,6 +2130,7 @@ public class Attr extends JCTree.Visitor {
                 //depending on whether boxing is allowed, we could have incompatibilities
                 @Override
                 public void report(DiagnosticPosition pos, JCDiagnostic details) {
+                    // System.out.println("AR07 : DP15: Type error on object type: ");
                     enclosingContext.report(pos, diags.fragment(Fragments.IncompatibleTypeInConditional(details)));
                 }
             };
@@ -2509,7 +2514,21 @@ public class Attr extends JCTree.Visitor {
             methName == names._this || methName == names._super;
 
         ListBuffer<Type> argtypesBuf = new ListBuffer<>();
+        /**AR07 - Debug for method arg typecheck. */
+        boolean debugFlag = false;
+    	if(null != tree && null != tree.toString()) {
+    		if(tree.toString().contains("tms.add") || tree.toString().contains("visitLdcInsn")) {
+    			//  System.out.println("AR07 : DP40: " + tree + tree.typeargs + tree.args);
+    			 debugFlag = true;
+    	        //  System.out.println("1. actuals: " + argtypes);
+    		}
+    	}
+    	/**AR07 - Debug for method arg typecheck end. */
         if (isConstructorCall) {
+        	if(debugFlag) {
+        		// System.out.println("AR07 : DP41: Constructor call: " + tree);
+        	}
+        	
             // We are seeing a ...this(...) or ...super(...) call.
             // Check that this is the first statement in a constructor.
             checkFirstConstructorStat(tree, env.enclMethod, true);
@@ -2524,7 +2543,9 @@ public class Attr extends JCTree.Visitor {
             localEnv.info.constructorArgs = false;
             argtypes = argtypesBuf.toList();
             typeargtypes = attribTypes(tree.typeargs, localEnv);
-
+            if(debugFlag) {
+        		// System.out.println("AR07 : DP42: Constructor call: " + tree);
+        	}
             // Variable `site' points to the class in which the called
             // constructor is defined.
             Type site = env.enclClass.sym.type;
@@ -2536,8 +2557,13 @@ public class Attr extends JCTree.Visitor {
                     site = types.supertype(site);
                 }
             }
-
+            if(debugFlag) {
+        		// System.out.println("AR07 : DP43: Constructor call: " + tree);
+        	}
             if (site.hasTag(CLASS)) {
+            	if(debugFlag) {
+            		// System.out.println("AR07 : DP43: Constructor class: " + tree);
+            	}
                 Type encl = site.getEnclosingType();
                 while (encl != null && encl.hasTag(TYPEVAR))
                     encl = encl.getUpperBound();
@@ -2589,25 +2615,44 @@ public class Attr extends JCTree.Visitor {
                 Type mpt = newMethodTemplate(resultInfo.pt, argtypes, typeargtypes);
                 checkId(tree.meth, site, sym, localEnv,
                         new ResultInfo(kind, mpt));
+                if(debugFlag) {
+            		// System.out.println("AR07 : DP44: Constructor class: " + tree);
+            	}
             } else if (site.hasTag(ERROR) && tree.meth.hasTag(SELECT)) {
                 attribExpr(((JCFieldAccess) tree.meth).selected, localEnv, site);
+                if(debugFlag) {
+            		// System.out.println("AR07 : DP45: ERROR class: " + tree);
+            	}
             }
             // Otherwise, `site' is an error type and we do nothing
             result = tree.type = syms.voidType;
         } else {
             // Otherwise, we are seeing a regular method call.
             // Attribute the arguments, yielding list of argument types, ...
+        	if(debugFlag) {
+        		// System.out.println("AR07 : DP46: Normal class: " + tree);
+        	}
             KindSelector kind = attribArgs(KindSelector.VAL, tree.args, localEnv, argtypesBuf);
             argtypes = argtypesBuf.toList();
             typeargtypes = attribAnyTypes(tree.typeargs, localEnv);
-
+            if(debugFlag) {
+        		// System.out.println("AR07 : DP47: Normal class: " + tree);
+        	}
             // ... and attribute the method using as a prototype a methodtype
             // whose formal argument types is exactly the list of actual
             // arguments (this will also set the method symbol).
             Type mpt = newMethodTemplate(resultInfo.pt, argtypes, typeargtypes);
             localEnv.info.pendingResolutionPhase = null;
             Type mtype = attribTree(tree.meth, localEnv, new ResultInfo(kind, mpt, resultInfo.checkContext));
-
+            if(debugFlag) {
+        		// System.out.println("AR07 : DP48: Normal class: " + mtype);
+                 if(null == argtypes || argtypes.isEmpty()) {
+        			// System.out.println("AR07 : DP48: Empty");
+        		}
+                for(Type argtreeeType: argtypes) {
+        			// System.out.println("AR07 : DP48:" + argtreeeType);
+        		}
+        	}
             // Compute the result type.
             Type restype = mtype.getReturnType();
             if (restype.hasTag(WILDCARD))
@@ -2625,8 +2670,28 @@ public class Attr extends JCTree.Visitor {
             // current context.  Also, capture the return type
             Type capturedRes = resultInfo.checkContext.inferenceContext().cachedCapture(tree, restype, true);
             result = check(tree, capturedRes, KindSelector.VAL, resultInfo);
+            if(debugFlag) {
+        		// System.out.println("AR07 : DP49: Normal class: " + mtype);
+                if(null == argtypes || argtypes.isEmpty()) {
+        			// System.out.println("AR07 : DP49: Empty");
+        		}
+                for(Type argtreeeType: argtypes) {
+        			// System.out.println("AR07 : DP49:" + argtreeeType);
+        		}
+        	}
         }
+        if(debugFlag) {
+    		// System.out.println("AR07 : DP50: " + result);
+    	}
         chk.validate(tree.typeargs, localEnv);
+        if(debugFlag) {
+    		// System.out.println("AR07 : DP51: " + result);
+            // try{
+    		// 	throw new RuntimeException();
+            // }catch(Exception ex){
+            // 	ex.printStackTrace();
+            // }
+    	}
     }
     //where
         Type adjustMethodReturnType(Symbol msym, Type qualifierType, Name methodName, List<Type> argtypes, Type restype) {
@@ -3461,6 +3526,7 @@ public class Attr extends JCTree.Visitor {
 
             @Override
             public void report(DiagnosticPosition pos, JCDiagnostic details) {
+                // System.out.println("AR07 : DP14: Type error on object type: ");
                 enclosingContext.report(pos, diags.fragment(Fragments.IncompatibleRetTypeInLambda(details)));
             }
         }
@@ -3477,6 +3543,7 @@ public class Attr extends JCTree.Visitor {
 
             @Override
             public void report(DiagnosticPosition pos, JCDiagnostic details) {
+                // System.out.println("AR07 : DP13: Type error on object type: ");
                 if (expStmtExpected) {
                     enclosingContext.report(pos, diags.fragment(Fragments.StatExprExpected));
                 } else {
@@ -3857,6 +3924,7 @@ public class Attr extends JCTree.Visitor {
         }
 
         if (incompatibleReturnType != null) {
+            // System.out.println("AR07 : DP21: Type error on object type: "+resType.tsym.name.toString()+" and type: "+descriptor.getReturnType().tsym.name.toString());
             Fragment msg =
                     Fragments.IncompatibleRetTypeInMref(Fragments.InconvertibleTypes(resType, descriptor.getReturnType()));
             checkContext.report(tree, diags.fragment(msg));
@@ -4194,6 +4262,7 @@ public class Attr extends JCTree.Visitor {
             return false;
         }
         if (!types.isCastable(exprType, pattType, warner)) {
+            // System.out.println("AR07 : DP20: Type error on object type: "+exprType.tsym.name.toString()+" and type: "+pattType.tsym.name.toString());
             chk.basicHandler.report(pos,
                     diags.fragment(Fragments.InconvertibleTypes(exprType, pattType)));
             return false;
@@ -4935,6 +5004,14 @@ public class Attr extends JCTree.Visitor {
                             List<Type> typeargtypes) {
         // Test (5): if symbol is an instance method of a raw type, issue
         // an unchecked warning if its argument types change under erasure.
+        /**AR07 - Debug for method arg typecheck. */
+    	// if(null != env && null != env.tree && null != env.tree.toString()) {
+    	// 	if(env.tree.toString().contains("visitLdcInsn")) {
+    	// 		 System.out.println("2. call   : " + env.tree);
+    	//          System.out.println("2. actuals: " + argtypes);
+    	// 	}
+    	// }
+    	/**AR07 - Debug for method arg typecheck end. */
         if ((sym.flags() & STATIC) == 0 &&
             (site.hasTag(CLASS) || site.hasTag(TYPEVAR))) {
             Type s = types.asOuterSuper(site, sym.owner);
@@ -5021,6 +5098,7 @@ public class Attr extends JCTree.Visitor {
         } catch (Infer.InferenceException ex) {
             //invalid target type - propagate exception outwards or report error
             //depending on the current check context
+            // System.out.println("AR07 : DP30 : Attr-CheckMethod.");
             resultInfo.checkContext.report(env.tree.pos(), ex.getDiagnostic());
             return types.createErrorType(site);
         } catch (Resolve.InapplicableMethodException ex) {
@@ -5035,6 +5113,7 @@ public class Attr extends JCTree.Visitor {
                     rs.new ResolveDeferredRecoveryMap(AttrMode.CHECK, sym, env.info.pendingResolutionPhase));
             JCDiagnostic errDiag = errSym.getDiagnostic(JCDiagnostic.DiagnosticType.ERROR,
                     env.tree, sym, site, sym.name, argtypes2, typeargtypes);
+            // System.out.println("AR07 : DP31 : Attr-CheckMethod.");
             log.report(errDiag);
             return types.createErrorType(site);
         }

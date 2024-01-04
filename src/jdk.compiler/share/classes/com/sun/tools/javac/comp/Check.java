@@ -336,6 +336,7 @@ public class Check {
             log.error(pos, Errors.IllegalStartOfType);
             return syms.errType;
         }
+        System.out.println("AR07 : DP32: Type error Found: "+found +"Required: "+required);
         log.error(pos, Errors.TypeFoundReq(found, required));
         return types.createErrorType(found instanceof Type type ? type : syms.errType);
     }
@@ -559,6 +560,7 @@ public class Check {
         }
 
         public void report(DiagnosticPosition pos, JCDiagnostic details) {
+            // System.out.println("AR07 : DP9: Type error on object type: ");
             enclosingContext.report(pos, details);
         }
 
@@ -580,6 +582,7 @@ public class Check {
      */
     CheckContext basicHandler = new CheckContext() {
         public void report(DiagnosticPosition pos, JCDiagnostic details) {
+            // System.out.println("AR07 : DP8: Type error on object type: ");
             log.error(pos, Errors.ProbFoundReq(details));
         }
         public boolean compatible(Type found, Type req, Warner warn) {
@@ -616,11 +619,35 @@ public class Check {
 
     Type checkType(final DiagnosticPosition pos, final Type found, final Type req, final CheckContext checkContext) {
         final InferenceContext inferenceContext = checkContext.inferenceContext();
+        boolean debugFlag = false;
+        if(found.toString().equalsIgnoreCase("int") && req.toString().contains("Integer.ref")) {
+    		// System.out.println("AR07 : Found: "+found +" Req: "+req);
+            debugFlag = true;
+    	}
+    	// if(found.toString().contains("Integer.ref") && req.toString().equalsIgnoreCase("int")) {
+    	// 	System.out.println("AR07 :2. Case found.");
+    	// }
+    	// if(found.toString().contains("Object") && req.toString().equalsIgnoreCase("int")) {
+    	// 	// System.out.println("AR07 :3. Case found.");
+    	// }
+    	if(found.toString().equalsIgnoreCase("int") && req.toString().equalsIgnoreCase("java.lang.Object")) {
+    		// System.out.println("AR07 : Found: "+found +" Req: "+req);
+            debugFlag = true;
+    	}
         if (inferenceContext.free(req) || inferenceContext.free(found)) {
+            if(debugFlag) {
+        		System.out.println("AR07 : 1. Found: "+found +" Req: "+req);
+        	}
             inferenceContext.addFreeTypeListener(List.of(req, found),
                     solvedContext -> checkType(pos, solvedContext.asInstType(found), solvedContext.asInstType(req), checkContext));
         } else {
+            // if(debugFlag) {
+        	// 	System.out.println("AR07 : 2. Found: "+found +" Req: "+req +"Check-Context: "+checkContext);
+        	// }
             if (allowPrimitiveClasses && found.hasTag(CLASS)) {
+                if(debugFlag) {
+        		    System.out.println("AR07 : 3. Found: "+found +" Req: "+req);
+        	    }
                 if (inferenceContext != infer.emptyContext)
                     checkParameterizationByPrimitiveClass(pos, found);
             }
@@ -630,12 +657,19 @@ public class Check {
         if (req.hasTag(NONE))
             return found;
         if (checkContext.compatible(found, req, checkContext.checkWarner(pos, found, req))) {
+            // if(debugFlag) {
+            //     System.out.println("AR07 : 4. Found: "+found +" Req: "+req);
+            // }
             return found;
         } else {
+            // if(debugFlag) {
+            //     System.out.println("AR07 : 5. Found: "+found +" Req: "+req);
+            // }
             if (found.isNumeric() && req.isNumeric()) {
                 checkContext.report(pos, diags.fragment(Fragments.PossibleLossOfPrecision(found, req)));
                 return types.createErrorType(found);
             }
+            // System.out.println("AR07 : DP21: Type error on object type: "+found.tsym.name.toString()+" and type: "+req.tsym.name.toString());
             checkContext.report(pos, diags.fragment(Fragments.InconvertibleTypes(found, req)));
             return types.createErrorType(found);
         }
@@ -654,6 +688,7 @@ public class Check {
         if (types.isCastable(found, req, castWarner(pos, found, req))) {
             return req;
         } else {
+            System.out.println("AR07 : DP6: Type error on object type: "+found.tsym.name.toString()+" and type: "+req.tsym.name.toString());
             checkContext.report(pos, diags.fragment(Fragments.InconvertibleTypes(found, req)));
             return types.createErrorType(found);
         }
@@ -866,10 +901,12 @@ public class Check {
     Type checkRefType(DiagnosticPosition pos, Type t, boolean primitiveClassOK) {
         if (t.isReference() && (!allowPrimitiveClasses || primitiveClassOK || !t.isPrimitiveClass()))
             return t;
-        else
+        else{
+            // System.out.println("AR07 : DP52: Type tag error. checkRefType: " + t);
             return typeTagError(pos,
                                 diags.fragment(Fragments.TypeReqRef),
                                 t);
+        }
     }
 
     /** Check that type is an identity type, i.e. not a primitive/value type
@@ -966,6 +1003,7 @@ public class Check {
         public Void visitClassType(ClassType t, DiagnosticPosition pos) {
             for (Type targ : t.allparams()) {
                 if (allowPrimitiveClasses && targ.isPrimitiveClass()) {
+                    // System.out.println("AR07 : DP8: Type error");
                     log.error(pos, Errors.GenericParameterizationWithPrimitiveClass(t));
                 }
                 visit(targ, pos);
@@ -1161,6 +1199,14 @@ public class Check {
         // System.out.println("call   : " + env.tree);
         // System.out.println("method : " + owntype);
         // System.out.println("actuals: " + argtypes);
+        /**AR07 - Debug for method arg typecheck. */
+    	// if(null != env && null != env.tree && null != env.tree.toString()) {
+    		// if(env.tree.toString().contains("add") || env.tree.toString().contains("visitLdcInsn")) {
+    		// 	 System.out.println("1. call   : " + env.tree);
+    	    //      System.out.println("1. actuals: " + argtypes);
+    		// }
+    	// }
+    	/**AR07 - Debug for method arg typecheck end. */
         if (inferenceContext.free(mtype)) {
             inferenceContext.addFreeTypeListener(List.of(mtype),
                     solvedContext -> checkMethod(solvedContext.asInstType(mtype), sym, env, argtrees, argtypes, useVarargs, solvedContext));
@@ -1280,6 +1326,7 @@ public class Check {
                 if (!isTypeArgErroneous(actual) &&
                         !bounds.head.isErroneous() &&
                         !checkExtends(actual, bounds.head)) {
+                        //  System.out.println("AR07 : DP26 : Invalid arg type.");
                     return args.head;
                 }
                 args = args.tail;
@@ -1294,6 +1341,7 @@ public class Check {
                         arg.getUpperBound().isErroneous() &&
                         !bounds.head.isErroneous() &&
                         !isTypeArgErroneous(args.head)) {
+                            // System.out.println("AR07 : DP27 : Invalid arg type.");
                     return args.head;
                 }
                 bounds = bounds.tail;
@@ -1634,8 +1682,10 @@ public class Check {
 
                 Type incompatibleArg = firstIncompatibleTypeArg(tree.type);
                 if (incompatibleArg != null) {
+                    // System.out.println("AR07 : DP25 : Invalid arg type.");
                     for (JCTree arg : tree.arguments) {
                         if (arg.type == incompatibleArg) {
+                            // System.out.println("AR07 : DP52: Error. IncompatibleArg" + arg);
                             log.error(arg, Errors.NotWithinBounds(incompatibleArg, forms.head));
                         }
                         forms = forms.tail;

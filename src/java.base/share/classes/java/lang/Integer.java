@@ -91,7 +91,7 @@ public primitive class Integer extends Number
      * @since   1.1
      */
     @SuppressWarnings("unchecked")
-    public static final Class<Integer.ref>  TYPE = (Class<Integer>) Class.getPrimitiveClass("int");
+    public static final Class<Integer.ref>  TYPE = (Class<Integer.ref>) Class.getPrimitiveClass("int");
 
     /**
      * All possible chars for representing a number as a String
@@ -157,7 +157,6 @@ public primitive class Integer extends Number
         if (radix == 10) {
             return toString(i);
         }
-
         if (COMPACT_STRINGS) {
             byte[] buf = new byte[33];
             boolean negative = (i < 0);

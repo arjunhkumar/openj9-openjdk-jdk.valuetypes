@@ -539,6 +539,8 @@ public enum Wrapper {
      */
     public Object wrap(Object x) {
         // do non-numeric wrappers first
+        System.err.println("Trying to wrap integer value: "+x);
+        System.out.println("T1");
         switch (basicTypeChar) {
             case 'L': return x;
             case 'V': return null;

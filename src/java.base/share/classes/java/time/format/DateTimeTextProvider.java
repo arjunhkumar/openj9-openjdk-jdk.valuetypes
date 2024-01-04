@@ -268,7 +268,7 @@ class DateTimeTextProvider {
         }
 
         int calendarStyle = (style == null) ? Calendar.ALL_STYLES : style.toCalendarStyle();
-        Map<String, Integer> map = CalendarDataUtility.retrieveJavaTimeFieldValueNames(
+        Map<String, Integer.ref> map = CalendarDataUtility.retrieveJavaTimeFieldValueNames(
                 chrono.getCalendarType(), fieldIndex, calendarStyle, locale);
         if (map == null) {
             return null;
@@ -276,7 +276,7 @@ class DateTimeTextProvider {
         List<Entry<String, Long>> list = new ArrayList<>(map.size());
         switch (fieldIndex) {
         case Calendar.ERA:
-            for (Map.Entry<String, Integer> entry : map.entrySet()) {
+            for (Map.Entry<String, Integer.ref> entry : map.entrySet()) {
                 int era = entry.getValue();
                 if (chrono == JapaneseChronology.INSTANCE) {
                     if (era == 0) {
@@ -289,17 +289,17 @@ class DateTimeTextProvider {
             }
             break;
         case Calendar.MONTH:
-            for (Map.Entry<String, Integer> entry : map.entrySet()) {
+            for (Map.Entry<String, Integer.ref> entry : map.entrySet()) {
                 list.add(createEntry(entry.getKey(), (long)(entry.getValue() + 1)));
             }
             break;
         case Calendar.DAY_OF_WEEK:
-            for (Map.Entry<String, Integer> entry : map.entrySet()) {
+            for (Map.Entry<String, Integer.ref> entry : map.entrySet()) {
                 list.add(createEntry(entry.getKey(), (long)toWeekDay(entry.getValue())));
             }
             break;
         default:
-            for (Map.Entry<String, Integer> entry : map.entrySet()) {
+            for (Map.Entry<String, Integer.ref> entry : map.entrySet()) {
                 list.add(createEntry(entry.getKey(), (long)entry.getValue()));
             }
             break;
@@ -328,11 +328,11 @@ class DateTimeTextProvider {
                     // Stand-alone isn't applicable to era names.
                     continue;
                 }
-                Map<String, Integer> displayNames = CalendarDataUtility.retrieveJavaTimeFieldValueNames(
+                Map<String, Integer.ref> displayNames = CalendarDataUtility.retrieveJavaTimeFieldValueNames(
                         "gregory", Calendar.ERA, textStyle.toCalendarStyle(), locale);
                 if (displayNames != null) {
                     Map<Long, String> map = new HashMap<>();
-                    for (Entry<String, Integer> entry : displayNames.entrySet()) {
+                    for (Entry<String, Integer.ref> entry : displayNames.entrySet()) {
                         map.put((long) entry.getValue(), entry.getKey());
                     }
                     if (!map.isEmpty()) {
@@ -361,10 +361,10 @@ class DateTimeTextProvider {
                         map.put((month + 1L), name);
                     }
                 } else {
-                    Map<String, Integer> displayNames = CalendarDataUtility.retrieveJavaTimeFieldValueNames(
+                    Map<String, Integer.ref> displayNames = CalendarDataUtility.retrieveJavaTimeFieldValueNames(
                             "gregory", Calendar.MONTH, textStyle.toCalendarStyle(), locale);
                     if (displayNames != null) {
-                        for (Entry<String, Integer> entry : displayNames.entrySet()) {
+                        for (Entry<String, Integer.ref> entry : displayNames.entrySet()) {
                             map.put((long)(entry.getValue() + 1), entry.getKey());
                         }
                     } else {
@@ -406,10 +406,10 @@ class DateTimeTextProvider {
                         map.put((long)toWeekDay(wday), name);
                     }
                 } else {
-                    Map<String, Integer> displayNames = CalendarDataUtility.retrieveJavaTimeFieldValueNames(
+                    Map<String, Integer.ref> displayNames = CalendarDataUtility.retrieveJavaTimeFieldValueNames(
                             "gregory", Calendar.DAY_OF_WEEK, textStyle.toCalendarStyle(), locale);
                     if (displayNames != null) {
-                        for (Entry<String, Integer> entry : displayNames.entrySet()) {
+                        for (Entry<String, Integer.ref> entry : displayNames.entrySet()) {
                             map.put((long)toWeekDay(entry.getValue()), entry.getKey());
                         }
                     } else {
@@ -439,11 +439,11 @@ class DateTimeTextProvider {
                     // Stand-alone isn't applicable to AM/PM.
                     continue;
                 }
-                Map<String, Integer> displayNames = CalendarDataUtility.retrieveJavaTimeFieldValueNames(
+                Map<String, Integer.ref> displayNames = CalendarDataUtility.retrieveJavaTimeFieldValueNames(
                         "gregory", Calendar.AM_PM, textStyle.toCalendarStyle(), locale);
                 if (displayNames != null) {
                     Map<Long, String> map = new HashMap<>();
-                    for (Entry<String, Integer> entry : displayNames.entrySet()) {
+                    for (Entry<String, Integer.ref> entry : displayNames.entrySet()) {
                         map.put((long) entry.getValue(), entry.getKey());
                     }
                     if (!map.isEmpty()) {

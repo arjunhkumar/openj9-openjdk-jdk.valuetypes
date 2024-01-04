@@ -198,6 +198,7 @@ public class ClassWriter extends ClassFile {
         }
         Source source = Source.instance(context);
         allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
+        // System.out.println("AR07: DP0: Initializing Class Writer Initializing Class Writer; Primitive Type: "+ allowPrimitiveClasses);
     }
 
     public void addExtraAttributes(ToIntFunction<Symbol> addExtraAttributes) {

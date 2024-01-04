@@ -2535,7 +2535,7 @@ public final class ObjectStreamClass implements Serializable {
                 PRIM_VALUE_EXTRACTORS = Map.of(
                     byte.class, MethodHandles.arrayElementGetter(byte[].class),
                     short.class, lkp.findStatic(ByteArray.class, "getShort", MethodType.methodType(short.class, byte[].class, int.class)),
-                    int.class, lkp.findStatic(ByteArray.class, "getInt", MethodType.methodType(int.class, byte[].class, int.class)),
+                    Integer.class, lkp.findStatic(ByteArray.class, "getInt", MethodType.methodType(int.class, byte[].class, int.class)),
                     long.class, lkp.findStatic(ByteArray.class, "getLong", MethodType.methodType(long.class, byte[].class, int.class)),
                     float.class, lkp.findStatic(ByteArray.class, "getFloat", MethodType.methodType(float.class, byte[].class, int.class)),
                     double.class, lkp.findStatic(ByteArray.class, "getDouble", MethodType.methodType(double.class, byte[].class, int.class)),

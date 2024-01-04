@@ -97,7 +97,7 @@ public class Types {
     JCDiagnostic.Factory diags;
     List<Warner> warnStack = List.nil();
     final Name capturedName;
-
+    static boolean debugFlag = false;
     public final Warner noWarnings;
 
     // <editor-fold defaultstate="collapsed" desc="Instantiating">
@@ -600,19 +600,82 @@ public class Types {
         if (t.hasTag(ERROR)) {
             return true;
         }
-
+        if(t.toString().equalsIgnoreCase("java.lang.Object") && s.toString().equalsIgnoreCase("int")) {
+            System.out.println("AR07 : DP01. Found: "+t +" Req: "+s );
+            debugFlag = true;
+        }
+        // boolean debugFlag = false;
+        if(t.toString().equalsIgnoreCase("java.lang.Object") && s.toString().equalsIgnoreCase("int")) {
+            System.out.println("AR07 : DP05. Found: "+t +" Req: "+s );
+            // debugFlag = true;
+        }
+        /**AR07 - Type checking fixes for wrapper primitive class.
+         * ----------------------------------------------------------------------------------
+         * This change is mainly intended to support the 
+         * Inlineability of primitive classes. Starting with java.lang.Integer. 
+         * Fixes should support type support between:
+         * 1. int -> (Primitive) Integer and vice versa. 
+         * 2. (Primitive) Integer -> Integer.ref and vice versa.
+         * 3. int ->  Integer.ref and vice versa. 
+         * Note that in the above cases 1 & 2 javac identifies only one of the type as a 
+         * primitive class. 
+         * If both the types are primitives then it is already handled using the 
+         * check isSubtypeUnchecked(t, s, warn)
+         * Case 3 will be handled specially as both types are not considered as primitive
+         * class by javac.
+         * -----------------------------------------------------------------------------------
+         * */
+        boolean tPrimitive = t.isPrimitive();
+        boolean sPrimitive = s.isPrimitive();
+        
         if (allowPrimitiveClasses) {
+            if(debugFlag){
+                System.out.println("AR07 : DP06. Found: "+t +" Req: "+s );
+            }
             boolean tValue = t.isPrimitiveClass();
             boolean sValue = s.isPrimitiveClass();
+            /** AR07 - Only one of the types is a primitive class. The other may be a primitive or a identity class or a reference to a primitive class. */
             if (tValue != sValue) {
+                if(tPrimitive && sValue) {
+                    Type boxedTypeT = boxedClass(t).type;
+                    if(boxedTypeT.isPrimitiveClass()) {
+                        return !t.hasTag(BOT) && isSubtype(boxedTypeT.referenceProjection(), s.referenceProjection());
+                    }else {
+                        return !t.hasTag(BOT) && isSubtype(boxedTypeT, s.referenceProjection());
+                    }
+                    /** AR07 - Debug Code*/
+    //                		boolean typeRes;
+    //                		Type boxedTypet = boxedClass(t).type;
+    //                		if(boxedTypet.isPrimitiveClass()) {
+    //                			typeRes = !t.hasTag(BOT) && isSubtype(boxedTypet.referenceProjection(), s.referenceProjection());
+    //                		}else {
+    //                			typeRes = !t.hasTag(BOT) && isSubtype(boxedTypet, s.referenceProjection());
+    //                		}
+    //                		return typeRes;
+                }else if(tValue && sPrimitive) {
+                    Type boxedTypeS = boxedClass(s).type;
+                    if(boxedTypeS.isPrimitiveClass()) {
+                        return !t.hasTag(BOT) && isSubtype(t.referenceProjection(), boxedTypeS.referenceProjection());
+                    }else {
+                        return !t.hasTag(BOT) && isSubtype(t.referenceProjection(), boxedTypeS);
+                    }
+                    /** AR07 - Debug Code*/
+    //                		boolean typeRes;
+    //                		Type boxedTypes = boxedClass(s).type;
+    //                		if(boxedTypes.isPrimitiveClass()) {
+    //                			typeRes =  !t.hasTag(BOT) && isSubtype(t.referenceProjection(), boxedTypes.referenceProjection());
+    //                		}else {
+    //                			typeRes =  !t.hasTag(BOT) && isSubtype(t.referenceProjection(), boxedTypes);
+    //                		}
+    //                		return typeRes;
+                }
+                /** AR07 - This case will occur when neither of the types are primitives and one of the type is a primitive class.*/
                 return tValue ?
                         isSubtype(t.referenceProjection(), s) :
                         !t.hasTag(BOT) && isSubtype(t, s.referenceProjection());
             }
         }
 
-        boolean tPrimitive = t.isPrimitive();
-        boolean sPrimitive = s.isPrimitive();
         if (tPrimitive == sPrimitive) {
             return isSubtypeUnchecked(t, s, warn);
         }
@@ -624,7 +687,32 @@ public class Types {
                     isSubtype(t, boxedTypeOrType(s)) :
                     isSubtype(boxedTypeOrType(t), s);
         }
-
+        
+        /** AR07 - This case will occur when one of the type is a primitive class and the other is not a primitive nor a primitive class. 
+         * Special handling for handling int ->  Integer.ref and vice versa cases.*/
+        if(debugFlag){
+            System.out.println("AR07 : DP07. Found: "+t +" Req: "+s );
+        }
+        if(tPrimitive) {
+            Type boxedTypeT = boxedClass(t).type;
+            if(boxedTypeT.isPrimitiveClass()) {
+                // debugFlag = false;
+                return isSubtype(boxedTypeT.referenceProjection(), s);
+            }
+        }else if(sPrimitive){
+            Type boxedTypeS = boxedClass(s).type;
+            if(boxedTypeS.isPrimitiveClass()) {
+                if(debugFlag){
+                    System.out.println("AR07 : DP08. isSubType: "+ (isSubtype(t, boxedTypeS.referenceProjection())));
+                    debugFlag = false;
+                }
+                return isSubtype(t, boxedTypeS.referenceProjection());
+            }
+        }
+        if(debugFlag){
+            debugFlag = false;
+            System.out.println("AR07 : DP08. isSubType: "+ isSubtype(unboxedType(t), s));
+        }
         return tPrimitive
             ? isSubtype(boxedClass(t).type, s)
             : isSubtype(unboxedType(t), s);
@@ -1113,11 +1201,21 @@ public class Types {
         return isSubtype(t, s, false);
     }
     public boolean isSubtype(Type t, Type s, boolean capture) {
+        // boolean debugFlag = false;
+        if(t.toString().equalsIgnoreCase("java.lang.Object") && s.toString().equalsIgnoreCase("int")) {
+            System.out.println("AR07 : DP10. Found: "+t +" Req: "+s );
+            // debugFlag = true;
+        }
         if (t.equalsIgnoreMetadata(s))
             return true;
+        if(debugFlag){
+            System.out.println("AR07 : 15. Found: "+t +" Req: "+s );
+        }
         if (s.isPartial())
             return isSuperType(s, t);
-
+        if(debugFlag){
+            System.out.println("AR07 : 16. Found: "+t +" Req: "+s );
+        }
         if (s.isCompound()) {
             for (Type s2 : interfaces(s).prepend(supertype(s))) {
                 if (!isSubtype(t, s2, capture))
@@ -1125,7 +1223,9 @@ public class Types {
             }
             return true;
         }
-
+        if(debugFlag){
+            System.out.println("AR07 : 17. Found: "+t +" Req: "+s );
+        }
         // Generally, if 's' is a lower-bounded type variable, recur on lower bound; but
         // for inference variables and intersections, we need to keep 's'
         // (see JLS 4.10.2 for intersections and 18.2.3 for inference vars)
@@ -1135,7 +1235,9 @@ public class Types {
             if (s != lower && !lower.hasTag(BOT))
                 return isSubtype(capture ? capture(t) : t, lower, false);
         }
-
+        if(debugFlag){
+            System.out.println("AR07 : 18. Found: "+ (capture ? capture(t) : t) +" Req: "+s );
+        }
         return isSubtype.visit(capture ? capture(t) : t, s);
     }
     // where
@@ -1143,6 +1245,9 @@ public class Types {
         {
             @Override
             public Boolean visitType(Type t, Type s) {
+                if(debugFlag){
+                    System.out.println("AR07 : 19. Found: "+ t +" Req: "+s );
+                }
                 switch (t.getTag()) {
                  case BYTE:
                      return (!s.hasTag(CHAR) && t.getTag().isSubRangeOf(s.getTag()));
@@ -1219,10 +1324,26 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
+
+                // boolean debugFlag = false;
+                // if(t.toString().equalsIgnoreCase("java.lang.Integer") && s.toString().equalsIgnoreCase("java.lang.Integer.ref")) {
+                //     System.out.println("AR07 : 19. SubType1: "+t +" SubType2: "+s );
+                //     // debugFlag = true;
+                // }
                 Type sup = asSuper(t, s.tsym);
+                if(debugFlag){
+                    System.out.println("AR07 : 20. SubType1: "+t +" SubType2: "+s +"sup: "+sup);
+                }
                 if (sup == null) return false;
                 // If t is an intersection, sup might not be a class type
                 if (!sup.hasTag(CLASS)) return isSubtypeNoCapture(sup, s);
+                if(debugFlag){
+                    System.out.println("AR07 : 21. sup.tsym: "+sup.tsym +" s.tsym: "+s.tsym +" t.tsym : "+t.tsym  +" cond1: "+ (sup.tsym == s.tsym));
+                    System.out.println("AR07 : 22. cond21: "+ (t.tsym != s.tsym));
+                    System.out.println("AR07 : 22. cond22: "+ "tRP: "+ t.isReferenceProjection() +"sRP: "+  s.isReferenceProjection());
+                    System.out.println("AR07 : 23. cond3: "+ (!s.isParameterized() || containsTypeRecursive(s, sup)));
+                    System.out.println("AR07 : 24. cond4: "+ (isSubtypeNoCapture(sup.getEnclosingType(),s.getEnclosingType())));
+                }   
                 return sup.tsym == s.tsym
                     && (t.tsym != s.tsym || t.isReferenceProjection() == s.isReferenceProjection())
                      // Check type variable containment
@@ -1233,6 +1354,9 @@ public class Types {
 
             @Override
             public Boolean visitArrayType(ArrayType t, Type s) {
+                if(debugFlag){
+                    System.out.println("AR07 : 25. Found: "+  t +" Req: "+s );
+                }
                 if (s.hasTag(ARRAY)) {
                     if (t.elemtype.isPrimitive())
                         return isSameType(t.elemtype, elemtype(s));
@@ -1261,6 +1385,14 @@ public class Types {
 
             @Override
             public Boolean visitUndetVar(UndetVar t, Type s) {
+                if(debugFlag){
+                    System.out.println("AR07 : 26. Found: "+ t +" Req: "+s );
+                }
+                // boolean debugFlag = false;
+                // if(t.toString().equalsIgnoreCase("java.lang.Integer") && s.toString().equalsIgnoreCase("java.lang.Integer.ref")) {
+                //     System.out.println("AR07 : 20. SubType1: "+t +" SubType2: "+s );
+                //     debugFlag = true;
+                // }
                 //todo: test against origin needed? or replace with substitution?
                 if (t == s || t.qtype == s || s.hasTag(ERROR) || s.hasTag(UNKNOWN)) {
                     return true;
@@ -1276,6 +1408,14 @@ public class Types {
 
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
+                if(debugFlag){
+                    System.out.println("AR07 : 27. Found: "+  t +" Req: "+s );
+                }
+                // boolean debugFlag = false;
+                // if(t.toString().equalsIgnoreCase("java.lang.Integer") && s.toString().equalsIgnoreCase("java.lang.Integer.ref")) {
+                //     System.out.println("AR07 : 21. SubType1: "+t +" SubType2: "+s );
+                //     debugFlag = true;
+                // }
                 return true;
             }
         };
@@ -1703,14 +1843,29 @@ public class Types {
      */
     public boolean isCastable(Type t, Type s, Warner warn) {
         // if same type
+        // boolean debugFlag = false;
+        if(t.toString().equalsIgnoreCase("java.lang.Object") && s.toString().equalsIgnoreCase("int")) {
+            System.out.println("AR07 : DP01. Found: "+t +" Req: "+s );
+            // debugFlag = true;
+        }
         if (t == s)
             return true;
+        if(debugFlag){
+            System.out.println("AR07 : DP02. Found: "+t +" Req: "+s );
+        }
         // if one of the types is primitive
         if (t.isPrimitive() != s.isPrimitive()) {
             t = skipTypeVars(t, false);
+            if(debugFlag){
+                System.out.println("AR07 : DP03. isConvertible: "+ (isConvertible(t, s, warn)));
+                debugFlag = false;
+            }
             return (isConvertible(t, s, warn)
                     || (s.isPrimitive() &&
                         isSubtype(boxedClass(s).type, t)));
+        }
+        if(debugFlag){
+            System.out.println("AR07 : DP04. Found: "+t +" Req: "+s );
         }
         boolean result;
         if (warn != warnStack.head) {
@@ -2253,15 +2408,33 @@ public class Types {
          * (j.u.List<capture#160 of ? extends c.s.s.d.DocTree>, Iterable) =>
          *     Iterable<capture#160 of ? extends c.s.s.d.DocTree>
          */
+    	
+    	if(debugFlag) {
+    		System.out.println("AR07 : 021. Type: "+t +" Sym: "+sym );
+    	}
 
         if (allowPrimitiveClasses && t.isPrimitiveClass()) {
             // No man may be an island, but the bell tolls for a value.
             return t.tsym == sym ? t : null;
         }
-
+        
+        if(debugFlag) {
+    		System.out.println("AR07 : 022. Type: "+t +" Sym: "+sym );
+    	}
+        
         if (sym.type == syms.objectType) { //optimization
             return syms.objectType;
         }
+        
+        /** AR07 - Assuming; java.lang.Object is a supertype of all primitive classes. */
+        if(allowPrimitiveClasses && sym.isPrimitiveClass() && t.tsym.type == syms.objectType) {
+        	return syms.objectType;
+        }
+
+        if(debugFlag) {
+    		System.out.println("AR07 : 023. Type: "+t +" Sym: "+sym );
+    	}
+        
         return asSuper.visit(t, sym);
     }
     // where
@@ -2275,15 +2448,27 @@ public class Types {
 
             @Override
             public Type visitClassType(ClassType t, Symbol sym) {
+            	if(debugFlag) {
+            		System.out.println("AR07 : 024. Type: "+t +" Sym: "+sym );
+            	}
                 if (t.tsym == sym)
                     return t;
 
                 Symbol c = t.tsym;
+                if(debugFlag) {
+            		System.out.println("AR07 : 025. Type: "+t +" Sym: "+sym );
+            	}
                 if (!seenTypes.add(c)) {
                     return null;
                 }
+                if(debugFlag) {
+            		System.out.println("AR07 : 026. Type: "+t +" Sym: "+sym );
+            	}
                 try {
                     Type st = supertype(t);
+                    if(debugFlag) {
+                		System.out.println("AR07 : 027. Type: "+t +" Sym: "+sym );
+                	}
                     if (st.hasTag(CLASS) || st.hasTag(TYPEVAR)) {
                         Type x = asSuper(st, sym);
                         if (x != null)
@@ -2298,6 +2483,9 @@ public class Types {
                             }
                         }
                     }
+                    if(debugFlag) {
+                		System.out.println("AR07 : 028. Type: "+t +" Sym: "+sym );
+                	}
                     return null;
                 } finally {
                     seenTypes.remove(c);

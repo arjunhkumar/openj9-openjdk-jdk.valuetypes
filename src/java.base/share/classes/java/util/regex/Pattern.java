@@ -1881,7 +1881,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
     }
 
     private Map<String, Integer.ref> namedGroupsMap() {
-        Map<String, Integer> groups = namedGroups;
+        Map<String, Integer.ref> groups = namedGroups;
         if (groups == null) {
             namedGroups = groups = new HashMap<>(2);
         }

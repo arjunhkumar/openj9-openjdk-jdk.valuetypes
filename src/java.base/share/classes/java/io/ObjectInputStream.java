@@ -282,7 +282,7 @@ public class ObjectInputStream
                "byte", byte.class,
                "char", char.class,
                "short", short.class,
-               "int", int.class,
+               "int", Integer.class,
                "long", long.class,
                "float", float.class,
                "double", double.class,

@@ -968,6 +968,7 @@ public class Resolve {
 
                 @Override
                 public void report(DiagnosticPosition pos, JCDiagnostic details) {
+                    // System.out.println("AR07 : DP10: Type error on object type: ");
                     reportMC(pos, methodDiag, deferredAttrContext.inferenceContext, details);
                 }
             };
@@ -1017,11 +1018,18 @@ public class Resolve {
                     if (found.hasTag(UNDETVAR) && req.isPrimitive()) {
                         req = types.boxedClass(req).type;
                     }
-                    return super.compatible(found, req, warn);
+                    /** AR07 - Debug */
+                    boolean res = super.compatible(found, req, warn);
+                    if(!res) {
+                    	System.out.println("AR07 : Non-compatible types. Found:" +found +" Req: "+ req);
+                    }
+                    return res;
+                    /** AR07 - Debug End */
                 }
 
                 @Override
                 public void report(DiagnosticPosition pos, JCDiagnostic details) {
+                    // System.out.println("AR07 : DP11: Type error on object type: ");
                     reportMC(pos, methodDiag, deferredAttrContext.inferenceContext, details);
                 }
             };
@@ -1057,12 +1065,22 @@ public class Resolve {
 
         public boolean compatible(Type found, Type req, Warner warn) {
             InferenceContext inferenceContext = deferredAttrContext.inferenceContext;
+            // boolean debugFlag = false;
+            // if(found.toString().equalsIgnoreCase("int") && req.toString().contains("Integer.ref")) {
+            //     System.out.println("AR07 : 6. Found: "+found +" Req: "+req +"Strict: "+strict);
+            //     debugFlag = true;
+            // }
+            // if(found.toString().equalsIgnoreCase("int") && req.toString().equalsIgnoreCase("java.lang.Object")) {
+            //     System.out.println("AR07 : 7.  Found: "+found +" Req: "+req +"Strict: "+strict);
+            //     debugFlag = true;
+            // }
             return strict ?
                     types.isSubtypeUnchecked(inferenceContext.asUndetVar(found), inferenceContext.asUndetVar(req), warn) :
                     types.isConvertible(inferenceContext.asUndetVar(found), inferenceContext.asUndetVar(req), warn);
         }
 
         public void report(DiagnosticPosition pos, JCDiagnostic details) {
+            // System.out.println("AR07 : DP12: Type error on object type: ");
             throw new InapplicableMethodException(details);
         }
 

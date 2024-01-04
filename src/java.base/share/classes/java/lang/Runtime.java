@@ -1098,7 +1098,7 @@ public class Runtime {
 
             String b = m.group(VersionPattern.BUILD_GROUP);
             // $BUILD is an integer
-            Optional<Integer> build = (b == null)
+            Optional<Integer.ref> build = (b == null)
                 ? Optional.empty()
                 : Optional.of(Integer.parseInt(b));
 
@@ -1406,7 +1406,7 @@ public class Runtime {
         }
 
         private int compareBuild(Version obj) {
-            Optional<Integer> oBuild = obj.build();
+            Optional<Integer.ref> oBuild = obj.build();
             if (oBuild.isPresent()) {
                 return (build.isPresent()
                         ? build.get().compareTo(oBuild.get())

@@ -92,6 +92,7 @@ CreateHkTargets = \
 # Setup the main compilation
 
 $(eval $(call SetupJavaCompilation, $(MODULE), \
+    COMPILER := interim, \
     SMALL_JAVA := false, \
     MODULE := $(MODULE), \
     SRC := $(wildcard $(MODULE_SRC_DIRS)), \
