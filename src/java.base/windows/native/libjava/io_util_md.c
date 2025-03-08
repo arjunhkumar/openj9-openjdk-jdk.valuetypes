@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,12 @@
  * questions.
  */
 
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2025, 2025 All Rights Reserved
+ * ===========================================================================
+ */
+
 #include "jni.h"
 #include "jni_util.h"
 #include "jvm.h"
@@ -41,6 +47,7 @@
 #include <limits.h>
 #include <wincon.h>
 
+#include "ut_jcl_java.h"
 
 static DWORD MAX_INPUT_EVENTS = 2000;
 
@@ -234,12 +241,22 @@ FD winFileHandleOpen(JNIEnv *env, jstring path, int flags)
         FILE_ATTRIBUTE_NORMAL;
     const DWORD flagsAndAttributes = maybeWriteThrough | maybeDeleteOnClose;
     HANDLE h = NULL;
+    char *pathStr = NULL;
 
     WCHAR *pathbuf = pathToNTPath(env, path, JNI_TRUE);
     if (pathbuf == NULL) {
         /* Exception already pending */
         return -1;
     }
+
+    if (TrcEnabled_Trc_io_handleOpen) {
+        int length = WideCharToMultiByte(CP_UTF8, 0, pathbuf, -1, NULL, 0, NULL, NULL);
+        pathStr = malloc(length);
+        if (NULL != pathStr) {
+            WideCharToMultiByte(CP_UTF8, 0, pathbuf, -1, pathStr, length, NULL, NULL);
+        }
+    }
+
     h = CreateFileW(
         pathbuf,            /* Wide char path name */
         access,             /* Read and/or write permission */
@@ -251,9 +268,13 @@ FD winFileHandleOpen(JNIEnv *env, jstring path, int flags)
     free(pathbuf);
 
     if (h == INVALID_HANDLE_VALUE) {
+        Trc_io_handleOpen_err(pathStr, access, sharing, disposition, flagsAndAttributes, GetLastError());
+        free(pathStr);
         throwFileNotFoundException(env, path);
         return -1;
     }
+    Trc_io_handleOpen(pathStr, access, sharing, disposition, flagsAndAttributes, (jlong)h);
+    free(pathStr);
     return (jlong) h;
 }
 
@@ -342,16 +363,8 @@ handleNonSeekAvailable(FD fd, long *pbytes) {
         return FALSE;
     }
 
-    if (! PeekNamedPipe(han, NULL, 0, NULL, pbytes, NULL)) {
-        /* PeekNamedPipe fails when at EOF.  In that case we
-         * simply make *pbytes = 0 which is consistent with the
-         * behavior we get on Solaris when an fd is at EOF.
-         * The only alternative is to raise and Exception,
-         * which isn't really warranted.
-         */
-        if (GetLastError() != ERROR_BROKEN_PIPE) {
-            return FALSE;
-        }
+    if (!PeekNamedPipe(han, NULL, 0, NULL, pbytes, NULL)) {
+        // If PeekNamedPipe fails, set the number of available bytes to zero.
         *pbytes = 0;
     }
     return TRUE;
@@ -537,7 +550,7 @@ fileDescriptorClose(JNIEnv *env, jobject this)
 {
     FD fd = (*env)->GetLongField(env, this, IO_handle_fdID);
     HANDLE h = (HANDLE)fd;
-    if ((*env)->ExceptionOccurred(env)) {
+    if ((*env)->ExceptionCheck(env)) {
         return;
     }
 
@@ -552,12 +565,15 @@ fileDescriptorClose(JNIEnv *env, jobject this)
      * taking extra precaution over here.
      */
     (*env)->SetLongField(env, this, IO_handle_fdID, -1);
-    if ((*env)->ExceptionOccurred(env)) {
+    if ((*env)->ExceptionCheck(env)) {
         return;
     }
 
     if (CloseHandle(h) == 0) { /* Returns zero on failure */
+        Trc_io_fileDescriptorClose_err((jlong)fd, GetLastError());
         JNU_ThrowIOExceptionWithLastError(env, "close failed");
+    } else {
+        Trc_io_fileDescriptorClose((jlong)fd);
     }
 }
 
@@ -594,4 +610,10 @@ handleGetLength(FD fd) {
     } else {
         return -1;
     }
+}
+
+jboolean
+handleIsRegularFile(JNIEnv* env, FD fd)
+{
+    return JNI_TRUE;
 }

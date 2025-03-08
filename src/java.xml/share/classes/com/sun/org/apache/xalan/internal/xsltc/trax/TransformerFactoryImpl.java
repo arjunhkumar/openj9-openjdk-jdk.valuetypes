@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2025, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -20,8 +20,6 @@
 
 package com.sun.org.apache.xalan.internal.xsltc.trax;
 
-import jdk.xml.internal.JdkConstants;
-import jdk.xml.internal.XMLSecurityManager;
 import com.sun.org.apache.xalan.internal.utils.FeaturePropertyBase;
 import com.sun.org.apache.xalan.internal.utils.ObjectFactory;
 import com.sun.org.apache.xalan.internal.utils.XMLSecurityPropertyManager.Property;
@@ -71,13 +69,14 @@ import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stax.*;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
+import jdk.xml.internal.JdkConstants;
 import jdk.xml.internal.JdkProperty;
 import jdk.xml.internal.JdkXmlFeatures;
 import jdk.xml.internal.JdkXmlUtils;
 import jdk.xml.internal.JdkProperty.ImplPropMap;
 import jdk.xml.internal.JdkProperty.State;
-import jdk.xml.internal.SecuritySupport;
 import jdk.xml.internal.TransformErrorListener;
+import jdk.xml.internal.XMLSecurityManager;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLFilter;
@@ -88,7 +87,7 @@ import org.xml.sax.XMLReader;
  * @author G. Todd Miller
  * @author Morten Jorgensen
  * @author Santiago Pericas-Geertsen
- * @LastModified: Jan 2022
+ * @LastModified: Feb 2025
  */
 public class TransformerFactoryImpl
     extends SAXTransformerFactory implements SourceLoader
@@ -216,7 +215,7 @@ public class TransformerFactoryImpl
     /**
      * <p>State of secure processing feature.</p>
      */
-    private boolean _isNotSecureProcessing = true;
+    private boolean _isNotSecureProcessing = false;
     /**
      * <p>State of secure mode.</p>
      */
@@ -265,14 +264,7 @@ public class TransformerFactoryImpl
     /**
      * javax.xml.transform.sax.TransformerFactory implementation.
      */
-    @SuppressWarnings("removal")
     public TransformerFactoryImpl() {
-
-        if (System.getSecurityManager() != null) {
-            _isSecureMode = true;
-            _isNotSecureProcessing = false;
-        }
-
         _xmlFeatures = new JdkXmlFeatures(!_isNotSecureProcessing);
         _overrideDefaultParser = _xmlFeatures.getFeature(
                 JdkXmlFeatures.XmlFeature.JDK_OVERRIDE_PARSER);
@@ -503,19 +495,19 @@ public class TransformerFactoryImpl
             }
         } else if (JdkXmlUtils.CATALOG_FILES.equals(name)) {
             _catalogFiles = (String) value;
-            cfBuilder = CatalogFeatures.builder().with(Feature.FILES, _catalogFiles);
+            cfBuilder = cfBuilder.with(Feature.FILES, _catalogFiles);
             return;
         } else if (JdkXmlUtils.CATALOG_DEFER.equals(name)) {
             _catalogDefer = (String) value;
-            cfBuilder = CatalogFeatures.builder().with(Feature.DEFER, _catalogDefer);
+            cfBuilder = cfBuilder.with(Feature.DEFER, _catalogDefer);
             return;
         } else if (JdkXmlUtils.CATALOG_PREFER.equals(name)) {
             _catalogPrefer = (String) value;
-            cfBuilder = CatalogFeatures.builder().with(Feature.PREFER, _catalogPrefer);
+            cfBuilder = cfBuilder.with(Feature.PREFER, _catalogPrefer);
             return;
         } else if (JdkXmlUtils.CATALOG_RESOLVE.equals(name)) {
             _catalogResolve = (String) value;
-            cfBuilder = CatalogFeatures.builder().with(Feature.RESOLVE, _catalogResolve);
+            cfBuilder = cfBuilder.with(Feature.RESOLVE, _catalogResolve);
             return;
         } else if (ImplPropMap.CDATACHUNKSIZE.is(name)) {
             _cdataChunkSize = JdkXmlUtils.getValue(value, _cdataChunkSize);
@@ -765,8 +757,11 @@ public class TransformerFactoryImpl
                 baseId = isource.getSystemId();
 
                 if (reader == null) {
-                    reader = JdkXmlUtils.getXMLReader(_overrideDefaultParser,
-                            !_isNotSecureProcessing);
+                    reader = JdkXmlUtils.getXMLReader(_xmlSecurityManager,
+                            _overrideDefaultParser,
+                            !_isNotSecureProcessing,
+                            _xmlFeatures.getFeature(JdkXmlFeatures.XmlFeature.USE_CATALOG),
+                            _catalogFeatures);
                 }
 
                 _stylesheetPIHandler.setBaseId(baseId);
@@ -1004,9 +999,6 @@ public class TransformerFactoryImpl
         // Set the attributes for translet generation
         int outputType = XSLTC.BYTEARRAY_OUTPUT;
         if (_generateTranslet || _autoTranslet) {
-            // Set the translet name
-            xsltc.setClassName(getTransletBaseName(source));
-
             if (_destinationDirectory != null)
                 xsltc.setDestDirectory(_destinationDirectory);
             else {
@@ -1020,8 +1012,11 @@ public class TransformerFactoryImpl
                 }
             }
 
+            // set package name
             if (_packageName != null)
                 xsltc.setPackageName(_packageName);
+            // Set the translet name
+            xsltc.setClassName(getTransletBaseName(source));
 
             if (_jarFileName != null) {
                 xsltc.setJarFileName(_jarFileName);
@@ -1389,7 +1384,7 @@ public class TransformerFactoryImpl
         // Find the parent directory of the translet.
         String transletParentDir = transletFile.getParent();
         if (transletParentDir == null)
-            transletParentDir = SecuritySupport.getSystemProperty("user.dir");
+            transletParentDir = System.getProperty("user.dir");
 
         File transletParentFile = new File(transletParentDir);
 

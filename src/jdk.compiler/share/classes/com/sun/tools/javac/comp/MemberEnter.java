@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.Error;
+import com.sun.tools.javac.code.Source.Feature;
 
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
@@ -55,6 +56,8 @@ import static com.sun.tools.javac.code.TypeTag.TYPEVAR;
 public class MemberEnter extends JCTree.Visitor {
     protected static final Context.Key<MemberEnter> memberEnterKey = new Context.Key<>();
 
+    /** The Source language setting. */
+    private final Source source;
     private final Enter enter;
     private final Log log;
     private final Check chk;
@@ -62,8 +65,8 @@ public class MemberEnter extends JCTree.Visitor {
     private final Symtab syms;
     private final Annotate annotate;
     private final Types types;
+    private final Names names;
     private final DeferredLintHandler deferredLintHandler;
-    private final boolean allowValueClasses;
 
     public static MemberEnter instance(Context context) {
         MemberEnter instance = context.get(memberEnterKey);
@@ -72,6 +75,7 @@ public class MemberEnter extends JCTree.Visitor {
         return instance;
     }
 
+    @SuppressWarnings("this-escape")
     protected MemberEnter(Context context) {
         context.put(memberEnterKey, this);
         enter = Enter.instance(context);
@@ -81,9 +85,9 @@ public class MemberEnter extends JCTree.Visitor {
         syms = Symtab.instance(context);
         annotate = Annotate.instance(context);
         types = Types.instance(context);
+        source = Source.instance(context);
+        names = Names.instance(context);
         deferredLintHandler = DeferredLintHandler.instance(context);
-        Source source = Source.instance(context);
-        allowValueClasses = Source.Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /** Construct method type from method signature.
@@ -180,11 +184,8 @@ public class MemberEnter extends JCTree.Visitor {
 
     public void visitMethodDef(JCMethodDecl tree) {
         WriteableScope enclScope = enter.enterScope(env);
-        if (tree.name == tree.name.table.names.init && allowValueClasses && enclScope.owner.isConcreteValueClass()) {
-            tree.name = tree.name.table.names.vnew;
-        }
         MethodSymbol m = new MethodSymbol(0, tree.name, null, enclScope.owner);
-        m.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, m, tree);
+        m.flags_field = chk.checkFlags(tree.mods.flags, m, tree);
         tree.sym = m;
 
         //if this is a default method, add the DEFAULT flag to the enclosing interface
@@ -193,7 +194,7 @@ public class MemberEnter extends JCTree.Visitor {
         }
 
         Env<AttrContext> localEnv = methodEnv(tree, env);
-        DiagnosticPosition prevLintPos = deferredLintHandler.setPos(tree.pos());
+        deferredLintHandler.push(tree);
         try {
             // Compute the method type
             m.type = signature(m, tree.typarams, tree.params,
@@ -201,7 +202,7 @@ public class MemberEnter extends JCTree.Visitor {
                                tree.thrown,
                                localEnv);
         } finally {
-            deferredLintHandler.setPos(prevLintPos);
+            deferredLintHandler.pop();
         }
 
         if (types.isSignaturePolymorphic(m)) {
@@ -226,29 +227,14 @@ public class MemberEnter extends JCTree.Visitor {
             enclScope.enter(m);
         }
 
-        annotate.annotateLater(tree.mods.annotations, localEnv, m, tree.pos());
+        annotate.annotateLater(tree.mods.annotations, localEnv, m, tree);
         // Visit the signature of the method. Note that
         // TypeAnnotate doesn't descend into the body.
-        annotate.queueScanTreeAndTypeAnnotate(tree, localEnv, m, tree.pos());
+        annotate.queueScanTreeAndTypeAnnotate(tree, localEnv, m, tree);
 
         if (tree.defaultValue != null) {
             m.defaultValue = annotate.unfinishedDefaultValue(); // set it to temporary sentinel for now
-            annotate.annotateDefaultValueLater(tree.defaultValue, localEnv, m, tree.pos());
-        }
-
-        if (m.isInitOrVNew() && m.type.getParameterTypes().size() == 0) {
-            int statsSize = tree.body.stats.size();
-            if (statsSize == 0) {
-                m.flags_field |= EMPTYNOARGCONSTR;
-            } else if (statsSize == 1 && TreeInfo.isSuperCall(tree.body.stats.head)) {
-                JCExpressionStatement exec = (JCExpressionStatement) tree.body.stats.head;
-                JCMethodInvocation meth = (JCMethodInvocation)exec.expr;
-                if (meth.args.size() == 0) {
-                    // Deem a constructor "empty" even if it contains a 'super' call,
-                    // as long as it has no argument expressions (to respect common coding style).
-                    m.flags_field |= EMPTYNOARGCONSTR;
-                }
-            }
+            annotate.annotateDefaultValueLater(tree.defaultValue, localEnv, m, tree);
         }
     }
 
@@ -270,12 +256,6 @@ public class MemberEnter extends JCTree.Visitor {
         return localEnv;
     }
 
-    @Override
-    public void visitBlock(JCBlock tree) {
-        if ((tree.flags & STATIC) == 0 && tree.stats.size() > 0)
-            env.info.scope.owner.flags_field |= HASINITBLOCK;
-    }
-
     public void visitVarDef(JCVariableDecl tree) {
         Env<AttrContext> localEnv = env;
         if ((tree.mods.flags & STATIC) != 0 ||
@@ -283,7 +263,7 @@ public class MemberEnter extends JCTree.Visitor {
             localEnv = env.dup(tree, env.info.dup());
             localEnv.info.staticLevel++;
         }
-        DiagnosticPosition prevLintPos = deferredLintHandler.setPos(tree.pos());
+        deferredLintHandler.push(tree);
 
         try {
             if (TreeInfo.isEnumInit(tree)) {
@@ -294,7 +274,7 @@ public class MemberEnter extends JCTree.Visitor {
                     checkReceiver(tree, localEnv);
             }
         } finally {
-            deferredLintHandler.setPos(prevLintPos);
+            deferredLintHandler.pop();
         }
 
         if ((tree.mods.flags & VARARGS) != 0) {
@@ -311,32 +291,35 @@ public class MemberEnter extends JCTree.Visitor {
         Type vartype = tree.isImplicitlyTyped()
                 ? env.info.scope.owner.kind == MTH ? Type.noType : syms.errType
                 : tree.vartype.type;
-        VarSymbol v = new VarSymbol(0, tree.name, vartype, enclScope.owner);
-        v.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, v, tree);
+        Name name = tree.name;
+        VarSymbol v = new VarSymbol(0, name, vartype, enclScope.owner);
+        v.flags_field = chk.checkFlags(tree.mods.flags, v, tree);
         tree.sym = v;
-        /* Don't want constant propagation/folding for instance fields of primitive classes,
-           as these can undergo updates via copy on write.
-        */
         if (tree.init != null) {
             v.flags_field |= HASINIT;
-            if ((v.flags_field & FINAL) != 0 && ((v.flags_field & STATIC) != 0 || !v.owner.isValueClass()) &&
+            if ((v.flags_field & FINAL) != 0 &&
                 needsLazyConstValue(tree.init)) {
                 Env<AttrContext> initEnv = getInitEnv(tree, env);
                 initEnv.info.enclVar = v;
-                v.setLazyConstValue(initEnv(tree, initEnv), attr, tree);
+                initEnv = initEnv(tree, initEnv);
+                initEnv.info.ctorPrologue = (v.owner.kind == TYP && v.owner.isValueClass() && !v.isStatic());
+                v.setLazyConstValue(initEnv(tree, initEnv), env, attr, tree);
             }
         }
-        if (chk.checkUnique(tree.pos(), v, enclScope)) {
-            chk.checkTransparentVar(tree.pos(), v, enclScope);
-            enclScope.enter(v);
-        } else if (v.owner.kind == MTH || (v.flags_field & (Flags.PRIVATE | Flags.FINAL | Flags.GENERATED_MEMBER | Flags.RECORD)) != 0) {
-            // if this is a parameter or a field obtained from a record component, enter it
-            enclScope.enter(v);
+
+        if(!(Feature.UNNAMED_VARIABLES.allowedInSource(source) && tree.sym.isUnnamedVariable())) {
+            if (chk.checkUnique(tree.pos(), v, enclScope)) {
+                chk.checkTransparentVar(tree.pos(), v, enclScope);
+                enclScope.enter(v);
+            } else if (v.owner.kind == MTH || (v.flags_field & (Flags.PRIVATE | Flags.FINAL | Flags.GENERATED_MEMBER | Flags.RECORD)) != 0) {
+                // if this is a parameter or a field obtained from a record component, enter it
+                enclScope.enter(v);
+            }
         }
 
-        annotate.annotateLater(tree.mods.annotations, localEnv, v, tree.pos());
+        annotate.annotateLater(tree.mods.annotations, localEnv, v, tree);
         if (!tree.isImplicitlyTyped()) {
-            annotate.queueScanTreeAndTypeAnnotate(tree.vartype, localEnv, v, tree.pos());
+            annotate.queueScanTreeAndTypeAnnotate(tree.vartype, localEnv, v, tree);
         }
 
         v.pos = tree.pos;
@@ -350,7 +333,7 @@ public class MemberEnter extends JCTree.Visitor {
     void checkReceiver(JCVariableDecl tree, Env<AttrContext> localEnv) {
         attr.attribExpr(tree.nameexpr, localEnv);
         MethodSymbol m = localEnv.enclMethod.sym;
-        if (m.isInitOrVNew()) {
+        if (m.isConstructor()) {
             Type outertype = m.owner.owner.type;
             if (outertype.hasTag(TypeTag.METHOD)) {
                 // we have a local inner class

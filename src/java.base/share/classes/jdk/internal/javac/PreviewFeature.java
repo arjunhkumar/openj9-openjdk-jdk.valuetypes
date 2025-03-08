@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,11 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ */
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2024, 2024 All Rights Reserved
+ * ===========================================================================
  */
 
 package jdk.internal.javac;
@@ -64,20 +69,38 @@ public @interface PreviewFeature {
      * Values should be annotated with the feature's {@code JEP}.
      */
     public enum Feature {
-        @JEP(number=433, title="Pattern Matching for switch", status="Fourth Preview")
-        SWITCH_PATTERN_MATCHING(),
-        @JEP(number=432, title="Record Patterns", status="Second Preview")
-        RECORD_PATTERNS,
-        @JEP(number=436, title="Virtual Threads", status="Second Preview")
+        // while building the interim javac, the ClassReader will produce a warning when loading a class
+        // keeping the constant of a feature that has been integrated or dropped, serves the purpose of muting such warnings.
+
+        //---
+        // not used, but required for interim javac to not warn.
         VIRTUAL_THREADS,
-        @JEP(number=434, title="Foreign Function & Memory API", status="Second Preview")
-        FOREIGN,
-        @JEP(number=8277163, title="Value Objects")
+        @JEP(number=401, title="Value Classes and Objects", status = "Preview")
         VALUE_OBJECTS,
+
+        @JEP(number=495, title="Simple Source Files and Instance Main Methods", status="Fourth Preview")
+        IMPLICIT_CLASSES,
+        @JEP(number=487, title="Scoped Values", status="Fourth Preview")
+        SCOPED_VALUES,
+        @JEP(number=499, title="Structured Concurrency", status="Fourth Preview")
+        STRUCTURED_CONCURRENCY,
+        CLASSFILE_API,
+        STREAM_GATHERERS,
+        @JEP(number=494, title="Module Import Declarations", status="Second Preview")
+        MODULE_IMPORTS,
+        @JEP(number=478, title="Key Derivation Function API", status="Preview")
+        KEY_DERIVATION,
+        LANGUAGE_MODEL,
+        // Not used, but required by interim javac with Java 21 bootjdk.
+        @JEP(number=445, title="Unnamed Classes and Instance Main Methods", status="Deprecated")
+        UNNAMED_CLASSES,
+        FOREIGN,
+        @JEP(number=459, title="String Templates", status="Second Preview")
+        STRING_TEMPLATES,
         /**
          * A key for testing.
          */
-        @JEP(number=0, title="Test Feature")
+        @JEP(number=2_147_483_647, title="Test Feature")
         TEST,
         ;
     }

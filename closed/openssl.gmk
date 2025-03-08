@@ -1,5 +1,5 @@
 # ===========================================================================
-# (c) Copyright IBM Corp. 2018, 2023 All Rights Reserved
+# (c) Copyright IBM Corp. 2018, 2025 All Rights Reserved
 # ===========================================================================
 # This code is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License version 2 only, as
@@ -25,6 +25,7 @@ ifeq (,$(wildcard $(SPEC)))
 endif
 
 include $(SPEC)
+include MakeBase.gmk
 
 ifeq ($(OPENJDK_TARGET_OS), windows)
   # Configure normally demands that we use an implementation of perl that produces
@@ -36,9 +37,8 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
   # Configure produces a makefile intended for use with nmake.
   OPENSSL_MAKE := nmake
 
-  # LIB cannot have the surrounding double-quotes provided by custom-spec.gmk.
   # MAKEFLAGS uses unix-style options (with a dash) which won't be understood by nmake.
-  OPENSSL_MAKE_SETUP := export LIB='$(subst ",,$(LIB))' && unset MAKEFLAGS &&
+  OPENSSL_MAKE_SETUP := export INCLUDE='$(OPENJ9_VS_INCLUDE)' LIB='$(OPENJ9_VS_LIB)' && unset MAKEFLAGS &&
 
   # The makefile produced by OpenSSL 3+ during the configure step needs to be
   # patched. Patching involves adding double-quotes around the name of perl
@@ -63,7 +63,11 @@ endif # windows
 # Identify the desired openssl target configuration.
 OPENSSL_TARGET :=
 ifeq ($(OPENJDK_TARGET_OS), aix)
-  OPENSSL_TARGET := aix64-cc
+  ifeq ($(call isCompiler, clang), true)
+    OPENSSL_TARGET := aix64-clang
+  else ifeq ($(call isCompiler, xlc), true)
+    OPENSSL_TARGET := aix64-cc
+  endif
 else ifeq ($(OPENJDK_TARGET_OS), linux)
   ifneq (,$(filter aarch64 ppc64le x86_64, $(OPENJDK_TARGET_CPU)))
     OPENSSL_TARGET := linux-$(OPENJDK_TARGET_CPU)

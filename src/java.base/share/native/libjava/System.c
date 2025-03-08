@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,12 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ */
+
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2025, 2025 All Rights Reserved
+ * ===========================================================================
  */
 
 #include <string.h>
@@ -70,7 +76,7 @@ Java_java_lang_System_identityHashCode(JNIEnv *env, jobject this, jobject x)
         if (jval == NULL)                                  \
             return NULL;                                   \
         (*env)->SetObjectArrayElement(env, array, jdk_internal_util_SystemProps_Raw_##prop_index, jval); \
-        if ((*env)->ExceptionOccurred(env))                \
+        if ((*env)->ExceptionCheck(env))                \
             return NULL;                                   \
         (*env)->DeleteLocalRef(env, jval);                 \
     }
@@ -86,7 +92,7 @@ Java_java_lang_System_identityHashCode(JNIEnv *env, jobject this, jobject x)
         if (jval == NULL)                                  \
             return NULL;                                   \
         (*env)->SetObjectArrayElement(env, array, jdk_internal_util_SystemProps_Raw_##prop_index, jval); \
-        if ((*env)->ExceptionOccurred(env))                \
+        if ((*env)->ExceptionCheck(env))                \
             return NULL;                                   \
         (*env)->DeleteLocalRef(env, jval);                 \
     }
@@ -289,6 +295,7 @@ Java_java_lang_System_setErr0(JNIEnv *env, jclass cla, jobject stream)
     (*env)->SetStaticObjectField(env,cla,fid,stream);
 }
 
+#if 0 /* Exclude mapLibraryName so it doesn't conflict with the OpenJ9 native. */
 static void cpchars(jchar *dst, char *src, int n)
 {
     int i;
@@ -322,3 +329,4 @@ Java_java_lang_System_mapLibraryName(JNIEnv *env, jclass ign, jstring libname)
 
     return (*env)->NewString(env, chars, len);
 }
+#endif /* Exclude mapLibraryName so it doesn't conflict with the OpenJ9 native. */

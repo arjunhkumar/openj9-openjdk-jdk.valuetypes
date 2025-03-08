@@ -25,6 +25,7 @@
  * @test
  * @bug 8269146 8290709
  * @summary Check compilation outcomes for various combinations of case label element.
+ * @enablePreview
  * @library /tools/lib /tools/javac/lib
  * @modules
  *      jdk.compiler/com.sun.tools.javac.api
@@ -85,16 +86,14 @@ public class CaseStructureTest extends ComboInstance<CaseStructureTest> {
     protected void doWork() throws Throwable {
         String labelSeparator = asCaseLabelElements ? ", " : ": case ";
         String labels = Arrays.stream(caseLabels).filter(l -> l != CaseLabel.NONE).map(l -> l.code).collect(Collectors.joining(labelSeparator, "case ", ": break;"));
-        boolean hasDefault = Arrays.stream(caseLabels).anyMatch(l -> l == CaseLabel.DEFAULT || l == CaseLabel.TYPE_PATTERN || l == CaseLabel.PARENTHESIZED_PATTERN);
+        boolean hasDefault = Arrays.stream(caseLabels).anyMatch(l -> l == CaseLabel.DEFAULT || l == CaseLabel.TYPE_PATTERN);
 
         ComboTask task = newCompilationTask()
-                .withSourceFromTemplate(MAIN_TEMPLATE.replace("#{CASES}", labels).replace("#{DEFAULT}", hasDefault ? "" : "default: break;"))
-                .withOption("--enable-preview")
-                .withOption("-source").withOption(JAVA_VERSION);
+                .withSourceFromTemplate(MAIN_TEMPLATE.replace("#{CASES}", labels).replace("#{DEFAULT}", hasDefault ? "" : "default: break;"));
 
         task.generate(result -> {
             boolean shouldPass = true;
-            long patternCases = Arrays.stream(caseLabels).filter(l -> l == CaseLabel.TYPE_PATTERN || l == CaseLabel.PARENTHESIZED_PATTERN).count();
+            long patternCases = Arrays.stream(caseLabels).filter(l -> l == CaseLabel.TYPE_PATTERN).count();
             long constantCases = Arrays.stream(caseLabels).filter(l -> l == CaseLabel.CONSTANT).count();
             long nullCases = Arrays.stream(caseLabels).filter(l -> l == CaseLabel.NULL).count();
             long defaultCases = Arrays.stream(caseLabels).filter(l -> l == CaseLabel.DEFAULT).count();
@@ -136,7 +135,6 @@ public class CaseStructureTest extends ComboInstance<CaseStructureTest> {
     public enum CaseLabel implements ComboParameter {
         NONE(""),
         TYPE_PATTERN("Integer i"),
-        PARENTHESIZED_PATTERN("(Integer i)"),
         CONSTANT("1"),
         NULL("null"),
         DEFAULT("default");

@@ -1,5 +1,5 @@
 # ===========================================================================
-# (c) Copyright IBM Corp. 2017, 2022 All Rights Reserved
+# (c) Copyright IBM Corp. 2017, 2025 All Rights Reserved
 # ===========================================================================
 # This code is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License version 2 only, as
@@ -38,61 +38,28 @@ AC_DEFUN_ONCE([CUSTOM_EARLY_HOOK],
 
   OPENJ9_BASIC_SETUP_FUNDAMENTAL_TOOLS
   OPENJ9_PLATFORM_SETUP
-  OPENJ9_CONFIGURE_CMAKE
   OPENJ9_CONFIGURE_COMPILERS
-  OPENJ9_CONFIGURE_CRIU_SUPPORT
+  OPENJ9_CONFIGURE_CONTINUATION_PROFILE
+  OPENJ9_CONFIGURE_CRAC_AND_CRIU_SUPPORT
   OPENJ9_CONFIGURE_CUDA
   OPENJ9_CONFIGURE_DDR
   OPENJ9_CONFIGURE_DEMOS
   OPENJ9_CONFIGURE_HEALTHCENTER
-  OPENJ9_CONFIGURE_NUMA
-  OPENJ9_CONFIGURE_WARNINGS
-  OPENJ9_CONFIGURE_JITSERVER
   OPENJ9_CONFIGURE_INLINE_TYPES
-  OPENJ9_THIRD_PARTY_REQUIREMENTS
+  OPENJ9_CONFIGURE_JFR
+  OPENJ9_CONFIGURE_JITSERVER
+  OPENJ9_CONFIGURE_NUMA
+  OPENJ9_CONFIGURE_SNAPSHOTS
+  OPENJ9_CONFIGURE_WARNINGS
   OPENJ9_CHECK_NASM_VERSION
-])
-
-AC_DEFUN([OPENJ9_CONFIGURE_CMAKE],
-[
-  AC_ARG_WITH(cmake, [AS_HELP_STRING([--with-cmake], [enable building openJ9 with CMake])],
-    [
-      if test "x$with_cmake" = xyes -o "x$with_cmake" = x ; then
-        with_cmake=cmake
-      fi
-    ],
-    [
-      case "$OPENJ9_PLATFORM_CODE" in
-        ap64|oa64|or64|wa64|xa64|xl64|xr64|xz64)
-          with_cmake=cmake
-          ;;
-        *)
-          with_cmake=no
-          ;;
-      esac
-    ])
-  # at this point with_cmake should either be no, or the name of the cmake command
-  if test "x$with_cmake" = xno ; then
-    OPENJ9_ENABLE_CMAKE=false
-
-    # Currently, mixedrefs mode is only available with CMake enabled
-    if test "x$OMR_MIXED_REFERENCES_MODE" != xoff ; then
-      AC_MSG_ERROR([[--with-mixedrefs=[static|dynamic] requires --with-cmake]])
-    fi
-  else
-    OPENJ9_ENABLE_CMAKE=true
-    if AS_EXECUTABLE_P(["$with_cmake"]) ; then
-      CMAKE="$with_cmake"
-    else
-      UTIL_REQUIRE_PROGS([CMAKE], [$with_cmake])
-    fi
-  fi
-
-  AC_SUBST(OPENJ9_ENABLE_CMAKE)
+  OPENJCEPLUS_SETUP
 ])
 
 AC_DEFUN([OPENJ9_BASIC_SETUP_FUNDAMENTAL_TOOLS],
 [
+  if test "x$CMAKE" = x ; then
+    AC_MSG_ERROR([CMAKE is required to build OpenJ9])
+  fi
   UTIL_REQUIRE_PROGS(M4, m4)
 ])
 
@@ -147,6 +114,25 @@ AC_DEFUN([OPENJ9_CONFIGURE_NUMA],
       fi
     fi
   fi
+])
+
+AC_DEFUN([OPENJ9_CONFIGURE_SNAPSHOTS],
+[
+  AC_MSG_CHECKING([for snapshot support])
+  AC_ARG_ENABLE([snapshots], [AS_HELP_STRING([--enable-snapshots],
+      [enable RAM persistence snapshots @<:@disabled@:>@])])
+  OPENJ9_ENABLE_SNAPSHOTS=false
+  if test "x$enable_snapshots" = xyes ; then
+    AC_MSG_RESULT([yes (explicitly enabled)])
+    OPENJ9_ENABLE_SNAPSHOTS=true
+  elif test "x$enable_snapshots" = xno ; then
+    AC_MSG_RESULT([no (explicitly disabled)])
+  elif test "x$enable_snapshots" = x ; then
+    AC_MSG_RESULT([no (default)])
+  else
+    AC_MSG_ERROR([--enable-snapshots accepts no argument])
+  fi
+  AC_SUBST(OPENJ9_ENABLE_SNAPSHOTS)
 ])
 
 AC_DEFUN([OPENJ9_CONFIGURE_COMPILERS],
@@ -336,29 +322,85 @@ AC_DEFUN([OPENJ9_PLATFORM_EXTRACT_VARS_FROM_CPU],
   esac
 ])
 
-AC_DEFUN([OPENJ9_CONFIGURE_CRIU_SUPPORT],
+AC_DEFUN([OPENJ9_CONFIGURE_CRAC_AND_CRIU_SUPPORT],
 [
-  AC_MSG_CHECKING([for CRIU support])
-  AC_ARG_ENABLE([criu-support], [AS_HELP_STRING([--enable-criu-support], [enable CRIU support @<:@disabled@:>@])])
-  OPENJ9_ENABLE_CRIU_SUPPORT=false
+  AC_ARG_ENABLE([crac-support], [AS_HELP_STRING([--enable-crac-support], [enable CRaC support @<:@platform dependent@:>@])])
+  AC_ARG_ENABLE([criu-support], [AS_HELP_STRING([--enable-criu-support], [enable CRIU support @<:@platform dependent@:>@])])
+
+  # Complain about explicitly requested, but illegal combinations.
+  if test "x$enable_crac_support" = xyes && test "x$enable_criu_support" = xno ; then
+    AC_MSG_ERROR([--enable-crac-support requires CRIU support])
+  fi
+
+  # Compute platform-specific defaults.
+  case "$OPENJ9_PLATFORM_CODE" in
+    xa64)
+      default_crac=yes
+      default_criu=yes
+      ;;
+    xl64|xr64|xz64)
+      default_crac=no
+      default_criu=yes
+      ;;
+    *)
+      default_crac=no
+      default_criu=no
+      ;;
+  esac
+
+  # Capture the origin of each setting.
+  if test "x$enable_crac_support" = xyes ; then
+    origin_crac="explicitly enabled"
+  elif test "x$enable_crac_support" = xno ; then
+    origin_crac="explicitly disabled"
+  elif test "x$enable_crac_support" = x ; then
+    # Adjust if CRUI is explicitly disabled.
+    if test "x$enable_criu_support" = xno && test "x$default_crac" = xyes ; then
+      origin_crac="implicitly disabled"
+      enable_crac_support=no
+    else
+      origin_crac=default
+      enable_crac_support=$default_crac
+    fi
+  else
+    AC_MSG_ERROR([--enable-crac-support accepts no argument])
+  fi
 
   if test "x$enable_criu_support" = xyes ; then
-    AC_MSG_RESULT([yes (explicitly enabled)])
-    OPENJ9_ENABLE_CRIU_SUPPORT=true
+    origin_criu="explicitly enabled"
   elif test "x$enable_criu_support" = xno ; then
-    AC_MSG_RESULT([no (explicitly disabled)])
+    origin_criu="explicitly disabled"
   elif test "x$enable_criu_support" = x ; then
-    case "$OPENJ9_PLATFORM_CODE" in
-      xa64)
-        AC_MSG_RESULT([yes (default)])
-        OPENJ9_ENABLE_CRIU_SUPPORT=true
-        ;;
-      *)
-        AC_MSG_RESULT([no (default)])
-        ;;
-    esac
+    # Adjust if CRaC is explicitly enabled.
+    if test "x$enable_crac_support" = xyes && test "x$default_criu" = xno ; then
+      origin_criu="implicitly enabled"
+      enable_criu_support=yes
+    else
+      origin_criu=default
+      enable_criu_support=$default_criu
+    fi
   else
     AC_MSG_ERROR([--enable-criu-support accepts no argument])
+  fi
+
+  # Report and capture results.
+  AC_MSG_CHECKING([for CRAC support])
+  if test "x$enable_crac_support" = xyes ; then
+    AC_MSG_RESULT([yes ($origin_crac)])
+    OPENJ9_ENABLE_CRAC_SUPPORT=true
+  else
+    AC_MSG_RESULT([no ($origin_crac)])
+    OPENJ9_ENABLE_CRAC_SUPPORT=false
+  fi
+  AC_SUBST(OPENJ9_ENABLE_CRAC_SUPPORT)
+
+  AC_MSG_CHECKING([for CRIU support])
+  if test "x$enable_criu_support" = xyes ; then
+    AC_MSG_RESULT([yes ($origin_criu)])
+    OPENJ9_ENABLE_CRIU_SUPPORT=true
+  else
+    AC_MSG_RESULT([no ($origin_criu)])
+    OPENJ9_ENABLE_CRIU_SUPPORT=false
   fi
   AC_SUBST(OPENJ9_ENABLE_CRIU_SUPPORT)
 ])
@@ -382,14 +424,44 @@ AC_DEFUN([OPENJ9_CONFIGURE_INLINE_TYPES],
   AC_SUBST(OPENJ9_ENABLE_INLINE_TYPES)
 ])
 
+AC_DEFUN([OPENJ9_CONFIGURE_JFR],
+[
+  AC_ARG_ENABLE([jfr], [AS_HELP_STRING([--enable-jfr], [enable JFR support @<:@platform dependent@:>@])])
+
+  AC_MSG_CHECKING([for jfr])
+  OPENJ9_ENABLE_JFR=false
+  if test "x$enable_jfr" = xyes ; then
+    AC_MSG_RESULT([yes (explicitly enabled)])
+    OPENJ9_ENABLE_JFR=true
+  elif test "x$enable_jfr" = xno ; then
+    AC_MSG_RESULT([no (explicitly disabled)])
+  elif test "x$enable_jfr" = x ; then
+    AC_MSG_RESULT([yes (default)])
+    OPENJ9_ENABLE_JFR=true
+  else
+    AC_MSG_ERROR([--enable-jfr accepts no argument])
+  fi
+
+  AC_SUBST(OPENJ9_ENABLE_JFR)
+])
+
 AC_DEFUN([OPENJ9_CONFIGURE_JITSERVER],
 [
   AC_ARG_ENABLE([jitserver], [AS_HELP_STRING([--enable-jitserver], [enable JITServer support @<:@disabled@:>@])])
 
+  case "$OPENJ9_PLATFORM_CODE" in
+    xa64|xl64|xr64|xz64)
+      jitserver_supported=yes
+      ;;
+    *)
+      jitserver_supported=no
+      ;;
+  esac
+
   AC_MSG_CHECKING([for jitserver])
   OPENJ9_ENABLE_JITSERVER=false
   if test "x$enable_jitserver" = xyes ; then
-    if test "x$OPENJDK_TARGET_OS" = xlinux ; then
+    if test "x$jitserver_supported" = xyes ; then
       AC_MSG_RESULT([yes (explicitly enabled)])
       OPENJ9_ENABLE_JITSERVER=true
     else
@@ -399,15 +471,10 @@ AC_DEFUN([OPENJ9_CONFIGURE_JITSERVER],
   elif test "x$enable_jitserver" = xno ; then
     AC_MSG_RESULT([no (explicitly disabled)])
   elif test "x$enable_jitserver" = x ; then
-    case "$OPENJ9_PLATFORM_CODE" in
-      xa64|xl64|xz64)
-        AC_MSG_RESULT([yes (default)])
-        OPENJ9_ENABLE_JITSERVER=true
-        ;;
-      *)
-        AC_MSG_RESULT([no (default)])
-        ;;
-    esac
+    if test "x$jitserver_supported" = xyes ; then
+      OPENJ9_ENABLE_JITSERVER=true
+    fi
+    AC_MSG_RESULT([$jitserver_supported (default)])
   else
     AC_MSG_ERROR([--enable-jitserver accepts no argument])
   fi
@@ -415,13 +482,29 @@ AC_DEFUN([OPENJ9_CONFIGURE_JITSERVER],
   AC_SUBST(OPENJ9_ENABLE_JITSERVER)
 ])
 
+AC_DEFUN([OPENJ9_CONFIGURE_CONTINUATION_PROFILE],
+[
+  AC_MSG_CHECKING([for Continuation profiling])
+  AC_ARG_ENABLE([continuation-profiling], [AS_HELP_STRING([--enable-continuation-profiling], [enable Continuation allocation profiling @<:@disabled@:>@])])
+  OPENJ9_ENABLE_CONTINUATION_ALLOCATION_PROFILING=false
+
+  if test "x$enable_continuation_profiling" = xyes ; then
+    AC_MSG_RESULT([yes (explicitly enabled)])
+    OPENJ9_ENABLE_CONTINUATION_ALLOCATION_PROFILING=true
+  elif test "x$enable_continuation_profiling" = xno ; then
+    AC_MSG_RESULT([no (explicitly disabled)])
+  elif test "x$enable_continuation_profiling" = x ; then
+    AC_MSG_RESULT([no (default)])
+  else
+    AC_MSG_ERROR([--enable-continuation-profiling accepts no argument])
+  fi
+  AC_SUBST(OPENJ9_ENABLE_CONTINUATION_ALLOCATION_PROFILING)
+])
+
 AC_DEFUN([OPENJ9_PLATFORM_SETUP],
 [
   AC_ARG_WITH(noncompressedrefs, [AS_HELP_STRING([--with-noncompressedrefs],
     [build non-compressedrefs vm (large heap)])])
-
-  AC_ARG_WITH(mixedrefs, [AS_HELP_STRING([--with-mixedrefs],
-    [build mixedrefs vm (--with-mixedrefs=static or --with-mixedrefs=dynamic)])])
 
   # When compiling natively host_cpu and build_cpu are the same. But when
   # cross compiling we need to work with the host_cpu (which is where the final
@@ -431,23 +514,16 @@ AC_DEFUN([OPENJ9_PLATFORM_SETUP],
   # Default OPENJ9_BUILD_OS=OPENJDK_BUILD_OS, but override with OpenJ9 equivalent as appropriate
   OPENJ9_BUILD_OS="${OPENJDK_BUILD_OS}"
 
-  if test "x$with_noncompressedrefs" = xyes -o "x$with_mixedrefs" = xno -o "x$COMPILE_TYPE" = xcross ; then
+  if test "x$with_noncompressedrefs" = xyes ; then
     OMR_MIXED_REFERENCES_MODE=off
-    if test "x$with_noncompressedrefs" = xyes ; then
-      OPENJ9_BUILD_MODE_ARCH="${OPENJ9_CPU}"
-      OPENJ9_LIBS_SUBDIR=default
-    else
-      OPENJ9_BUILD_MODE_ARCH="${OPENJ9_CPU}_cmprssptrs"
-      OPENJ9_LIBS_SUBDIR=compressedrefs
-    fi
+    OPENJ9_BUILD_MODE_ARCH="${OPENJ9_CPU}"
+    OPENJ9_LIBS_SUBDIR=default
+  elif test "x$with_noncompressedrefs" = xno -o "x$COMPILE_TYPE" = xcross ; then
+    OMR_MIXED_REFERENCES_MODE=off
+    OPENJ9_BUILD_MODE_ARCH="${OPENJ9_CPU}_cmprssptrs"
+    OPENJ9_LIBS_SUBDIR=compressedrefs
   else
-    if test "x$with_mixedrefs" = x -o "x$with_mixedrefs" = xyes -o "x$with_mixedrefs" = xstatic ; then
-      OMR_MIXED_REFERENCES_MODE=static
-    elif test "x$with_mixedrefs" = xdynamic ; then
-      OMR_MIXED_REFERENCES_MODE=dynamic
-    else
-      AC_MSG_ERROR([OpenJ9 supports --with-mixedrefs=static and --with-mixedrefs=dynamic])
-    fi
+    OMR_MIXED_REFERENCES_MODE=static
     OPENJ9_BUILD_MODE_ARCH="${OPENJ9_CPU}_mxdptrs"
     OPENJ9_LIBS_SUBDIR=default
   fi
@@ -507,52 +583,6 @@ AC_DEFUN([OPENJ9_PLATFORM_SETUP],
   AC_SUBST(OMR_MIXED_REFERENCES_MODE)
 ])
 
-AC_DEFUN([OPENJ9_THIRD_PARTY_REQUIREMENTS],
-[
-  # check 3rd party library requirement for UMA
-  AC_ARG_WITH(freemarker-jar, [AS_HELP_STRING([--with-freemarker-jar],
-      [path to freemarker.jar (used to build OpenJ9 build tools)])])
-
-  FREEMARKER_JAR=
-  if test "x$OPENJ9_ENABLE_CMAKE" != xtrue ; then
-    AC_MSG_CHECKING([that freemarker location is set])
-    if test "x$with_freemarker_jar" = x -o "x$with_freemarker_jar" = xno ; then
-      AC_MSG_RESULT([no])
-      printf "\n"
-      printf "The FreeMarker library is required to build the OpenJ9 build tools\n"
-      printf "and has to be provided during configure process.\n"
-      printf "\n"
-      printf "Download the FreeMarker library and unpack it into an arbitrary directory:\n"
-      printf "\n"
-      printf "wget https://sourceforge.net/projects/freemarker/files/freemarker/2.3.8/freemarker-2.3.8.tar.gz/download -O freemarker-2.3.8.tar.gz\n"
-      printf "\n"
-      printf "tar -xzf freemarker-2.3.8.tar.gz\n"
-      printf "\n"
-      printf "Then run configure with '--with-freemarker-jar=<freemarker_jar>'\n"
-      printf "\n"
-
-      AC_MSG_ERROR([Cannot continue])
-    else
-      AC_MSG_RESULT([yes])
-      AC_MSG_CHECKING([checking that '$with_freemarker_jar' exists])
-      if test -f "$with_freemarker_jar" ; then
-        AC_MSG_RESULT([yes])
-      else
-        AC_MSG_RESULT([no])
-        AC_MSG_ERROR([freemarker.jar not found at '$with_freemarker_jar'])
-      fi
-    fi
-
-    if test "x$OPENJDK_BUILD_OS_ENV" = xwindows.cygwin ; then
-      FREEMARKER_JAR=`$PATHTOOL -m "$with_freemarker_jar"`
-    else
-      FREEMARKER_JAR=$with_freemarker_jar
-    fi
-  fi
-
-  AC_SUBST(FREEMARKER_JAR)
-])
-
 AC_DEFUN([OPENJ9_CHECK_NASM_VERSION],
 [
   OPENJ9_PLATFORM_EXTRACT_VARS_FROM_CPU($host_cpu)
@@ -597,16 +627,10 @@ AC_DEFUN_ONCE([CUSTOM_LATE_HOOK],
   # Create the custom-spec.gmk
   AC_CONFIG_FILES([$OUTPUTDIR/custom-spec.gmk:$CLOSED_AUTOCONF_DIR/custom-spec.gmk.in])
 
-  # explicitly disable CDS archive generation (OpenJ9 does not support '-Xshare:dump')
-  BUILD_CDS_ARCHIVE=false
-
   # Override the default for '--with-output-sync' to 'none' for better feedback during VM build.
   if test "x[$with_output_sync]" = x ; then
     OUTPUT_SYNC_SUPPORTED=false
   fi
-
-  # explicitly disable classlist generation
-  ENABLE_GENERATE_CLASSLIST=false
 
   if test "x$OPENJDK_BUILD_OS" = xwindows ; then
     OPENJ9_TOOL_DIR="$OUTPUTDIR/tools"
@@ -783,11 +807,36 @@ AC_DEFUN([OPENJ9_GENERATE_TOOL_WRAPPERS],
   OPENJ9_GENERATE_TOOL_WRAPPER([jar], [$JAR])
   OPENJ9_GENERATE_TOOL_WRAPPER([java], [$JAVA])
   OPENJ9_GENERATE_TOOL_WRAPPER([javac], [$JAVAC])
-  OPENJ9_GENERATE_TOOL_WRAPPER([lib], [$AR])
+  OPENJ9_GENERATE_TOOL_WRAPPER([lib], [$LIB])
   OPENJ9_GENERATE_TOOL_WRAPPER([link], [$LD])
   OPENJ9_GENERATE_TOOL_WRAPPER([mc], [$MC])
   OPENJ9_GENERATE_TOOL_WRAPPER([ml], [$AS])
   OPENJ9_GENERATE_TOOL_WRAPPER([ml64], [$ML64])
   OPENJ9_GENERATE_TOOL_WRAPPER([nasm], [$NASM])
   OPENJ9_GENERATE_TOOL_WRAPPER([rc], [$RC])
+])
+
+AC_DEFUN([OPENJCEPLUS_SETUP],
+[
+  AC_ARG_ENABLE([openjceplus], [AS_HELP_STRING([--enable-openjceplus],
+      [enable OpenJCEPlus integration @<:@disabled@:>@])])
+  AC_MSG_CHECKING([for OpenJCEPlus])
+  if test "x$enable_openjceplus" = xyes ; then
+    if test -d "$TOPDIR/OpenJCEPlus" ; then
+      AC_MSG_RESULT([yes (explicitly set)])
+      BUILD_OPENJCEPLUS=true
+    else
+      AC_MSG_RESULT([no])
+      AC_MSG_ERROR([OpenJCEPlus not found at $TOPDIR/OpenJCEPlus])
+    fi
+  elif test "x$enable_openjceplus" = xno ; then
+    AC_MSG_RESULT([no])
+    BUILD_OPENJCEPLUS=false
+  elif test "x$enable_openjceplus" = x ; then
+    AC_MSG_RESULT([no (default)])
+    BUILD_OPENJCEPLUS=false
+  else
+    AC_MSG_ERROR([--enable-openjceplus accepts no argument])
+  fi
+  AC_SUBST(BUILD_OPENJCEPLUS)
 ])

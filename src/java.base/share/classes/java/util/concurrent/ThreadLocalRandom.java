@@ -39,14 +39,9 @@
 package java.util.concurrent;
 
 import java.io.ObjectStreamField;
-import java.math.BigInteger;
-import java.security.AccessControlContext;
-import java.util.Map;
 import java.util.Random;
-import java.util.Spliterator;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.random.RandomGenerator;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
@@ -89,12 +84,6 @@ import jdk.internal.misc.VM;
  * @since 1.7
  * @author Doug Lea
  */
-
-@RandomGeneratorProperties(
-        name = "ThreadLocalRandom",
-        i = 64, j = 0, k = 0,
-        equidistribution = 1
-)
 public final class ThreadLocalRandom extends Random {
     /*
      * This class implements the java.util.Random API (and subclasses
@@ -304,11 +293,6 @@ public final class ThreadLocalRandom extends Random {
         U.putReference(thread, INHERITABLETHREADLOCALS, null);
     }
 
-    static final void setInheritedAccessControlContext(Thread thread,
-                                                       @SuppressWarnings("removal") AccessControlContext acc) {
-        U.putReferenceRelease(thread, INHERITEDACCESSCONTROLCONTEXT, acc);
-    }
-
     // Serialization support
 
     private static final long serialVersionUID = -5851777807851030925L;
@@ -368,11 +352,6 @@ public final class ThreadLocalRandom extends Random {
      */
     private static final long SEEDER_INCREMENT = 0xbb67ae8584caa73bL;
 
-    // IllegalArgumentException messages
-    static final String BAD_BOUND = "bound must be positive";
-    static final String BAD_RANGE = "bound must be greater than origin";
-    static final String BAD_SIZE  = "size must be non-negative";
-
     // Unsafe mechanics
     private static final Unsafe U = Unsafe.getUnsafe();
     private static final long SEED
@@ -385,8 +364,6 @@ public final class ThreadLocalRandom extends Random {
         = U.objectFieldOffset(Thread.class, "threadLocals");
     private static final long INHERITABLETHREADLOCALS
         = U.objectFieldOffset(Thread.class, "inheritableThreadLocals");
-    private static final long INHERITEDACCESSCONTROLCONTEXT
-        = U.objectFieldOffset(Thread.class, "inheritedAccessControlContext");
 
     /** Generates per-thread initialization/probe field */
     private static final AtomicInteger probeGenerator = new AtomicInteger();
@@ -515,6 +492,8 @@ public final class ThreadLocalRandom extends Random {
      * {@inheritDoc}
      * @throws IllegalArgumentException {@inheritDoc}
      * @implNote {@inheritDoc}
+     *
+     * @since 17
      */
     @Override
     public float nextFloat(float bound) {
@@ -525,6 +504,8 @@ public final class ThreadLocalRandom extends Random {
      * {@inheritDoc}
      * @throws IllegalArgumentException {@inheritDoc}
      * @implNote {@inheritDoc}
+     *
+     * @since 17
      */
     @Override
     public float nextFloat(float origin, float bound) {

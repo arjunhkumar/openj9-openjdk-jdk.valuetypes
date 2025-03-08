@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package com.sun.tools.javac.util;
 
 import java.io.*;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -114,6 +115,7 @@ public class Log extends AbstractLog {
      * A DiagnosticHandler that discards all diagnostics.
      */
     public static class DiscardDiagnosticHandler extends DiagnosticHandler {
+        @SuppressWarnings("this-escape")
         public DiscardDiagnosticHandler(Log log) {
             install(log);
         }
@@ -132,19 +134,28 @@ public class Log extends AbstractLog {
     public static class DeferredDiagnosticHandler extends DiagnosticHandler {
         private Queue<JCDiagnostic> deferred = new ListBuffer<>();
         private final Predicate<JCDiagnostic> filter;
+        private final boolean passOnNonDeferrable;
 
         public DeferredDiagnosticHandler(Log log) {
             this(log, null);
         }
 
         public DeferredDiagnosticHandler(Log log, Predicate<JCDiagnostic> filter) {
+            this(log, filter, true);
+        }
+
+        @SuppressWarnings("this-escape")
+        public DeferredDiagnosticHandler(Log log, Predicate<JCDiagnostic> filter, boolean passOnNonDeferrable) {
             this.filter = filter;
+            this.passOnNonDeferrable = passOnNonDeferrable;
             install(log);
         }
 
         @Override
         public void report(JCDiagnostic diag) {
-            if (!diag.isFlagSet(JCDiagnostic.DiagnosticFlag.NON_DEFERRABLE) &&
+            boolean deferrable = !passOnNonDeferrable ||
+                                 !diag.isFlagSet(JCDiagnostic.DiagnosticFlag.NON_DEFERRABLE);
+            if (deferrable &&
                 (filter == null || filter.test(diag))) {
                 deferred.add(diag);
             } else {
@@ -167,6 +178,16 @@ public class Log extends AbstractLog {
             while ((d = deferred.poll()) != null) {
                 if (accepter.test(d))
                     prev.report(d);
+            }
+            deferred = null; // prevent accidental ongoing use
+        }
+
+        /** Report selected deferred diagnostics. */
+        public void reportDeferredDiagnostics(Comparator<JCDiagnostic> order) {
+            JCDiagnostic[] diags = deferred.toArray(s -> new JCDiagnostic[s]);
+            Arrays.sort(diags, order);
+            for (JCDiagnostic d : diags) {
+                prev.report(d);
             }
             deferred = null; // prevent accidental ongoing use
         }
@@ -251,6 +272,7 @@ public class Log extends AbstractLog {
      * it will be used for all output.
      * Otherwise, the log will be initialized to use both streams found in the context.
      */
+    @SuppressWarnings("this-escape")
     protected Log(Context context) {
         this(context, initWriters(context));
     }
@@ -278,6 +300,7 @@ public class Log extends AbstractLog {
     /**
      * Construct a log with all output sent to a single output stream.
      */
+    @SuppressWarnings("this-escape")
     protected Log(Context context, PrintWriter writer) {
         this(context, initWriters(writer, writer));
     }
@@ -287,6 +310,7 @@ public class Log extends AbstractLog {
      * The log will be initialized to use stdOut for normal output, and stdErr
      * for all diagnostic output.
      */
+    @SuppressWarnings("this-escape")
     protected Log(Context context, PrintWriter out, PrintWriter err) {
         this(context, initWriters(out, err));
     }
@@ -329,9 +353,15 @@ public class Log extends AbstractLog {
         messages = JavacMessages.instance(context);
         messages.add(Main.javacBundleName);
 
+        // Initialize fields configured by Options that we may need before it is ready
+        this.emitWarnings = true;
+        this.MaxErrors = getDefaultMaxErrors();
+        this.MaxWarnings = getDefaultMaxWarnings();
+        this.diagFormatter = new BasicDiagnosticFormatter(messages);
+
+        // Once Options is ready, complete the initialization
         final Options options = Options.instance(context);
-        initOptions(options);
-        options.addListener(() -> initOptions(options));
+        options.whenReady(this::initOptions);
     }
     // where
         private void initOptions(Options options) {
@@ -803,7 +833,7 @@ public class Log extends AbstractLog {
         // backdoor hook for testing, should transition to use -XDrawDiagnostics
         private static boolean useRawMessages = false;
 
-/***************************************************************************
+/* *************************************************************************
  * raw error messages without internationalization; used for experimentation
  * and quick prototyping
  ***************************************************************************/

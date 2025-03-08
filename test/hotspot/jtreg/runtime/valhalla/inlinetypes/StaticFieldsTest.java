@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,18 @@
 package runtime.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
 /*
  * @test
  * @summary Test circularity in static fields
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses StaticFieldsTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.StaticFieldsTest
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile StaticFieldsTest.java
+ * @run main/othervm runtime.valhalla.inlinetypes.StaticFieldsTest
  */
 
 public class StaticFieldsTest {
@@ -38,7 +43,10 @@ public class StaticFieldsTest {
     // ClassA and ClassB have a simple cycle in their static fields, but they should
     // be able to load and initialize themselves successfully. Access to these
     // static fields after their initialization should return the default value.
-    static primitive class ClassA {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ClassA {
+        @NullRestricted
         static ClassB b;
         public int i;
 
@@ -47,7 +55,10 @@ public class StaticFieldsTest {
         }
     }
 
-    static primitive class ClassB {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ClassB {
+        @NullRestricted
         static ClassA a;
         public int i;
 
@@ -59,7 +70,10 @@ public class StaticFieldsTest {
     // ClassC has a reference to itself in its static field, but it should be able
     // to initialize itelf successfully. Access to this static field after initialization
     // should return the default value.
-    static primitive class ClassC {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ClassC {
+        @NullRestricted
         static ClassC c;
         int i;
 
@@ -73,7 +87,10 @@ public class StaticFieldsTest {
     // read these static fields during their initialization, the value read from
     // these fields should be the default value. Both classes should initialize
     // successfully.
-    static primitive class ClassD {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ClassD {
+        @NullRestricted
         static ClassE e;
         int i;
 
@@ -86,7 +103,10 @@ public class StaticFieldsTest {
         }
     }
 
-    static primitive class ClassE {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ClassE {
+        @NullRestricted
         static ClassD d;
         int i;
 
@@ -102,7 +122,10 @@ public class StaticFieldsTest {
     // ClassF and ClassG have circular references in their static fields, and they
     // create new instances of each other type to initialize these static fields
     // during their initialization. Both classes should initialize successfully.
-    static primitive class ClassF {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ClassF {
+        @NullRestricted
         static ClassG g;
         int i;
 
@@ -116,7 +139,10 @@ public class StaticFieldsTest {
         }
     }
 
-    static primitive class ClassG {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class ClassG {
+        @NullRestricted
         static ClassF f;
         int i;
 

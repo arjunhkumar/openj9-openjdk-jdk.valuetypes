@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,6 +94,7 @@ public class RichDiagnosticFormatter extends
         return instance;
     }
 
+    @SuppressWarnings("this-escape")
     protected RichDiagnosticFormatter(Context context) {
         super((AbstractDiagnosticFormatter)Log.instance(context).getDiagnosticFormatter());
         setRichPrinter(new RichPrinter());
@@ -182,6 +183,9 @@ public class RichDiagnosticFormatter extends
     protected void preprocessArgument(Object arg) {
         if (arg instanceof Type type) {
             preprocessType(type);
+        }
+        else if (arg instanceof JCDiagnostic.AnnotatedType type) {
+            preprocessType(type.type());
         }
         else if (arg instanceof Symbol symbol) {
             preprocessSymbol(symbol);
@@ -428,7 +432,9 @@ public class RichDiagnosticFormatter extends
             if (s.isStaticOrInstanceInit()) {
                return ownerName;
             } else {
-                String ms = (s.isInitOrVNew()) ? ownerName : s.name.toString();
+                String ms = (s.name == s.name.table.names.init)
+                    ? ownerName
+                    : s.name.toString();
                 if (s.type != null) {
                     if (s.type.hasTag(FORALL)) {
                         ms = "<" + visitTypes(s.type.getTypeArguments(), locale) + ">" + ms;
@@ -646,7 +652,6 @@ public class RichDiagnosticFormatter extends
         /** set of enabled rich formatter's features */
         protected java.util.EnumSet<RichFormatterFeature> features;
 
-        @SuppressWarnings("fallthrough")
         public RichConfiguration(Options options, AbstractDiagnosticFormatter formatter) {
             super(formatter.getConfiguration());
             features = formatter.isRaw() ? EnumSet.noneOf(RichFormatterFeature.class) :

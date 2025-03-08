@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,17 +23,21 @@
 
 package runtime.valhalla.inlinetypes;
 
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
 
 /*
  * @test TestInheritedInlineTypeFields
  * @summary Test if inline field klasses are correctly retrieved for inherited fields
  * @library /test/lib
- * @compile -XDallowFlattenabilityModifiers -XDenablePrimitiveClasses Point.java TestInheritedInlineTypeFields.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.TestInheritedInlineTypeFields
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile Point.java TestInheritedInlineTypeFields.java
+ * @run main/othervm runtime.valhalla.inlinetypes.TestInheritedInlineTypeFields
  */
 
 class A {
+    @NullRestricted
     Point p;
 }
 
@@ -50,6 +54,7 @@ class D {
 }
 
 class E extends D {
+    @NullRestricted
     Point p1;
 }
 
@@ -58,6 +63,7 @@ class F extends E {
 }
 
 class G extends F {
+    @NullRestricted
     Point p2;
 }
 

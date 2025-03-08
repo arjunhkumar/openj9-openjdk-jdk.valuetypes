@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,30 +27,47 @@ package runtime.valhalla.inlinetypes;
  * @test VolatileTest
  * @summary check effect of volatile keyword on flattenable fields
  * @modules java.base/jdk.internal.misc
+ *          java.base/jdk.internal.vm.annotation
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses VolatileTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:InlineFieldMaxFlatSize=128 runtime.valhalla.inlinetypes.VolatileTest
+ * @enablePreview
+ * @compile VolatileTest.java
+ * @run main/othervm -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.VolatileTest
  */
 
 import jdk.internal.misc.Unsafe;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.*;
+import java.util.List;
 import jdk.test.lib.Asserts;
 
 public class VolatileTest {
     static final Unsafe U = Unsafe.getUnsafe();
+    static boolean atomicLayoutEnabled;
 
-    static primitive class MyValue {
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue {
         int i = 0;
         int j = 0;
     }
 
     static class MyContainer {
+        @NullRestricted
         MyValue mv0;
+        @NullRestricted
         volatile MyValue mv1;
     }
 
-    static public void main (String[] args) {
+    static public void main(String[] args) {
+        RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
+        List<String> arguments = runtimeMxBean.getInputArguments();
+        atomicLayoutEnabled = arguments.contains("-XX:+UseAtomicValueFlattening");
         Class<?> c = MyContainer.class;
         Field f0 = null;
         Field f1 = null;
@@ -61,7 +78,11 @@ public class VolatileTest {
             e.printStackTrace();
             return;
         }
-        Asserts.assertTrue(U.isFlattened(f0), "mv0 should be flattened");
-        Asserts.assertFalse(U.isFlattened(f1), "mv1 should not be flattened");
+        Asserts.assertTrue(U.isFlatField(f0), "mv0 should be flattened");
+        if (atomicLayoutEnabled) {
+            Asserts.assertTrue(U.isFlatField(f1), "mv1 should be flattened");
+        } else {
+            Asserts.assertFalse(U.isFlatField(f1), "mv1 should not be flattened");
+        }
     }
 }

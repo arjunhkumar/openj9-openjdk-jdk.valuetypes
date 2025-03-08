@@ -1,6 +1,6 @@
 #!/bin/sh
 # ===========================================================================
-# (c) Copyright IBM Corp. 2019, 2021 All Rights Reserved
+# (c) Copyright IBM Corp. 2019, 2025 All Rights Reserved
 # ===========================================================================
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -46,11 +46,11 @@ check () {
 
   CHECK=0
   case "$1" in
-     # Comment out to check the test directory files.
+    # Comment out to check the test directory files.
     test/*)
       trace "Ignoring $1 because it appears to match case parameter expansion test/*"
       CHECK=0;;
-    # Ignore binary files
+    # Ignore binary files.
     *.gif)
       trace "Ignoring $1 because it appears to match case parameter expansion *.gif"
       CHECK=0;;
@@ -108,6 +108,13 @@ check () {
     *.ser)
       trace "Ignoring $1 because it appears to match case parameter expansion *.ser"
       CHECK=0;;
+    # Ignore JFR metadata files.
+    src/hotspot/share/jfr/metadata/metadata.xml)
+      trace "Ignoring $1 because it appears to match case parameter expansion src/hotspot/share/jfr/metadata/metadata.xml"
+      CHECK=0;;
+    src/hotspot/share/jfr/metadata/metadata.xsd)
+      trace "Ignoring $1 because it appears to match case parameter expansion src/hotspot/share/jfr/metadata/metadata.xsd"
+      CHECK=0;;
     *) CHECK=1;;
   esac
 
@@ -117,8 +124,8 @@ check () {
 
   # File needs checking
 
-  # If we are checking this file or the pull request copyright checker limit
-  # the number of lines processed otherwise, since all the copyright search
+  # If we are checking this file or the pull request copyright checker, limit
+  # the number of lines processed, otherwise, since all the copyright search
   # strings are in these files, errors would be reported.
   case "$1" in
     *copyrightCheckDir.sh)
@@ -321,9 +328,12 @@ check () {
       IN_JDK=0;;
     make/jdk/src/classes/build/tools/*)
       trace  "$1 deemed not to be in the built JDK because it matches case parameter expansion make/jdk/src/classes/build/tools/*"
-      IN_JDK=0;;  
+      IN_JDK=0;;
     */share/classes/sun/security/util/math/intpoly/FieldGen.jsh)
       trace  "$1 is not part of the built JDK"
+      IN_JDK=0;;
+    src/java.base/linux/native/libsimdsort/*)
+      trace  "$1 deemed not to be in the built JDK because it matches case parameter expansion src/java.base/linux/native/libsimdsort/* and the feature is not enabled"
       IN_JDK=0;;
     *) IN_JDK=1;;
   esac
@@ -349,7 +359,6 @@ check () {
     *) CLOSED=0;;
   esac
 
-
   if [ "$CLOSED" -eq 1 ]; then
     trace "$1 is in the closed directory"
     if [ "$FOUND_IBM_COPYRIGHT" -eq 0 ]; then
@@ -369,7 +378,7 @@ check () {
           ERROR=1
         fi
       else
-        # The file is in the 'closed' directory and doesn't contain 
+        # The file is in the 'closed' directory and doesn't contain
         # Oracle copyright with GPLv2 and Classpath Exception so should
         # have IBM copyright with GPLv2 and CE at the top of the file
         if [ "$FOUND_IBM_COPYRIGHT" -gt 5 ]; then
@@ -497,7 +506,6 @@ check () {
       e=$((e+1))
     fi
   fi
-
 }
 
 # Main logic here
@@ -534,7 +542,7 @@ if [ $ARGS_ERROR -eq 1 ]; then
   echo
   echo copyrightCheck.sh REPO=git_repository ROOTDIR=root_directory VERBOSE=1
   echo REPO:    a github repository. Mandatory
-  echo ROOTDIR: check only this durectory and subdirectories
+  echo ROOTDIR: check only this directory and subdirectories
   echo VERBOSE: output logging
   echo
   echo Example: to check the entire repository github.com:ibmruntimes/openj9-openjdk-jdk
@@ -582,10 +590,6 @@ echo "src/java.base/solaris/native/libjvm_db/libjvm_db.c" >>$TEMPFILE
 echo "src/java.base/solaris/native/libjvm_db/libjvm_db.h" >>$TEMPFILE
 echo "src/java.base/solaris/native/libjvm_dtrace/jvm_dtrace.c" >>$TEMPFILE
 echo "src/java.base/solaris/native/libjvm_dtrace/jvm_dtrace.h" >>$TEMPFILE
-echo "src/jdk.internal.le/windows/classes/jdk/internal/org/jline/terminal/impl/jna/win/IntByReference.java" >>$TEMPFILE
-echo "src/jdk.internal.le/windows/classes/jdk/internal/org/jline/terminal/impl/jna/win/Kernel32Impl.java" >>$TEMPFILE
-echo "src/jdk.internal.le/windows/classes/jdk/internal/org/jline/terminal/impl/jna/win/LastErrorException.java" >>$TEMPFILE
-echo "src/jdk.internal.le/windows/classes/jdk/internal/org/jline/terminal/impl/jna/win/Pointer.java" >>$TEMPFILE
 echo "src/jdk.internal.vm.compiler.management/share/classes/org.graalvm.compiler.hotspot.management/src/org/graalvm/compiler/hotspot/management/HotSpotGraalManagement.java" >>$TEMPFILE
 echo "src/jdk.internal.vm.compiler.management/share/classes/org.graalvm.compiler.hotspot.management/src/org/graalvm/compiler/hotspot/management/HotSpotGraalRuntimeMBean.java" >>$TEMPFILE
 echo "src/jdk.internal.vm.compiler.management/share/classes/org.graalvm.compiler.hotspot.management/src/org/graalvm/compiler/hotspot/management/JMXServiceProvider.java" >>$TEMPFILE
@@ -620,10 +624,9 @@ echo "jdk/test/java/awt/Frame/DecoratedExceptions/DecoratedExceptions.java" >>$T
 # themselves are not actually present in the openjdk source repository
 echo "src/java.smartcardio/unix/native/libj2pcsc/MUSCLE/COPYING" >>$TEMPFILE
 echo "jdk/src/solaris/native/sun/security/smartcardio/MUSCLE/COPYING" >>$TEMPFILE
-# The following file was written by IBM, and then later some oracle code has been added to this file, 
+# The following file was written by IBM, and then later some oracle code has been added to this file,
 # After legal consideration, decesion was top add oracle copyrights where ever the oracle code is written which result IBM copyrights on top and later oracle.
 echo "closed/adds/jdk/src/windows/native/jdk/crypto/jniprovider/NativeCrypto_md.c" >>$TEMPFILE
-
 
 cat $TEMPFILE
 

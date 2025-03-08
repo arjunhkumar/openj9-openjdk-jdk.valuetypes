@@ -71,7 +71,7 @@ public class ParserCP extends ParseBase {
      * In particular cases it's necessary to interpret a warning issue as an error and
      * stop parsing a source file immediately
      * cpParser.setExitImmediately(true);
-     * çparseConstRef(...);
+     * cparseConstRef(...);
      * cpParser.setExitImmediately(false);
      */
     public void setExitImmediately(boolean exitImmediately) {

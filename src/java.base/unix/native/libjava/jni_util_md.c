@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,12 +21,6 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- */
-
-/*
- * ===========================================================================
- * (c) Copyright IBM Corp. 2022, 2022 All Rights Reserved
- * ===========================================================================
  */
 
 #include <errno.h>
@@ -57,28 +51,13 @@ void* getProcessHandle() {
     return procHandle;
 }
 
-void buildJniFunctionName(const char *sym, const char *cname,
-                          char *jniEntryName) {
-    strcpy(jniEntryName, sym);
-    if (cname != NULL) {
-        strcat(jniEntryName, "_");
-        strcat(jniEntryName, cname);
-    }
-}
-
-#if defined(_AIX)
-void *findEntryInProcess(const char *name)
+jstring
+getLastErrorString(JNIEnv *env)
 {
-    return JVM_FindLibraryEntry(RTLD_DEFAULT, name);
-}
-#endif /* defined(_AIX) */
-
-JNIEXPORT size_t JNICALL
-getLastErrorString(char *buf, size_t len)
-{
-    if (errno == 0 || len < 1) return 0;
-    getErrorString(errno, buf, len);
-    return strlen(buf);
+    char buf[256] = {0};
+    if (errno == 0) return NULL;
+    getErrorString(errno, buf, sizeof(buf));
+    return (buf[0] != 0) ? JNU_NewStringPlatform(env, buf) : NULL;
 }
 
 JNIEXPORT int JNICALL

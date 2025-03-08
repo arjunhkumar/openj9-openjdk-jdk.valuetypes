@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  */
 
 /* Copyright  (c) 2002 Graz University of Technology. All rights reserved.
@@ -58,9 +58,6 @@ import java.io.IOException;
 import java.util.*;
 import java.util.function.Consumer;
 
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-
 import sun.security.util.Debug;
 
 import sun.security.pkcs11.P11Util;
@@ -88,16 +85,12 @@ public class PKCS11 {
     private static final String PKCS11_WRAPPER = "j2pkcs11";
 
     static {
-        // cannot use LoadLibraryAction because that would make the native
-        // library available to the bootclassloader, but we run in the
-        // extension classloader.
-        @SuppressWarnings("removal")
-        var dummy = AccessController.doPrivileged(new PrivilegedAction<Object>() {
-            public Object run() {
-                System.loadLibrary(PKCS11_WRAPPER);
-                return null;
-            }
-        });
+        loadAndInitializeLibrary();
+    }
+
+    @SuppressWarnings("restricted")
+    private static void loadAndInitializeLibrary() {
+        System.loadLibrary(PKCS11_WRAPPER);
         boolean enableDebug = Debug.getInstance("sunpkcs11") != null;
         initializeLibrary(enableDebug);
     }
@@ -107,12 +100,6 @@ public class PKCS11 {
         // portion has been loaded. actual loading happens in the
         // static initializer, hence this method is empty.
     }
-
-    /* *****************************************************************************
-     * Utility, Resource Clean up
-     ******************************************************************************/
-    // always return 0L
-    public static native long freeMechanism(long hMechanism);
 
     /**
      * The PKCS#11 module to connect to. This is the PKCS#11 driver of the token;
@@ -149,12 +136,25 @@ public class PKCS11 {
         new HashMap<String,PKCS11>();
 
     static boolean isKey(CK_ATTRIBUTE[] attrs) {
+        boolean isPrivateKey = false;
+        boolean hasKey = false;
+
         for (CK_ATTRIBUTE attr : attrs) {
-            if ((attr.type == CKA_CLASS) && (attr.getLong() == CKO_SECRET_KEY)) {
-                return true;
+            if (attr.type == CKA_CLASS) {
+                if (attr.getLong() == CKO_SECRET_KEY) {
+                    return true;
+                } else if (attr.getLong() == CKO_PRIVATE_KEY) {
+                    isPrivateKey = true;
+                }
+            } else if (attr.type == CKA_KEY_TYPE) {
+                hasKey = true;
+                if (!((attr.getLong() == CKK_RSA) || (attr.getLong() == CKK_EC))) {
+                    isPrivateKey = false;
+                }
             }
         }
-        return false;
+
+        return isPrivateKey && hasKey;
     }
 
     // This is the SunPKCS11 provider instance
@@ -844,6 +844,24 @@ public class PKCS11 {
     public native void C_EncryptInit(long hSession, CK_MECHANISM pMechanism,
             long hKey) throws PKCS11Exception;
 
+    /**
+     * C_GCMEncryptInitWithRetry initializes a GCM encryption operation and retry
+     * with alternative param structure for max compatibility.
+     * (Encryption and decryption)
+     *
+     * @param hSession the session's handle
+     *         (PKCS#11 param: CK_SESSION_HANDLE hSession)
+     * @param pMechanism the encryption mechanism
+     *         (PKCS#11 param: CK_MECHANISM_PTR pMechanism)
+     * @param hKey the handle of the encryption key
+     *         (PKCS#11 param: CK_OBJECT_HANDLE hKey)
+     * @param useNormativeVerFirst whether to use normative version of GCM parameter first
+     * @exception PKCS11Exception If function returns other value than CKR_OK.
+     * @preconditions
+     * @postconditions
+     */
+    public native void C_GCMEncryptInitWithRetry(long hSession, CK_MECHANISM pMechanism,
+            long hKey, boolean useNormativeVerFirst) throws PKCS11Exception;
 
     /**
      * C_Encrypt encrypts single-part data.
@@ -938,6 +956,24 @@ public class PKCS11 {
     public native void C_DecryptInit(long hSession, CK_MECHANISM pMechanism,
             long hKey) throws PKCS11Exception;
 
+    /**
+     * C_GCMDecryptInitWithRetry initializes a GCM decryption operation
+     * with alternative param structure for max compatibility.
+     * (Encryption and decryption)
+     *
+     * @param hSession the session's handle
+     *         (PKCS#11 param: CK_SESSION_HANDLE hSession)
+     * @param pMechanism the decryption mechanism
+     *         (PKCS#11 param: CK_MECHANISM_PTR pMechanism)
+     * @param hKey the handle of the decryption key
+     *         (PKCS#11 param: CK_OBJECT_HANDLE hKey)
+     * @param useNormativeVerFirst whether to use normative version of GCM parameter first
+     * @exception PKCS11Exception If function returns other value than CKR_OK.
+     * @preconditions
+     * @postconditions
+     */
+    public native void C_GCMDecryptInitWithRetry(long hSession, CK_MECHANISM pMechanism,
+            long hKey, boolean useNormativeVerFirst) throws PKCS11Exception;
 
     /**
      * C_Decrypt decrypts encrypted data in a single part.

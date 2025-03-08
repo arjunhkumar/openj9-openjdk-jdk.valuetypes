@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,59 +23,88 @@
 
 /**
  * @test
- * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831
- * @summary Generated inline type tests.
- * @compile -XDenablePrimitiveClasses TestGenerated.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xbatch
+ * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831 8306986
+ * @summary A selection of generated tests that triggered bugs not covered by other tests.
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @run main/othervm -Xbatch
  *                   compiler.valhalla.inlinetypes.TestGenerated
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xbatch -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -Xbatch -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestGenerated
  */
 
 package compiler.valhalla.inlinetypes;
 
-primitive class EmptyValue {
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class EmptyPrimitive {
 
 }
 
-primitive class MyValue1 {
+value class EmptyValue {
+
+}
+
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class MyValue1 {
     int x = 42;
     int[] array = new int[1];
 }
 
-primitive class MyValue2 {
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class MyValue2 {
     int[] a = new int[1];
     int[] b = new int[6];
     int[] c = new int[5];
 }
 
-primitive class MyValue3 {
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class MyValue3 {
     int[] intArray = new int[1];
     float[] floatArray = new float[1];
 }
 
-primitive class MyValue4 {
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class MyValue4 {
     short b = 2;
     int c = 8;
 }
 
 class MyValue4Wrapper {
-    public MyValue4.ref val;
+    public MyValue4 val;
 
     public MyValue4Wrapper(MyValue4 val) {
         this.val = val;
     }
 }
 
-primitive class MyValue5 {
+@ImplicitlyConstructible
+@LooselyConsistentValue
+value class MyValue5 {
     int b = 2;
 }
 
-public class TestGenerated {
-    EmptyValue f1 = new EmptyValue();
-    EmptyValue f2 = new EmptyValue();
+value class MyValue6 {
+    int x = 42;
+}
 
-    void test1(EmptyValue[] array) {
+public class TestGenerated {
+    @NullRestricted
+    EmptyPrimitive f1 = new EmptyPrimitive();
+    @NullRestricted
+    EmptyPrimitive f2 = new EmptyPrimitive();
+
+    void test1(EmptyPrimitive[] array) {
         for (int i = 0; i < 10; ++i) {
             f1 = array[0];
             f2 = array[0];
@@ -83,7 +112,7 @@ public class TestGenerated {
     }
 
     MyValue1 test2(MyValue1[] array) {
-        MyValue1 res = MyValue1.default;
+        MyValue1 res = new MyValue1();
         for (int i = 0; i < array.length; ++i) {
             res = array[i];
         }
@@ -95,7 +124,7 @@ public class TestGenerated {
 
     void test3(MyValue1[] array) {
         for (int i = 0; i < array.length; ++i) {
-            array[i] = MyValue1.default;
+            array[i] = new MyValue1();
         }
         for (int i = 0; i < 1000; ++i) {
 
@@ -111,6 +140,7 @@ public class TestGenerated {
     }
 
     long f3;
+    @NullRestricted
     MyValue1 f4 = new MyValue1();
 
     void test6() {
@@ -121,11 +151,18 @@ public class TestGenerated {
         }
     }
 
+    @NullRestricted
     MyValue2 f5;
 
     void test7(boolean b) {
-        MyValue2[] array1 = {new MyValue2(), new MyValue2(), new MyValue2(),
-                             new MyValue2(), new MyValue2(), new MyValue2()};
+        MyValue2[] array1 = (MyValue2[])ValueClass.newNullRestrictedArray(MyValue2.class, 6);
+        array1[0] = new MyValue2();
+        array1[1] = new MyValue2();
+        array1[2] = new MyValue2();
+        array1[3] = new MyValue2();
+        array1[4] = new MyValue2();
+        array1[5] = new MyValue2();
+
         MyValue2 h = new MyValue2();
         MyValue2 n = new MyValue2();
         int[] array2 = new int[1];
@@ -149,7 +186,7 @@ public class TestGenerated {
     }
 
     void test9(boolean b) {
-        MyValue1[] array = { new MyValue1() };
+        MyValue1[] array = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
         if (b) {
             for (int i = 0; i < 10; ++i) {
                 if (array != array) {
@@ -175,13 +212,15 @@ public class TestGenerated {
         }
     }
 
-    MyValue4[] d = {new MyValue4()};
+    MyValue4[] d = (MyValue4[])ValueClass.newNullRestrictedArray(MyValue4.class, 1);
+    @NullRestricted
     MyValue4 e;
     byte f;
+
     byte test12() {
         MyValue4 i = new MyValue4();
         for (int j = 0; j < 6; ++j) {
-            MyValue4[] k = {};
+            MyValue4[] k = (MyValue4[])ValueClass.newNullRestrictedArray(MyValue4.class, 0);
             if (i.b < 101) {
                 i = e;
             }
@@ -198,7 +237,9 @@ public class TestGenerated {
     }
 
     int test13_iField;
+    @NullRestricted
     MyValue5 test13_c;
+    @NullRestricted
     MyValue5 test13_t;
 
     void test13(MyValue5[] array) {
@@ -209,7 +250,7 @@ public class TestGenerated {
             for (int j = 0; j < 2; ++j) {
                 test13_iField += array[0].b;
             }
-            MyValue5[] array2 = {new MyValue5()};
+            MyValue5[] array2 = (MyValue5[])ValueClass.newNullRestrictedArray(MyValue5.class, 1);
             test13_c = array[0];
             array2[0] = test13_t;
         }
@@ -218,9 +259,9 @@ public class TestGenerated {
     void test14(boolean b, MyValue4 val) {
         for (int i = 0; i < 10; ++i) {
             if (b) {
-                val = MyValue4.default;
+                val = new MyValue4();
             }
-            MyValue4[] array = new MyValue4[1];
+            MyValue4[] array = (MyValue4[])ValueClass.newNullRestrictedArray(MyValue4.class, 1);
             array[0] = val;
 
             for (int j = 0; j < 5; ++j) {
@@ -234,7 +275,7 @@ public class TestGenerated {
         MyValue4 val = new MyValue4();
         for (int i = 0; i < 10; ++i) {
             for (int j = 0; j < 10; ++j) {
-                MyValue4[] array = new MyValue4[1];
+                MyValue4[] array = (MyValue4[])ValueClass.newNullRestrictedArray(MyValue4.class, 1);
                 for (int k = 0; k < 10; ++k) {
                     array[0] = val;
                     val = array[0];
@@ -244,7 +285,7 @@ public class TestGenerated {
     }
 
     void test16() {
-        MyValue4 val = MyValue4.default;
+        MyValue4 val = new MyValue4();
         for (int i = 0; i < 10; ++i) {
             for (int j = 0; j < 10; ++j) {
                 val = (new MyValue4Wrapper(val)).val;
@@ -254,13 +295,46 @@ public class TestGenerated {
         }
     }
 
+    static MyValue6 test17Field = new MyValue6();
+
+    void test17() {
+        for (int i = 0; i < 10; ++i) {
+            MyValue6 val = new MyValue6();
+            for (int j = 0; j < 10; ++j) {
+                test17Field = val;
+            }
+        }
+    }
+
+    EmptyValue test18Field;
+
+    EmptyValue test18() {
+        EmptyValue val = new EmptyValue();
+        test18Field = val;
+        return test18Field;
+    }
+
+    @NullRestricted
+    MyValue1 test19Field = new MyValue1();
+
+    public void test19() {
+        for (int i = 0; i < 10; ++i) {
+            MyValue1 val = new MyValue1();
+            for (int j = 0; j < 10; ++j)
+                test19Field = val;
+        }
+    }
+
     public static void main(String[] args) {
         TestGenerated t = new TestGenerated();
-        EmptyValue[] array1 = { new EmptyValue() };
-        MyValue1[] array2 = new MyValue1[10];
-        MyValue1[] array3 = { new MyValue1() };
-        MyValue3[] array4 = { new MyValue3() };
-        MyValue5[] array5 = { new MyValue5() };
+        EmptyPrimitive[] array1 = (EmptyPrimitive[])ValueClass.newNullRestrictedArray(EmptyPrimitive.class, 1);
+        MyValue1[] array2 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 10);
+        MyValue1[] array3 = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 1);
+        array3[0] = new MyValue1();
+        MyValue3[] array4 = (MyValue3[])ValueClass.newNullRestrictedArray(MyValue3.class, 1);
+        array4[0] = new MyValue3();
+        MyValue5[] array5 = (MyValue5[])ValueClass.newNullRestrictedArray(MyValue5.class, 1);
+        array5[0] = new MyValue5();
         array4[0].intArray[0] = 42;
 
         for (int i = 0; i < 50_000; ++i) {
@@ -277,9 +351,13 @@ public class TestGenerated {
             t.test11(array4);
             t.test12();
             t.test13(array5);
-            t.test14(false, MyValue4.default);
+            t.test14(false, new MyValue4());
             t.test15();
-            t.test16();
+            // TODO 8332814 This triggers the "nothing between inner and outer loop" assert
+            // t.test16();
+            t.test17();
+            t.test18();
+            t.test19();
         }
     }
 }

@@ -1,6 +1,6 @@
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 2018, 2023 All Rights Reserved
+ * (c) Copyright IBM Corp. 2018, 2025 All Rights Reserved
  * ===========================================================================
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,8 +32,7 @@ import jdk.internal.misc.Unsafe;
 import jdk.internal.ref.CleanerFactory;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.reflect.CallerSensitive;
-
-import sun.security.action.GetPropertyAction;
+import jdk.internal.util.StaticProperty;
 
 /*[IF CRIU_SUPPORT]*/
 import openj9.internal.criu.InternalCRIUSupport;
@@ -47,35 +46,64 @@ public class NativeCrypto {
     public static final int SHA2_256 = 2;
     public static final int SHA5_384 = 3;
     public static final int SHA5_512 = 4;
+    public static final int MD5 = 5;
+
+    /* Define constants for the EC field types. */
+    public static final int ECField_Fp = 0;
+    public static final int ECField_F2m = 1;
+
+    /* Define XDH curve constants used by OpenSSL. */
+    public static final int X25519 = 1034;
+    public static final int X448 = 1035;
+
+    public static final long OPENSSL_VERSION_1_0_0 = 0x1_00_00_000L;
+    public static final long OPENSSL_VERSION_1_1_0 = 0x1_01_00_000L;
+    public static final long OPENSSL_VERSION_1_1_1 = 0x1_01_01_000L;
+    public static final long OPENSSL_VERSION_3_0_0 = 0x3_00_00_000L;
 
     private static final Cleaner ECKeyCleaner = CleanerFactory.cleaner();
 
     private static final boolean useNativeCrypto = Boolean.parseBoolean(
-            GetPropertyAction.privilegedGetProperty("jdk.nativeCrypto", "true"));
+            System.getProperty("jdk.nativeCrypto", "true"));
 
     private static final boolean traceEnabled = Boolean.parseBoolean(
-            GetPropertyAction.privilegedGetProperty("jdk.nativeCryptoTrace", "false"));
+            System.getProperty("jdk.nativeCryptoTrace", "false"));
 
     private static final class InstanceHolder {
         private static final NativeCrypto instance = new NativeCrypto();
     }
 
-    //ossl_vers:
+    //ossl_vers will be either:
     // -1 : library load failed
-    //  0 : openssl 1.0.x
-    //  1 : openssl 1.1.x or newer
-    private final int ossl_ver;
+    // or one of the OPENSSL_VERSION_x_x_x constants
+    private final long ossl_ver;
 
-    private static int loadCryptoLibraries() {
-        int osslVersion;
+    private final boolean isOpenSSLFIPS;
+
+    @SuppressWarnings("restricted")
+    private static long loadCryptoLibraries() {
+        long osslVersion;
 
         try {
-            // load jncrypto JNI library
+            // Load jncrypto JNI library.
             System.loadLibrary("jncrypto");
-            // load OpenSSL crypto library dynamically
-            osslVersion = loadCrypto(traceEnabled);
-            if (traceEnabled && (osslVersion != -1)) {
-                System.err.println("Native crypto library load succeeded - using native crypto library.");
+
+            // Get user-specified OpenSSL library to use, if available.
+            String nativeLibName = System.getProperty("jdk.native.openssl.lib", "");
+
+            // Get the JDK location.
+            String javaHome = StaticProperty.javaHome();
+
+            // Load OpenSSL crypto library dynamically.
+            osslVersion = loadCrypto(traceEnabled, nativeLibName, javaHome);
+            if (osslVersion != -1) {
+                if (traceEnabled) {
+                    System.err.println("Native crypto library load succeeded - using native crypto library.");
+                }
+            } else {
+                if (!nativeLibName.isEmpty()) {
+                    throw new RuntimeException(nativeLibName + " is not available, crypto libraries are not loaded");
+                }
             }
         } catch (UnsatisfiedLinkError usle) {
             if (traceEnabled) {
@@ -83,15 +111,19 @@ public class NativeCrypto {
                 System.err.println("Warning: Native crypto library load failed." +
                         " Using Java crypto implementation.");
             }
-            // signal load failure
+            // Signal load failure.
             osslVersion = -1;
         }
         return osslVersion;
     }
 
-    @SuppressWarnings("removal")
     private NativeCrypto() {
-        ossl_ver = AccessController.doPrivileged((PrivilegedAction<Integer>) () -> loadCryptoLibraries()).intValue();
+        ossl_ver = loadCryptoLibraries();
+        if (ossl_ver != -1) {
+            isOpenSSLFIPS = isOpenSSLFIPS();
+        } else {
+            isOpenSSLFIPS = false;
+        }
     }
 
     /**
@@ -107,14 +139,15 @@ public class NativeCrypto {
 
     /**
      * Return the OpenSSL version.
-     * -1 is returned if CRIU is enabled and the checkpoint is allowed.
+     * -1 is returned if CRIU is enabled and checkpoints are allowed
+     * unless -XX:-CRIUSecProvider is specified.
      * The libraries are to be loaded for the first reference of InstanceHolder.instance.
      *
      * @return the OpenSSL library version if it is available
      */
-    public static final int getVersionIfAvailable() {
+    public static final long getVersionIfAvailable() {
 /*[IF CRIU_SUPPORT]*/
-        if (InternalCRIUSupport.isCheckpointAllowed()) {
+        if (InternalCRIUSupport.isCheckpointAllowed() && InternalCRIUSupport.enableCRIUSecProvider()) {
             return -1;
         }
 /*[ENDIF] CRIU_SUPPORT */
@@ -138,8 +171,7 @@ public class NativeCrypto {
     public static final boolean isAlgorithmEnabled(String property, String name) {
         boolean useNativeAlgorithm = false;
         if (useNativeCrypto) {
-            useNativeAlgorithm = Boolean.parseBoolean(
-                    GetPropertyAction.privilegedGetProperty(property, "true"));
+            useNativeAlgorithm = Boolean.parseBoolean(System.getProperty(property, "true"));
         }
         /*
          * User wants to use the native crypto implementation. Ensure that the native crypto library is enabled.
@@ -164,6 +196,54 @@ public class NativeCrypto {
         return traceEnabled;
     }
 
+    public static final boolean isOpenSSLFIPSVersion() {
+        return InstanceHolder.instance.isOpenSSLFIPS;
+    }
+
+    /**
+     * Check whether a native implementation is available in the loaded OpenSSL library.
+     * Note that, an algorithm could be unavailable due to options used to build the
+     * OpenSSL version utilized, or using a FIPS version that doesn't allow it.
+     *
+     * @param algorithm the algorithm checked
+     * @return whether a native implementation of the given crypto algorithm is available
+     */
+    public static final boolean isAlgorithmAvailable(String algorithm) {
+        boolean isAlgorithmAvailable = false;
+        if (isAllowedAndLoaded()) {
+            if (isOpenSSLFIPSVersion()) {
+                switch (algorithm) {
+                case "ChaCha20":
+                case "MD5":
+                    // not available
+                    break;
+                default:
+                    isAlgorithmAvailable = true;
+                    break;
+                }
+            } else {
+                switch (algorithm) {
+                case "MD5":
+                    isAlgorithmAvailable = isMD5Available();
+                    break;
+                default:
+                    isAlgorithmAvailable = true;
+                    break;
+                }
+            }
+        }
+
+        // Issue a message indicating whether the crypto implementation is available.
+        if (traceEnabled) {
+            if (isAlgorithmAvailable) {
+                System.err.println(algorithm + " native crypto implementation is available.");
+            } else {
+                System.err.println(algorithm + " native crypto implementation is not available.");
+            }
+        }
+        return isAlgorithmAvailable;
+    }
+
     @CallerSensitive
     public static NativeCrypto getNativeCrypto() {
         ClassLoader callerClassLoader = Reflection.getCallerClass().getClassLoader();
@@ -184,9 +264,17 @@ public class NativeCrypto {
         });
     }
 
-    /* Native digest interfaces */
+    /* OpenSSL utility interfaces */
 
-    private static final native int loadCrypto(boolean trace);
+    private static final native long loadCrypto(boolean trace,
+                                                String libName,
+                                                String javaHome);
+
+    public static final native boolean isMD5Available();
+
+    private static final native boolean isOpenSSLFIPS();
+
+    /* Native digest interfaces */
 
     public final native long DigestCreateContext(long nativeBuffer,
                                                  int algoIndex);
@@ -206,9 +294,9 @@ public class NativeCrypto {
                                                   int digestOffset,
                                                   int digestLen);
 
-    public final native void DigestReset(long context);
+    public final native int DigestReset(long context);
 
-    /* Native interfaces shared by CBC and ChaCha20 */
+    /* Native interfaces shared by CBC, ChaCha20 and GCM. */
 
     public final native long CreateContext();
 
@@ -221,7 +309,8 @@ public class NativeCrypto {
                                     byte[] iv,
                                     int ivlen,
                                     byte[] key,
-                                    int keylen);
+                                    int keylen,
+                                    boolean doReset);
 
     public final native int  CBCUpdate(long context,
                                        byte[] input,
@@ -239,7 +328,8 @@ public class NativeCrypto {
 
     /* Native GCM interfaces */
 
-    public final native int GCMEncrypt(byte[] key,
+    public final native int GCMEncrypt(long context,
+                                       byte[] key,
                                        int keylen,
                                        byte[] iv,
                                        int ivlen,
@@ -250,9 +340,12 @@ public class NativeCrypto {
                                        int outOffset,
                                        byte[] aad,
                                        int aadLen,
-                                       int tagLen);
+                                       int tagLen,
+                                       boolean newIVLen,
+                                       boolean newKeyLen);
 
-    public final native int GCMDecrypt(byte[] key,
+    public final native int GCMDecrypt(long context,
+                                       byte[] key,
                                        int keylen,
                                        byte[] iv,
                                        int ivlen,
@@ -263,7 +356,9 @@ public class NativeCrypto {
                                        int outOffset,
                                        byte[] aad,
                                        int aadLen,
-                                       int tagLen);
+                                       int tagLen,
+                                       boolean newIVLen,
+                                       boolean newKeyLen);
 
     /* Native RSA interfaces */
 
@@ -309,7 +404,8 @@ public class NativeCrypto {
                                     byte[] iv,
                                     int ivlen,
                                     byte[] key,
-                                    int keylen);
+                                    int keylen,
+                                    boolean doReset);
 
     public final native int ChaCha20Update(long context,
                                        byte[] input,
@@ -336,6 +432,15 @@ public class NativeCrypto {
                                        int tagLen);
 
     /* Native EC interfaces */
+    public final native int ECGenerateKeyPair(long key,
+                                              byte[] x,
+                                              int xLen,
+                                              byte[] y,
+                                              int yLen,
+                                              byte[] s,
+                                              int sLen,
+                                              int fieldType);
+
     public final native int ECCreatePublicKey(long key,
                                               byte[] x,
                                               int xLen,
@@ -347,35 +452,21 @@ public class NativeCrypto {
                                                byte[] s,
                                                int sLen);
 
-    public final native long ECEncodeGFp(byte[] a,
-                                         int aLen,
-                                         byte[] b,
-                                         int bLen,
-                                         byte[] p,
-                                         int pLen,
-                                         byte[] x,
-                                         int xLen,
-                                         byte[] y,
-                                         int yLen,
-                                         byte[] n,
-                                         int nLen,
-                                         byte[] h,
-                                         int hLen);
-
-    public final native long ECEncodeGF2m(byte[] a,
-                                          int aLen,
-                                          byte[] b,
-                                          int bLen,
-                                          byte[] p,
-                                          int pLen,
-                                          byte[] x,
-                                          int xLen,
-                                          byte[] y,
-                                          int yLen,
-                                          byte[] n,
-                                          int nLen,
-                                          byte[] h,
-                                          int hLen);
+    public final native long ECEncodeGF(int fieldType,
+                                        byte[] a,
+                                        int aLen,
+                                        byte[] b,
+                                        int bLen,
+                                        byte[] p,
+                                        int pLen,
+                                        byte[] x,
+                                        int xLen,
+                                        byte[] y,
+                                        int yLen,
+                                        byte[] n,
+                                        int nLen,
+                                        byte[] h,
+                                        int hLen);
 
     public final native int ECDestroyKey(long key);
 
@@ -397,4 +488,31 @@ public class NativeCrypto {
                                       int id,
                                       int hashAlgorithm);
 
+    /* Native ECDSA interfaces. */
+    public final native int ECDSASign(long key,
+                                      byte[] digest,
+                                      int digestLen,
+                                      byte[] signature,
+                                      int sigLen);
+
+    public final native int ECDSAVerify(long key,
+                                        byte[] digest,
+                                        int digestLen,
+                                        byte[] signature,
+                                        int sigLen);
+
+    /* Native XDH (X25519, X448) interfaces. */
+    public final native int XDHCreateKeys(byte[] privateKey,
+                                          int privateKeyLength,
+                                          byte[] publicKey,
+                                          int publicKeyLength,
+                                          int curveType);
+
+    public final native int XDHGenerateSecret(byte[] privateKey,
+                                              int privateKeyLength,
+                                              byte[] publicKey,
+                                              int publicKeyLength,
+                                              byte[] computedSecret,
+                                              int computedSecretLength,
+                                              int curveType);
 }

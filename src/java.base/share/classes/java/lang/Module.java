@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,11 +35,12 @@ import java.lang.module.ModuleDescriptor.Exports;
 import java.lang.module.ModuleDescriptor.Opens;
 import java.lang.module.ModuleDescriptor.Version;
 import java.lang.module.ResolvedModule;
+import java.lang.reflect.AccessFlag;
 import java.lang.reflect.AnnotatedElement;
 import java.net.URI;
 import java.net.URL;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
+import java.security.CodeSource;
+import java.security.ProtectionDomain;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -51,28 +52,24 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.lang.classfile.AccessFlags;
+import java.lang.classfile.Attribute;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
 
-import jdk.internal.javac.PreviewFeature;
 import jdk.internal.loader.BuiltinClassLoader;
 import jdk.internal.loader.BootLoader;
 import jdk.internal.loader.ClassLoaders;
 import jdk.internal.misc.CDS;
 import jdk.internal.misc.Unsafe;
+import jdk.internal.misc.VM;
 import jdk.internal.module.ModuleBootstrap;
 import jdk.internal.module.ModuleLoaderMap;
 import jdk.internal.module.ServicesCatalog;
 import jdk.internal.module.Resources;
-import jdk.internal.org.objectweb.asm.AnnotationVisitor;
-import jdk.internal.org.objectweb.asm.Attribute;
-import jdk.internal.org.objectweb.asm.ClassReader;
-import jdk.internal.org.objectweb.asm.ClassVisitor;
-import jdk.internal.org.objectweb.asm.ClassWriter;
-import jdk.internal.org.objectweb.asm.ModuleVisitor;
-import jdk.internal.org.objectweb.asm.Opcodes;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.vm.annotation.Stable;
-import sun.security.util.SecurityConstants;
 
 /**
  * Represents a run-time module, either {@link #isNamed() named} or unnamed.
@@ -142,10 +139,6 @@ public final class Module implements AnnotatedElement {
         String loc = Objects.toString(uri, null);
         Object[] packages = descriptor.packages().toArray();
         defineModule0(this, isOpen, vs, loc, packages);
-        if (loader == null || loader == ClassLoaders.platformClassLoader()) {
-            // boot/builtin modules are always native
-            implAddEnableNativeAccess();
-        }
     }
 
 
@@ -200,22 +193,9 @@ public final class Module implements AnnotatedElement {
     /**
      * Returns the {@code ClassLoader} for this module.
      *
-     * <p> If there is a security manager then its {@code checkPermission}
-     * method if first called with a {@code RuntimePermission("getClassLoader")}
-     * permission to check that the caller is allowed to get access to the
-     * class loader. </p>
-     *
      * @return The class loader for this module
-     *
-     * @throws SecurityException
-     *         If denied by the security manager
      */
     public ClassLoader getClassLoader() {
-        @SuppressWarnings("removal")
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(SecurityConstants.GET_CLASSLOADER_PERMISSION);
-        }
         return loader;
     }
 
@@ -268,12 +248,11 @@ public final class Module implements AnnotatedElement {
 
     /**
      * Returns {@code true} if this module can access
-     * <a href="foreign/package-summary.html#restricted"><em>restricted</em></a> methods.
+     * <a href="{@docRoot}/java.base/java/lang/doc-files/RestrictedMethods.html#restricted"><em>restricted</em></a> methods.
      *
      * @return {@code true} if this module can access <em>restricted</em> methods.
-     * @since 20
+     * @since 22
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.FOREIGN)
     public boolean isNativeAccessEnabled() {
         Module target = moduleForNativeAccess();
         return EnableNativeAccess.isNativeAccessEnabled(target);
@@ -308,24 +287,46 @@ public final class Module implements AnnotatedElement {
     }
 
     // This is invoked from Reflection.ensureNativeAccess
-    void ensureNativeAccess(Class<?> owner, String methodName) {
+    void ensureNativeAccess(Class<?> owner, String methodName, Class<?> currentClass, boolean jni) {
         // The target module whose enableNativeAccess flag is ensured
         Module target = moduleForNativeAccess();
-        if (!EnableNativeAccess.isNativeAccessEnabled(target)) {
-            if (ModuleBootstrap.hasEnableNativeAccessFlag()) {
-                throw new IllegalCallerException("Illegal native access from: " + this);
+        ModuleBootstrap.IllegalNativeAccess illegalNativeAccess = ModuleBootstrap.illegalNativeAccess();
+        if (illegalNativeAccess != ModuleBootstrap.IllegalNativeAccess.ALLOW &&
+                !EnableNativeAccess.isNativeAccessEnabled(target)) {
+            String mod = isNamed() ? "module " + getName() : "an unnamed module";
+            if (currentClass != null) {
+                // try to extract location of the current class (e.g. jar or folder)
+                CodeSource cs = currentClass.getProtectionDomain().getCodeSource();
+                if (cs != null) {
+                    URL url = cs.getLocation();
+                    if (url != null) {
+                        mod += " (" + url + ")";
+                    }
+                }
             }
-            if (EnableNativeAccess.trySetEnableNativeAccess(target)) {
+            if (illegalNativeAccess == ModuleBootstrap.IllegalNativeAccess.DENY) {
+                throw new IllegalCallerException("Illegal native access from " + mod);
+            } else if (EnableNativeAccess.trySetEnableNativeAccess(target)) {
                 // warn and set flag, so that only one warning is reported per module
                 String cls = owner.getName();
                 String mtd = cls + "::" + methodName;
-                String mod = isNamed() ? "module " + getName() : "the unnamed module";
                 String modflag = isNamed() ? getName() : "ALL-UNNAMED";
-                System.err.printf("""
-                        WARNING: A restricted method in %s has been called
-                        WARNING: %s has been called by %s
-                        WARNING: Use --enable-native-access=%s to avoid a warning for this module
-                        %n""", cls, mtd, mod, modflag);
+                String caller = currentClass != null ? currentClass.getName() : "code";
+                if (jni) {
+                    VM.initialErr().printf("""
+                            WARNING: A native method in %s has been bound
+                            WARNING: %s is declared in %s
+                            WARNING: Use --enable-native-access=%s to avoid a warning for native methods declared in this module
+                            WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+                            %n""", cls, mtd, mod, modflag);
+                } else {
+                    VM.initialErr().printf("""
+                            WARNING: A restricted method in %s has been called
+                            WARNING: %s has been called by %s in %s
+                            WARNING: Use --enable-native-access=%s to avoid a warning for callers in this module
+                            WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+                            %n""", cls, mtd, caller, mod, modflag);
+                }
             }
         }
     }
@@ -1551,7 +1552,6 @@ public final class Module implements AnnotatedElement {
     // cached class file with annotations
     private volatile Class<?> moduleInfoClass;
 
-    @SuppressWarnings("removal")
     private Class<?> moduleInfoClass() {
         Class<?> clazz = this.moduleInfoClass;
         if (clazz != null)
@@ -1561,8 +1561,7 @@ public final class Module implements AnnotatedElement {
             clazz = this.moduleInfoClass;
             if (clazz == null) {
                 if (isNamed()) {
-                    PrivilegedAction<Class<?>> pa = this::loadModuleInfoClass;
-                    clazz = AccessController.doPrivileged(pa);
+                    clazz = loadModuleInfoClass();
                 }
                 if (clazz == null) {
                     class DummyModuleInfo { }
@@ -1589,47 +1588,17 @@ public final class Module implements AnnotatedElement {
      */
     private Class<?> loadModuleInfoClass(InputStream in) throws IOException {
         final String MODULE_INFO = "module-info";
-
-        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS
-                                         + ClassWriter.COMPUTE_FRAMES);
-
-        ClassVisitor cv = new ClassVisitor(Opcodes.ASM7, cw) {
-            @Override
-            public void visit(int version,
-                              int access,
-                              String name,
-                              String signature,
-                              String superName,
-                              String[] interfaces) {
-                cw.visit(version,
-                        Opcodes.ACC_INTERFACE
-                            + Opcodes.ACC_ABSTRACT
-                            + Opcodes.ACC_SYNTHETIC,
-                        MODULE_INFO,
-                        null,
-                        "java/lang/Object",
-                        null);
-            }
-            @Override
-            public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
+        var cc = ClassFile.of(ClassFile.ConstantPoolSharingOption.NEW_POOL);
+        byte[] bytes = cc.transformClass(cc.parse(in.readAllBytes()), (clb, cle) -> {
+            switch (cle) {
+                case AccessFlags af -> clb.withFlags(AccessFlag.INTERFACE,
+                        AccessFlag.ABSTRACT, AccessFlag.SYNTHETIC);
                 // keep annotations
-                return super.visitAnnotation(desc, visible);
-            }
-            @Override
-            public void visitAttribute(Attribute attr) {
+                case RuntimeVisibleAnnotationsAttribute a -> clb.with(a);
                 // drop non-annotation attributes
-            }
-            @Override
-            public ModuleVisitor visitModule(String name, int flags, String version) {
-                // drop Module attribute
-                return null;
-            }
-        };
-
-        ClassReader cr = new ClassReader(in);
-        cr.accept(cv, 0);
-        byte[] bytes = cw.toByteArray();
-
+                case Attribute<?> a -> {}
+                default -> clb.with(cle);
+            }});
         ClassLoader cl = new ClassLoader(loader) {
             @Override
             protected Class<?> findClass(String cn)throws ClassNotFoundException {
@@ -1706,9 +1675,8 @@ public final class Module implements AnnotatedElement {
      * with the name "{@code META-INF/MANIFEST.MF}" is never encapsulated
      * because "{@code META-INF}" is not a legal package name. </p>
      *
-     * <p> This method returns {@code null} if the resource is not in this
-     * module, the resource is encapsulated and cannot be located by the caller,
-     * or access to the resource is denied by the security manager. </p>
+     * <p> This method returns {@code null} if the resource is not in this module
+     * or the resource is encapsulated and cannot be located by the caller. </p>
      *
      * @param  name
      *         The resource name

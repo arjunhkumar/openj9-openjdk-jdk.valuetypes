@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,40 +24,44 @@
  */
 package sun.tools.attach;
 
-import com.sun.tools.attach.AttachOperationFailedException;
 import com.sun.tools.attach.AgentLoadException;
 import com.sun.tools.attach.AttachNotSupportedException;
+import com.sun.tools.attach.AttachOperationFailedException;
 import com.sun.tools.attach.spi.AttachProvider;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Random;
 
+/*
+ * Windows implementation of HotSpotVirtualMachine
+ */
+@SuppressWarnings("restricted")
 public class VirtualMachineImpl extends HotSpotVirtualMachine {
 
     // the enqueue code stub (copied into each target VM)
     private static byte[] stub;
 
     private volatile long hProcess;     // handle to the process
+    private int ver = VERSION_1;        // updated in ctor depending on detectVersion result
 
     VirtualMachineImpl(AttachProvider provider, String id)
         throws AttachNotSupportedException, IOException
     {
         super(provider, id);
 
-        int pid;
-        try {
-            pid = Integer.parseInt(id);
-        } catch (NumberFormatException x) {
-            throw new AttachNotSupportedException("Invalid process identifier");
-        }
+        int pid = Integer.parseInt(id);
         hProcess = openProcess(pid);
 
-        // The target VM might be a pre-6.0 VM so we enqueue a "null" command
-        // which minimally tests that the enqueue function exists in the target
-        // VM.
         try {
-            enqueue(hProcess, stub, null, null);
+            if (isAPIv2Enabled()) {
+                ver = detectVersion();
+            } else {
+                // The target VM might be a pre-6.0 VM so we enqueue a "null" command
+                // which minimally tests that the enqueue function exists in the target
+                // VM.
+                enqueue(hProcess, stub, VERSION_1, null, null);
+            }
         } catch (IOException x) {
             throw new AttachNotSupportedException(x.getMessage());
         }
@@ -75,7 +79,7 @@ public class VirtualMachineImpl extends HotSpotVirtualMachine {
     InputStream execute(String cmd, Object ... args)
         throws AgentLoadException, IOException
     {
-        assert args.length <= 3;        // includes null
+        checkNulls(args);
 
         // create a pipe using a random name
         Random rnd = new Random();
@@ -84,12 +88,12 @@ public class VirtualMachineImpl extends HotSpotVirtualMachine {
         String pipename = pipeprefix + r;
         long hPipe;
         try {
-            hPipe = createPipe(pipename);
+            hPipe = createPipe(ver, pipename);
         } catch (IOException ce) {
             // Retry with another random pipe name.
             r = rnd.nextInt();
             pipename = pipeprefix + r;
-            hPipe = createPipe(pipename);
+            hPipe = createPipe(ver, pipename);
         }
 
         // check if we are detached - in theory it's possible that detach is invoked
@@ -100,34 +104,34 @@ public class VirtualMachineImpl extends HotSpotVirtualMachine {
         }
 
         try {
-            // enqueue the command to the process
-            enqueue(hProcess, stub, cmd, pipename, args);
+            // enqueue the command to the process.
+            if (ver == VERSION_1) {
+                enqueue(hProcess, stub, ver, cmd, pipename, args);
+            } else {
+                // for v2 operations request contains only pipe name.
+                enqueue(hProcess, stub, ver, null, pipename);
+            }
 
-            // wait for command to complete - process will connect with the
-            // completion status
+            // wait for the target VM to connect to the pipe.
             connectPipe(hPipe);
 
-            // create an input stream for the pipe
-            PipedInputStream in = new PipedInputStream(hPipe);
+            IOException ioe = null;
 
-            // read completion status
-            int status = readInt(in);
-            if (status != 0) {
-                // read from the stream and use that as the error message
-                String message = readErrorMessage(in);
-                in.close();
-                // special case the load command so that the right exception is thrown
-                if (cmd.equals("load")) {
-                    String msg = "Failed to load agent library";
-                    if (!message.isEmpty())
-                        msg += ": " + message;
-                    throw new AgentLoadException(msg);
-                } else {
-                    if (message.isEmpty())
-                        message = "Command failed in target VM";
-                    throw new AttachOperationFailedException(message);
+            if (ver == VERSION_2) {
+                PipeOutputStream writer = new PipeOutputStream(hPipe);
+
+                try {
+                    writeCommand(writer, ver, cmd, args);
+                } catch (IOException x) {
+                    ioe = x;
                 }
             }
+
+            // create an input stream for the pipe
+            SocketInputStreamImpl in = new SocketInputStreamImpl(hPipe);
+
+            // Process the command completion status
+            processCompletionStatus(ioe, cmd, in);
 
             // return the input stream
             return in;
@@ -138,41 +142,31 @@ public class VirtualMachineImpl extends HotSpotVirtualMachine {
         }
     }
 
-    // An InputStream based on a pipe to the target VM
-    private static class PipedInputStream extends InputStream {
-
+    private static class PipeOutputStream implements AttachOutputStream {
         private long hPipe;
-
-        public PipedInputStream(long hPipe) {
+        public PipeOutputStream(long hPipe) {
             this.hPipe = hPipe;
         }
+        @Override
+        public void write(byte[] buffer, int offset, int length) throws IOException {
+            VirtualMachineImpl.writePipe(hPipe, buffer, offset, length);
+        }
+    }
 
-        public synchronized int read() throws IOException {
-            byte b[] = new byte[1];
-            int n = this.read(b, 0, 1);
-            if (n == 1) {
-                return b[0] & 0xff;
-            } else {
-                return -1;
-            }
+    // An InputStream based on a pipe to the target VM
+    private static class SocketInputStreamImpl extends SocketInputStream {
+        public SocketInputStreamImpl(long fd) {
+            super(fd);
         }
 
-        public synchronized int read(byte[] bs, int off, int len) throws IOException {
-            if ((off < 0) || (off > bs.length) || (len < 0) ||
-                ((off + len) > bs.length) || ((off + len) < 0)) {
-                throw new IndexOutOfBoundsException();
-            } else if (len == 0)
-                return 0;
-
-            return VirtualMachineImpl.readPipe(hPipe, bs, off, len);
+        @Override
+        protected int read(long fd, byte[] bs, int off, int len) throws IOException {
+            return VirtualMachineImpl.readPipe(fd, bs, off, len);
         }
 
-        public synchronized void close() throws IOException {
-            if (hPipe != -1) {
-                long toClose = hPipe;
-                hPipe = -1;
-                VirtualMachineImpl.closePipe(toClose);
-           }
+        @Override
+        protected void close(long fd) throws IOException {
+            VirtualMachineImpl.closePipe(fd);
         }
     }
 
@@ -187,7 +181,7 @@ public class VirtualMachineImpl extends HotSpotVirtualMachine {
 
     static native void closeProcess(long hProcess) throws IOException;
 
-    static native long createPipe(String name) throws IOException;
+    static native long createPipe(int ver, String name) throws IOException;
 
     static native void closePipe(long hPipe) throws IOException;
 
@@ -195,7 +189,9 @@ public class VirtualMachineImpl extends HotSpotVirtualMachine {
 
     static native int readPipe(long hPipe, byte buf[], int off, int buflen) throws IOException;
 
-    static native void enqueue(long hProcess, byte[] stub,
+    static native void writePipe(long hPipe, byte buf[], int off, int buflen) throws IOException;
+
+    static native void enqueue(long hProcess, byte[] stub, int ver,
         String cmd, String pipename, Object ... args) throws IOException;
 
     static {

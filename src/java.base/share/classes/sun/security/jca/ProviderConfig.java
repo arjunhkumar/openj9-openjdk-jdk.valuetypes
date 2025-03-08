@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 2023, 2023 All Rights Reserved
+ * (c) Copyright IBM Corp. 2023, 2024 All Rights Reserved
  * ===========================================================================
  */
 
@@ -38,6 +38,8 @@ import java.util.*;
 import java.security.*;
 
 import sun.security.util.PropertyExpander;
+
+import openj9.internal.security.RestrictedSecurity;
 
 /**
  * Class representing a configured provider which encapsulates configuration
@@ -100,23 +102,11 @@ final class ProviderConfig {
     // avoid if not available (pre Solaris 10) to reduce startup time
     // or if disabled via system property
     private void checkSunPKCS11Solaris() {
-        @SuppressWarnings("removal")
-        Boolean o = AccessController.doPrivileged(
-                                new PrivilegedAction<Boolean>() {
-            public Boolean run() {
-                File file = new File("/usr/lib/libpkcs11.so");
-                if (file.exists() == false) {
-                    return Boolean.FALSE;
-                }
-                if ("false".equalsIgnoreCase(System.getProperty
-                        ("sun.security.pkcs11.enable-solaris"))) {
-                    return Boolean.FALSE;
-                }
-                return Boolean.TRUE;
-            }
-        });
-        if (o == Boolean.FALSE) {
-            tries = MAX_LOAD_TRIES;
+        File file = new File("/usr/lib/libpkcs11.so");
+        if (file.exists() == false ||
+            ("false".equalsIgnoreCase(System.getProperty
+                ("sun.security.pkcs11.enable-solaris")))) {
+             tries = MAX_LOAD_TRIES;
         }
     }
 
@@ -138,6 +128,7 @@ final class ProviderConfig {
         return (provider != null);
     }
 
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -150,8 +141,9 @@ final class ProviderConfig {
 
     }
 
+    @Override
     public int hashCode() {
-        return provName.hashCode() + argument.hashCode();
+        return Objects.hash(provName, argument);
     }
 
     public String toString() {
@@ -165,10 +157,12 @@ final class ProviderConfig {
     /**
      * Get the provider object. Loads the provider if it is not already loaded.
      */
-    @SuppressWarnings("deprecation")
     Provider getProvider() {
         // volatile variable load
         Provider p = provider;
+        // There is RestrictedSecurity check in the ServiceLoader before the
+        // provider is initialized. So the check has already occurred for the
+        // provider where provider != null.
         if (p != null) {
             return p;
         }
@@ -181,58 +175,60 @@ final class ProviderConfig {
             if (!shouldLoad()) {
                 return null;
             }
+            if (!RestrictedSecurity.isProviderAllowed(provName)) {
+                // We're in restricted security mode which does not allow this provider,
+                // return without loading.
+                return null;
+            }
 
-            // Create providers which are in java.base directly
-            if (provName.equals("SUN") || provName.equals("sun.security.provider.Sun")) {
-                p = new sun.security.provider.Sun();
-            } else if (provName.equals("SunRsaSign") || provName.equals("sun.security.rsa.SunRsaSign")) {
-                p = new sun.security.rsa.SunRsaSign();
-            } else if (provName.equals("SunJCE") || provName.equals("com.sun.crypto.provider.SunJCE")) {
-                p = new com.sun.crypto.provider.SunJCE();
-            } else if (provName.equals("SunJSSE")) {
-                p = new sun.security.ssl.SunJSSE();
-            } else if (provName.equals("Apple") || provName.equals("apple.security.AppleProvider")) {
-                // need to use reflection since this class only exists on MacOsx
-                @SuppressWarnings("removal")
-                var tmp = AccessController.doPrivileged(new PrivilegedAction<Provider>() {
-                    public Provider run() {
-                        try {
-                            Class<?> c = Class.forName("apple.security.AppleProvider");
-                            if (Provider.class.isAssignableFrom(c)) {
-                                @SuppressWarnings("deprecation")
-                                Object tmp = c.newInstance();
-                                return (Provider) tmp;
-                            } else {
-                                return null;
-                            }
-                        } catch (Exception ex) {
-                            if (debug != null) {
-                                debug.println("Error loading provider Apple");
-                                ex.printStackTrace();
-                            }
-                            return null;
+            p = switch (provName) {
+                case "SUN", "sun.security.provider.Sun" ->
+                    new sun.security.provider.Sun();
+                case "SunRsaSign", "sun.security.rsa.SunRsaSign" ->
+                    new sun.security.rsa.SunRsaSign();
+                case "SunJCE", "com.sun.crypto.provider.SunJCE" ->
+                    new com.sun.crypto.provider.SunJCE();
+                case "SunJSSE" -> new sun.security.ssl.SunJSSE();
+                case "SunEC" -> new sun.security.ec.SunEC();
+                case "Apple", "apple.security.AppleProvider" -> {
+                    // Reflection is needed for compile time as the class
+                    // is not available for non-macosx systems
+                    Provider ap = null;
+                    try {
+                        Class<?> c = Class.forName(
+                            "apple.security.AppleProvider");
+                        if (Provider.class.isAssignableFrom(c)) {
+                            @SuppressWarnings("deprecation")
+                            Object tmp = c.newInstance();
+                            ap = (Provider) tmp;
+                        }
+                    } catch (Exception ex) {
+                        if (debug != null) {
+                            debug.println("Error loading provider Apple");
+                            ex.printStackTrace();
                         }
                     }
-                });
-                p = tmp;
-            } else {
-                if (isLoading) {
-                    // because this method is synchronized, this can only
-                    // happen if there is recursion.
-                    if (debug != null) {
-                        debug.println("Recursion loading provider: " + this);
-                        new Exception("Call trace").printStackTrace();
+                    yield ap;
+                }
+                default -> {
+                    if (isLoading) {
+                        // because this method is synchronized, this can only
+                        // happen if there is recursion.
+                        if (debug != null) {
+                            debug.println("Recursion loading provider: " + this);
+                            new Exception("Call trace").printStackTrace();
+                        }
+                        yield null;
                     }
-                    return null;
+                    try {
+                        isLoading = true;
+                        tries++;
+                        yield doLoadProvider();
+                    } finally {
+                        isLoading = false;
+                    }
                 }
-                try {
-                    isLoading = true;
-                    tries++;
-                    p = doLoadProvider();
-                } finally {
-                    isLoading = false;
-                }
-            }
+            };
             provider = p;
         }
         return p;
@@ -241,83 +237,69 @@ final class ProviderConfig {
     /**
      * Load and instantiate the Provider described by this class.
      *
-     * NOTE use of doPrivileged().
-     *
      * @return null if the Provider could not be loaded
      *
      * @throws ProviderException if executing the Provider's constructor
      * throws a ProviderException. All other Exceptions are ignored.
      */
-    @SuppressWarnings("removal")
     private Provider doLoadProvider() {
-        return AccessController.doPrivileged(new PrivilegedAction<Provider>() {
-            public Provider run() {
+        if (debug != null) {
+            debug.println("Loading provider " + ProviderConfig.this);
+        }
+        try {
+            Provider p = ProviderLoader.INSTANCE.load(provName);
+            if (p != null) {
+                if (hasArgument()) {
+                    p = p.configure(argument);
+                }
                 if (debug != null) {
-                    debug.println("Loading provider " + ProviderConfig.this);
+                    debug.println("Loaded provider " + p.getName());
                 }
-                try {
-                    Provider p = ProviderLoader.INSTANCE.load(provName);
-                    if (p != null) {
-                        if (hasArgument()) {
-                            p = p.configure(argument);
-                        }
-                        if (debug != null) {
-                            debug.println("Loaded provider " + p.getName());
-                        }
-                    } else {
-                        if (debug != null) {
-                            debug.println("Error loading provider " +
-                                ProviderConfig.this);
-                        }
-                        disableLoad();
-                    }
-                    return p;
-                } catch (Exception e) {
-                    if (e instanceof ProviderException) {
-                        // pass up
-                        throw e;
-                    } else {
-                        if (debug != null) {
-                            debug.println("Error loading provider " +
-                                ProviderConfig.this);
-                            e.printStackTrace();
-                        }
-                        disableLoad();
-                        return null;
-                    }
-                } catch (ExceptionInInitializerError err) {
-                    // no sufficient permission to initialize provider class
-                    if (debug != null) {
-                        debug.println("Error loading provider " + ProviderConfig.this);
-                        err.printStackTrace();
-                    }
-                    disableLoad();
-                    return null;
+            } else {
+                if (debug != null) {
+                    debug.println("Error loading provider " +
+                        ProviderConfig.this);
                 }
+                disableLoad();
             }
-        });
+            return p;
+        } catch (Exception e) {
+            if (e instanceof ProviderException) {
+                // pass up
+                throw e;
+            } else {
+                if (debug != null) {
+                    debug.println("Error loading provider " +
+                        ProviderConfig.this);
+                    e.printStackTrace();
+                }
+                disableLoad();
+                return null;
+            }
+        } catch (ExceptionInInitializerError err) {
+            // unable to initialize provider class
+            if (debug != null) {
+                debug.println("Error loading provider " + ProviderConfig.this);
+                err.printStackTrace();
+            }
+            disableLoad();
+            return null;
+        }
     }
 
     /**
      * Perform property expansion of the provider value.
-     *
-     * NOTE use of doPrivileged().
      */
-    @SuppressWarnings("removal")
     private static String expand(final String value) {
         // shortcut if value does not contain any properties
         if (value.contains("${") == false) {
             return value;
         }
-        return AccessController.doPrivileged(new PrivilegedAction<String>() {
-            public String run() {
-                try {
-                    return PropertyExpander.expand(value);
-                } catch (GeneralSecurityException e) {
-                    throw new ProviderException(e);
-                }
-            }
-        });
+        try {
+            return PropertyExpander.expand(value);
+        } catch (GeneralSecurityException e) {
+            throw new ProviderException(e);
+        }
     }
 
 /*[IF CRIU_SUPPORT]*/
@@ -360,12 +342,16 @@ final class ProviderConfig {
                     if (debug != null) {
                         debug.println("Found SL Provider named " + pName);
                     }
-                    if (pName.equals(pn)) {
+                    if (p.getClass().getName().equals(pn)) {
                         return p;
+                    } else if (pName.equals(pn)) {
+                        if (!RestrictedSecurity.isEnabled()) {
+                            return p;
+                        }
                     }
-                } catch (SecurityException | ServiceConfigurationError |
+                } catch (ServiceConfigurationError |
                          InvalidParameterException ex) {
-                    // if provider loading fail due to security permission,
+                    // if provider loading failed
                     // log it and move on to next provider
                     if (debug != null) {
                         debug.println("Encountered " + ex +
@@ -392,6 +378,7 @@ final class ProviderConfig {
             }
         }
 
+        @SuppressWarnings("deprecation") // Class.newInstance
         private Provider legacyLoad(String classname) {
 
             if (debug != null) {
@@ -410,15 +397,7 @@ final class ProviderConfig {
                     return null;
                 }
 
-                @SuppressWarnings("removal")
-                Provider p = AccessController.doPrivileged
-                    (new PrivilegedExceptionAction<Provider>() {
-                    @SuppressWarnings("deprecation") // Class.newInstance
-                    public Provider run() throws Exception {
-                        return (Provider) provClass.newInstance();
-                    }
-                });
-                return p;
+                return (Provider) provClass.newInstance();
             } catch (Exception e) {
                 Throwable t;
                 if (e instanceof InvocationTargetException) {
@@ -436,7 +415,7 @@ final class ProviderConfig {
                 }
                 return null;
             } catch (ExceptionInInitializerError | NoClassDefFoundError err) {
-                // no sufficient permission to access/initialize provider class
+                // unable to access/initialize provider class
                 if (debug != null) {
                     debug.println("Error loading legacy provider " + classname);
                     err.printStackTrace();

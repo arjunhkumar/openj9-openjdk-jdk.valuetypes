@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,95 +22,116 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
- */
-
-/*
- * ===========================================================================
- * (c) Copyright IBM Corp. 2022, 2023 All Rights Reserved
- * ===========================================================================
  */
 
 package jdk.internal.foreign.abi.ppc64;
 
 import java.lang.foreign.GroupLayout;
-import java.lang.foreign.MemorySegment;
 import java.lang.foreign.MemoryLayout;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.SequenceLayout;
 import java.lang.foreign.ValueLayout;
-import static java.lang.foreign.ValueLayout.*;
-import java.lang.invoke.VarHandle;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * This class enumerates three argument types for Linux/ppc64le against the implementation
- * of TypeClass on x64/windows as the template.
- */
 public enum TypeClass {
-	PRIMITIVE, /* Intended for all primitive types */
-	POINTER,
-	STRUCT;
+    STRUCT_REGISTER,
+    STRUCT_HFA, // Homogeneous Float Aggregate
+    POINTER,
+    INTEGER,
+    FLOAT;
 
-	public static VarHandle classifyVarHandle(ValueLayout layout) {
-		VarHandle argHandle = null;
-		Class<?> carrier = layout.carrier();
+    private static final int MAX_RETURN_AGGREGATE_REGS_SIZE = 2;
 
-		/* According to the API Spec, all non-long integral types are promoted to long
-		 * while a float is promoted to double.
-		 */
-		if ((carrier == boolean.class)
-			|| (carrier == byte.class)
-			|| (carrier == char.class)
-			|| (carrier == short.class)
-			|| (carrier == int.class)
-		) {
-			argHandle = JAVA_LONG.varHandle();
-		} else if (carrier == float.class) {
-			argHandle = JAVA_DOUBLE.varHandle();
-		} else if ((carrier == long.class)
-			|| (carrier == double.class)
-			|| (carrier == MemorySegment.class)
-		) {
-			argHandle = layout.varHandle();
-		} else {
-			throw new IllegalStateException("Unspported carrier: " + carrier.getName());
-		}
+    private static TypeClass classifyValueType(ValueLayout type) {
+        Class<?> carrier = type.carrier();
+        if (carrier == boolean.class || carrier == byte.class || carrier == char.class ||
+            carrier == short.class || carrier == int.class || carrier == long.class) {
+            return INTEGER;
+        } else if (carrier == float.class || carrier == double.class) {
+            return FLOAT;
+        } else if (carrier == MemorySegment.class) {
+            return POINTER;
+        } else {
+            throw new IllegalStateException("Cannot get here: " + carrier.getName());
+        }
+    }
 
-		return argHandle;
-	}
+    static boolean isReturnRegisterAggregate(MemoryLayout type) {
+        return type.byteSize() <= MAX_RETURN_AGGREGATE_REGS_SIZE * 8;
+    }
 
-	public static TypeClass classifyLayout(MemoryLayout layout) {
-		TypeClass layoutType = null;
+    static List<MemoryLayout> scalarLayouts(GroupLayout gl) {
+        List<MemoryLayout> out = new ArrayList<>();
+        scalarLayoutsInternal(out, gl);
+        return out;
+    }
 
-		if (layout instanceof ValueLayout) {
-			layoutType = classifyValueType((ValueLayout)layout);
-		} else if (layout instanceof GroupLayout) {
-			layoutType = STRUCT;
-		} else {
-			throw new IllegalArgumentException("Unsupported layout: " + layout);
-		}
+    private static void scalarLayoutsInternal(List<MemoryLayout> out, GroupLayout gl) {
+        for (MemoryLayout member : gl.memberLayouts()) {
+            if (member instanceof GroupLayout memberGl) {
+                scalarLayoutsInternal(out, memberGl);
+            } else if (member instanceof SequenceLayout memberSl) {
+                for (long i = 0; i < memberSl.elementCount(); i++) {
+                    out.add(memberSl.elementLayout());
+                }
+            } else {
+                // padding or value layouts
+                out.add(member);
+            }
+        }
+    }
 
-		return layoutType;
-	}
+    static boolean isHomogeneousFloatAggregate(MemoryLayout type, boolean useABIv2) {
+        List<MemoryLayout> scalarLayouts = scalarLayouts((GroupLayout) type);
 
-	private static TypeClass classifyValueType(ValueLayout layout) {
-		TypeClass layoutType = null;
-		Class<?> carrier = layout.carrier();
+        final int numElements = scalarLayouts.size();
+        if (numElements > (useABIv2 ? 8 : 1) || numElements == 0)
+            return false;
 
-		if ((carrier == boolean.class)
-			|| (carrier == byte.class)
-			|| (carrier == char.class)
-			|| (carrier == short.class)
-			|| (carrier == int.class)
-			|| (carrier == long.class)
-			|| (carrier == float.class)
-			|| (carrier == double.class)
-		) {
-			layoutType = PRIMITIVE;
-		} else if (carrier == MemorySegment.class) {
-			layoutType = POINTER;
-		} else {
-			throw new IllegalStateException("Unspported carrier: " + carrier.getName());
-		}
+        MemoryLayout baseType = scalarLayouts.get(0);
 
-		return layoutType;
-	}
+        if (!(baseType instanceof ValueLayout))
+            return false;
+
+        TypeClass baseArgClass = classifyValueType((ValueLayout) baseType);
+        if (baseArgClass != FLOAT)
+           return false;
+
+        for (MemoryLayout elem : scalarLayouts) {
+            if (!(elem instanceof ValueLayout))
+                return false;
+
+            TypeClass argClass = classifyValueType((ValueLayout) elem);
+            if (elem.byteSize() != baseType.byteSize() ||
+                    elem.byteAlignment() != baseType.byteAlignment() ||
+                    baseArgClass != argClass) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static TypeClass classifyStructType(MemoryLayout layout, boolean useABIv2, boolean isAIX) {
+        if (!isAIX && isHomogeneousFloatAggregate(layout, useABIv2)) {
+            return TypeClass.STRUCT_HFA;
+        }
+        return TypeClass.STRUCT_REGISTER;
+    }
+
+    static boolean isStructHFAorReturnRegisterAggregate(MemoryLayout layout, boolean useABIv2) {
+        if (!(layout instanceof GroupLayout) || !useABIv2) return false;
+        return isHomogeneousFloatAggregate(layout, true) || isReturnRegisterAggregate(layout);
+    }
+
+    public static TypeClass classifyLayout(MemoryLayout type, boolean useABIv2, boolean isAIX) {
+        if (type instanceof ValueLayout) {
+            return classifyValueType((ValueLayout) type);
+        } else if (type instanceof GroupLayout) {
+            return classifyStructType(type, useABIv2, isAIX);
+        } else {
+            throw new IllegalArgumentException("Unhandled type " + type);
+        }
+    }
 }

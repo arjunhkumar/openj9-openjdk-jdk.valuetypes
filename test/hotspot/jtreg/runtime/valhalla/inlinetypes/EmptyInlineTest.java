@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,23 +26,37 @@ import jdk.test.lib.Asserts;
 
 import java.lang.reflect.Field;
 
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
+
+
 /*
  * @test
  * @summary Test support for empty inline types (no instance fields)
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses EmptyInlineTest.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:InlineFieldMaxFlatSize=128 runtime.valhalla.inlinetypes.EmptyInlineTest
+ * @modules java.base/jdk.internal.vm.annotation
+ *          java.base/jdk.internal.value
+ * @enablePreview
+ * @compile EmptyInlineTest.java
+ * @run main/othervm -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.EmptyInlineTest
  */
 
 public class EmptyInlineTest {
 
-    static primitive class EmptyInline {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class EmptyInline {
         public boolean isEmpty() {
             return true;
         }
     }
 
-    static primitive class EmptyField {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class EmptyField {
+        @NullRestricted
         EmptyInline empty;
 
         EmptyField() {
@@ -59,6 +73,7 @@ public class EmptyInlineTest {
         // inline field would be placed between the int and the Object
         // fields, along with some padding.
         Object o;
+        @NullRestricted
         EmptyInline empty;
     }
 
@@ -69,43 +84,43 @@ public class EmptyInlineTest {
 
         // Create an inline with an empty inline field
         EmptyField emptyField = new EmptyField();
-        Asserts.assertEquals(emptyField.empty.getClass(), EmptyInline.ref.class);
+        Asserts.assertEquals(emptyField.empty.getClass(), EmptyInline.class);
         Asserts.assertTrue(emptyField.empty.isEmpty());
         System.out.println(emptyField.empty.isEmpty());
 
         // Regular instance with an empty field inside
         WithEmptyField w = new WithEmptyField();
-        Asserts.assertEquals(w.empty.getClass(), EmptyInline.ref.class);
+        Asserts.assertEquals(w.empty.getClass(), EmptyInline.class);
         Asserts.assertTrue(w.empty.isEmpty());
         w.empty = new EmptyInline();
-        Asserts.assertEquals(w.empty.getClass(), EmptyInline.ref.class);
+        Asserts.assertEquals(w.empty.getClass(), EmptyInline.class);
         Asserts.assertTrue(w.empty.isEmpty());
 
         // Create an array of empty inlines
-        EmptyInline[] emptyArray = new EmptyInline[100];
+        EmptyInline[] emptyArray = (EmptyInline[])ValueClass.newNullRestrictedArray(EmptyInline.class, 100);
         for(EmptyInline element : emptyArray) {
-            Asserts.assertEquals(element.getClass(), EmptyInline.ref.class);
+            Asserts.assertEquals(element.getClass(), EmptyInline.class);
             Asserts.assertTrue(element.isEmpty());
         }
 
         // Testing arrayCopy
-        EmptyInline[] array2 = new EmptyInline[100];
+        EmptyInline[] array2 = (EmptyInline[])ValueClass.newNullRestrictedArray(EmptyInline.class, 100);
         // with two arrays
         System.arraycopy(emptyArray, 10, array2, 20, 50);
         for(EmptyInline element : array2) {
-            Asserts.assertEquals(element.getClass(), EmptyInline.ref.class);
+            Asserts.assertEquals(element.getClass(), EmptyInline.class);
             Asserts.assertTrue(element.isEmpty());
         }
         // single array, no overlap
         System.arraycopy(emptyArray, 10, emptyArray, 50, 20);
         for(EmptyInline element : emptyArray) {
-            Asserts.assertEquals(element.getClass(), EmptyInline.ref.class);
+            Asserts.assertEquals(element.getClass(), EmptyInline.class);
             Asserts.assertTrue(element.isEmpty());
         }
         // single array with overlap
         System.arraycopy(emptyArray, 10, emptyArray, 20, 50);
         for(EmptyInline element : emptyArray) {
-            Asserts.assertEquals(element.getClass(), EmptyInline.ref.class);
+            Asserts.assertEquals(element.getClass(), EmptyInline.class);
             Asserts.assertTrue(element.isEmpty());
         }
 
@@ -129,11 +144,11 @@ public class EmptyInlineTest {
         try {
             Field emptyfield = c2.getDeclaredField("empty");
             EmptyInline e = (EmptyInline)emptyfield.get(w0);
-            Asserts.assertEquals(e.getClass(), EmptyInline.ref.class);
+            Asserts.assertEquals(e.getClass(), EmptyInline.class);
             Asserts.assertTrue(e.isEmpty());
             emptyfield.set(w0, new EmptyInline());
             e = (EmptyInline)emptyfield.get(w0);
-            Asserts.assertEquals(e.getClass(), EmptyInline.ref.class);
+            Asserts.assertEquals(e.getClass(), EmptyInline.class);
             Asserts.assertTrue(e.isEmpty());
         } catch(Throwable t) {
             t.printStackTrace();

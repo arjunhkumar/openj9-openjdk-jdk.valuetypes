@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2023, 2024 All Rights Reserved
+ * ===========================================================================
+ */
+
 /*
  * eventFilter
  *
@@ -40,6 +47,7 @@
 #include "threadControl.h"
 #include "SDE.h"
 #include "jvmti.h"
+#include "j9cfg.h"
 
 typedef struct ClassFilter {
     jclass clazz;
@@ -1268,6 +1276,9 @@ enableEvents(HandlerNode *node)
         case EI_CLASS_UNLOAD:
         case EI_VIRTUAL_THREAD_START:
         case EI_VIRTUAL_THREAD_END:
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+        case EI_VM_RESTORE:
+#endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
             return error;
 
         case EI_FIELD_ACCESS:
@@ -1328,6 +1339,9 @@ disableEvents(HandlerNode *node)
         case EI_CLASS_UNLOAD:
         case EI_VIRTUAL_THREAD_START:
         case EI_VIRTUAL_THREAD_END:
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+        case EI_VM_RESTORE:
+#endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
             return error;
 
         case EI_FIELD_ACCESS:
@@ -1387,9 +1401,7 @@ eventFilterRestricted_deinstall(HandlerNode *node)
     return error1 != JVMTI_ERROR_NONE? error1 : error2;
 }
 
-/***** debugging *****/
-
-#ifdef DEBUG
+/***** APIs for debugging the debug agent *****/
 
 void
 eventFilter_dumpHandlerFilters(HandlerNode *node)
@@ -1476,5 +1488,3 @@ eventFilter_dumpHandlerFilters(HandlerNode *node)
         }
     }
 }
-
-#endif /* DEBUG */

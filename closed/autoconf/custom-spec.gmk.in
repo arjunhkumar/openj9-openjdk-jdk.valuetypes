@@ -1,5 +1,5 @@
 # ===========================================================================
-# (c) Copyright IBM Corp. 2017, 2022 All Rights Reserved
+# (c) Copyright IBM Corp. 2017, 2025 All Rights Reserved
 # ===========================================================================
 # This code is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License version 2 only, as
@@ -52,6 +52,7 @@ WARNING_MODULES := \
 	openj9.dtfj \
 	openj9.dtfjview \
 	openj9.traceformat \
+	openjceplus \
 	#
 
 ifneq (,$(filter $(WARNING_MODULES),$(MODULE)))
@@ -68,11 +69,15 @@ export GDK_HOME         := @OPENJ9_GDK_HOME@
 endif
 
 # feature enablement flags
+OPENJ9_ENABLE_CONTINUATION_ALLOCATION_PROFILING := @OPENJ9_ENABLE_CONTINUATION_ALLOCATION_PROFILING@
+OPENJ9_ENABLE_CRAC_SUPPORT           := @OPENJ9_ENABLE_CRAC_SUPPORT@
 OPENJ9_ENABLE_CRIU_SUPPORT           := @OPENJ9_ENABLE_CRIU_SUPPORT@
 OPENJ9_ENABLE_DDR                    := @OPENJ9_ENABLE_DDR@
 OPENJ9_ENABLE_DEMOS                  := @OPENJ9_ENABLE_DEMOS@
 OPENJ9_ENABLE_INLINE_TYPES           := @OPENJ9_ENABLE_INLINE_TYPES@
+OPENJ9_ENABLE_JFR                    := @OPENJ9_ENABLE_JFR@
 OPENJ9_ENABLE_JITSERVER              := @OPENJ9_ENABLE_JITSERVER@
+OPENJ9_ENABLE_SNAPSHOTS              := @OPENJ9_ENABLE_SNAPSHOTS@
 
 # for constructing version output
 COMPILER_VERSION_STRING := @COMPILER_VERSION_STRING@
@@ -82,12 +87,6 @@ include $(TOPDIR)/closed/openjdk-tag.gmk
 J9JDK_EXT_VERSION       := $(VERSION_NUMBER_FOUR_POSITIONS)-ea
 J9JDK_EXT_NAME          := Extensions for OpenJDK for Eclipse OpenJ9
 
-# required by CMake
-CMAKE                   := @CMAKE@
-OPENJ9_ENABLE_CMAKE     := @OPENJ9_ENABLE_CMAKE@
-
-# required by UMA
-FREEMARKER_JAR          := @FREEMARKER_JAR@
 OPENJ9_BUILDSPEC        := @OPENJ9_BUILDSPEC@
 
 # required by JPP
@@ -105,10 +104,10 @@ export ac_cv_prog_CC    := @CC@
 export ac_cv_prog_CXX   := @CXX@
 
 ifeq ($(OPENJDK_TARGET_OS), windows)
-  # Set environment variables for Microsoft Visual Studio toolchain.
+  # Set variables for the Microsoft Visual Studio toolchain.
   # Note that PATH is set in spec.gmk.
-  export INCLUDE := @OPENJ9_VS_INCLUDE@
-  export LIB := @OPENJ9_VS_LIB@
+  OPENJ9_VS_INCLUDE := @OPENJ9_VS_INCLUDE@
+  OPENJ9_VS_LIB := @OPENJ9_VS_LIB@
   export MSVC_VERSION := @TOOLCHAIN_VERSION@
 endif
 
@@ -165,14 +164,16 @@ PERL                    := @PERL@
 WITH_OPENSSL            := @WITH_OPENSSL@
 
 # Use '=' instead of ':=' because bootcycle-spec.gmk overrides OUTPUTDIR.
-ifeq (true,$(OPENJ9_ENABLE_CMAKE))
-  OPENJ9_VM_BUILD_DIR = $(OUTPUTDIR)/vm/runtime
-else
-  OPENJ9_VM_BUILD_DIR = $(OUTPUTDIR)/vm
-endif
+OPENJ9_VM_BUILD_DIR = $(OUTPUTDIR)/vm/runtime
+
+# Enable use of j9cfg.h in openjdk native code.
+$(foreach var, \
+	CFLAGS_JDKEXE CFLAGS_JDKLIB CXXFLAGS_JDKEXE CXXFLAGS_JDKLIB, \
+	$(eval $(var) += -I$(SUPPORT_OUTPUTDIR)/openj9_include))
 
 J9JCL_SOURCES_DIR      := $(SUPPORT_OUTPUTDIR)/j9jcl
 J9JCL_SOURCES_DONEFILE := $(MAKESUPPORT_OUTPUTDIR)/j9jcl.done
 
-# Disable all hotspot features.
-JVM_FEATURES_server :=
+# Required by OpenJCEPlus.
+BUILD_OPENJCEPLUS  := @BUILD_OPENJCEPLUS@
+OPENJCEPLUS_TOPDIR := $(TOPDIR)/OpenJCEPlus

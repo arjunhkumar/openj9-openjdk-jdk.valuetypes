@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,6 +56,7 @@ package compiler.c2.unloaded;
 
 import jdk.test.lib.JDKToolFinder;
 import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
 
 import java.io.IOException;
 import java.net.URL;
@@ -179,20 +180,21 @@ public class TestInlineUnloaded {
         }
     }
 
-    static void run(String testCaseName, Consumer<OutputAnalyzer> processor) throws IOException {
+    static void run(String testCaseName, Consumer<OutputAnalyzer> processor) throws Exception {
         ProcessBuilder pb = new ProcessBuilder();
 
         pb.command(JDKToolFinder.getJDKTool("java"),
             "-cp", "launcher.jar",
             "-XX:+IgnoreUnrecognizedVMOptions", "-showversion",
             "-XX:-TieredCompilation", "-Xbatch",
+            "-XX:-InlineTypeReturnedAsFields", // TODO Remove this once 8284443 fixed handling of unloaded return types
             "-XX:+PrintCompilation", "-XX:+UnlockDiagnosticVMOptions", "-XX:+PrintInlining",
             "-XX:CompileCommand=quiet", "-XX:CompileCommand=compileonly,*TestNull::run",
             Launcher.class.getName(), testCaseName);
 
         System.out.println("Command line: [" + pb.command() + "]");
 
-        OutputAnalyzer analyzer = new OutputAnalyzer(pb.start());
+        OutputAnalyzer analyzer = ProcessTools.executeProcess(pb);
 
         analyzer.shouldHaveExitValue(0);
 
@@ -210,9 +212,9 @@ public class TestInlineUnloaded {
             output.shouldMatch("TestNull::testRet .* unloaded signature classes");
             output.shouldMatch("TestNull::test .* unloaded signature classes");
 
-            output.shouldNotMatch("TestNull::testArg .* inline");
-            output.shouldNotMatch("TestNull::testRet .* inline");
-            output.shouldNotMatch("TestNull::test .* inline");
+            output.shouldMatch("TestNull::testArg .* failed to inline");
+            output.shouldMatch("TestNull::testRet .* failed to inline");
+            output.shouldMatch("TestNull::test .* failed to inline");
         });
         run("TestLoadedRemotely", output -> {
             output.shouldMatch("TestNull::testArg .* inline");

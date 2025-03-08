@@ -1,0 +1,141 @@
+# ===========================================================================
+# (c) Copyright IBM Corp. 2017, 2025 All Rights Reserved
+# ===========================================================================
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.
+#
+# IBM designates this particular file as subject to the "Classpath" exception
+# as provided by IBM in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, see <http://www.gnu.org/licenses/>.
+# ===========================================================================
+
+CLEAN_DIRS += vm
+
+.PHONY : \
+	debug-image \
+	j9vm-build \
+	test-image-openj9 \
+	#
+
+JVM_MAIN_LIB_TARGETS := j9vm-build
+JVM_MAIN_TARGETS := j9vm-build
+JVM_TOOLS_TARGETS :=
+JVM_DOCS_TARGETS :=
+
+OPENJ9_MAKE := $(MAKE) $(MAKE_ARGS) -f $(TOPDIR)/closed/OpenJ9.gmk
+
+# An early part of the build process involves computing the list of main targets.
+# Those targets include {module}-java, {module}-jmod, etc. which requires that the
+# set of module names be known. We must build and run the preprocessor to ensure the
+# modules specific to OpenJ9 will be found and included in that set. The next two
+# rules make that happen.
+
+create-main-targets-include java.base-gensrc : generate-j9jcl-sources
+
+j9vm-build : buildtools-langtools
+  ifeq ($(BUILD_OPENSSL),yes)
+	@+$(MAKE) $(MAKE_ARGS) -f $(TOPDIR)/closed/openssl.gmk
+  endif # BUILD_OPENSSL
+	@+$(OPENJ9_MAKE) build-j9
+	@+$(OPENJ9_MAKE) openj9-config-headers
+
+# Modules with content created by j9vm-build:
+OPENJ9_VM_MODULES := \
+	java.base \
+	jdk.management \
+	$(if $(call equals, $(OPENJ9_ENABLE_CRIU_SUPPORT), true), openj9.criu) \
+	openj9.cuda \
+	openj9.dtfj \
+	openj9.sharedclasses \
+	openj9.traceformat \
+	#
+
+$(addsuffix -copy, $(OPENJ9_VM_MODULES)) : j9vm-build
+
+java.base-libs : java.base-copy
+
+debug-image : exploded-image
+	+$(MAKE) $(MAKE_ARGS) -f $(TOPDIR)/closed/DebugImage.gmk
+
+all-images : debug-image
+
+ALL_TARGETS += debug-image
+
+# If not cross-compiling, capture 'java -version' output.
+test-image-openj9 : exploded-image
+ifeq ($(call isTargetOs, linux), true)
+	@+$(MAKE) $(MAKE_ARGS) -f $(TOPDIR)/closed/AsyncGetCallTrace.gmk
+endif
+	@+$(OPENJ9_MAKE) openj9_test_image
+ifneq ($(COMPILE_TYPE), cross)
+	rc=0; $(JDK_OUTPUTDIR)/bin/java -version >$(TEST_IMAGE_DIR)/openj9/java-version.txt 2>&1 || rc="$$?"; $(CAT) $(TEST_IMAGE_DIR)/openj9/java-version.txt; exit "$$rc"
+endif
+
+test-image : test-image-openj9
+
+ALL_TARGETS += test-image-openj9
+
+ifeq (true,$(OPENJ9_ENABLE_DDR))
+
+.PHONY : openj9.dtfj-gensrc-src openj9.dtfj-compile_check
+
+openj9.dtfj-gensrc-src : j9vm-build
+
+openj9.dtfj-compile_check : exploded-image
+	+$(MAKE) $(MAKE_ARGS) -f $(TOPDIR)/closed/DDR.gmk compile_check
+
+openj9.dtfj-jmod : openj9.dtfj-compile_check
+
+endif # OPENJ9_ENABLE_DDR
+
+# An unconditional dependency is declared in make/Main.gmk:
+#   test-image : test-image-failure-handler
+# If BUILD_FAILURE_HANDLER is not true, test-image-failure-handler
+# is not even declared as a .PHONY target: this fixes that.
+ifneq (true,$(BUILD_FAILURE_HANDLER))
+  .PHONY : test-image-failure-handler
+endif
+
+clean-docs : clean-openj9-only-docs
+
+.PHONY : clean-openj9-only-docs
+
+clean-openj9-only-docs :
+	@$(ECHO) Cleaning openj9-only-docs ...
+	$(RM) -rf $(IMAGES_OUTPUTDIR)/openj9-docs $(SUPPORT_OUTPUTDIR)/openj9-docs
+
+ALL_TARGETS += clean-openj9-only-docs
+
+ifneq (,$(HEALTHCENTER_JAR))
+  # The content must be extracted before module-info can be compiled.
+  ibm.healthcenter-java : ibm.healthcenter-copy
+endif # HEALTHCENTER_JAR
+
+ifeq (true,$(BUILD_OPENJCEPLUS))
+
+ifeq ($(call And, $(call isTargetOs, windows) $(call isTargetCpu, x86_64)), true)
+  OPENJCEPLUS_JGSKIT_MAKE := jgskit.win64.mak
+else
+  OPENJCEPLUS_JGSKIT_MAKE := jgskit.mak
+endif
+
+openjceplus-copy : openjceplus-libs
+
+.PHONY : openjceplus-clean
+
+openjceplus-clean :
+	@$(ECHO) Cleaning OpenJCEPlus native code
+	$(MAKE) -C $(OPENJCEPLUS_TOPDIR)/src/main/native -f $(OPENJCEPLUS_JGSKIT_MAKE) cleanAll
+
+clean-openjceplus : openjceplus-clean
+
+endif # BUILD_OPENJCEPLUS

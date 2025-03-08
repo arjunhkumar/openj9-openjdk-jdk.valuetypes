@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,7 +44,6 @@ public class Resources extends java.util.ListResourceBundle {
         {"provider.class.not.found", "Provider \"%s\" not found"},
         {"jarsigner.error.", "jarsigner error: "},
         {"Illegal.option.", "Illegal option: "},
-        {"This.option.is.forremoval", "This option is deprecated and will be removed in a future release: "},
         {".keystore.must.be.NONE.if.storetype.is.{0}",
                 "-keystore must be NONE if -storetype is {0}"},
         {".keypass.can.not.be.specified.if.storetype.is.{0}",
@@ -97,12 +96,6 @@ public class Resources extends java.util.ListResourceBundle {
                 "[-tsapolicyid <oid>]        TSAPolicyID for Timestamping Authority"},
         {".tsadigestalg.algorithm.of.digest.data.in.timestamping.request",
                 "[-tsadigestalg <algorithm>] algorithm of digest data in timestamping request"},
-        {".altsigner.class.class.name.of.an.alternative.signing.mechanism",
-                "[-altsigner <class>]        class name of an alternative signing mechanism\n" +
-                "                            (This option is deprecated and will be removed in a future release.)"},
-        {".altsignerpath.pathlist.location.of.an.alternative.signing.mechanism",
-                "[-altsignerpath <pathlist>] location of an alternative signing mechanism\n" +
-                "                            (This option is deprecated and will be removed in a future release.)"},
         {".internalsf.include.the.SF.file.inside.the.signature.block",
                 "[-internalsf]               include the .SF file inside the signature block"},
         {".sectionsonly.don.t.compute.hash.of.entire.manifest",
@@ -171,6 +164,7 @@ public class Resources extends java.util.ListResourceBundle {
 
         {"history.with.ts", "- Signed by \"%1$s\"\n    Digest algorithm: %2$s\n    Signature algorithm: %3$s, %4$s\n  Timestamped by \"%6$s\" on %5$tc\n    Timestamp digest algorithm: %7$s\n    Timestamp signature algorithm: %8$s, %9$s"},
         {"history.without.ts", "- Signed by \"%1$s\"\n    Digest algorithm: %2$s\n    Signature algorithm: %3$s, %4$s"},
+        {"history.nonexistent.entries", "    Warning: nonexistent signed entries: "},
         {"history.unparsable", "- Unparsable signature-related file %s"},
         {"history.nosf", "- Missing signature-related file META-INF/%s.SF"},
         {"history.nobk", "- Missing block file for signature-related file META-INF/%s.SF"},
@@ -179,13 +173,11 @@ public class Resources extends java.util.ListResourceBundle {
         {"with.algparams.weak", "%1$s using %2$s (weak)"},
         {"with.disabled", "%s (disabled)"},
         {"with.algparams.disabled", "%1$s using %2$s (disabled)"},
-        {"key.bit", "%d-bit key"},
-        {"key.bit.weak", "%d-bit key (weak)"},
-        {"key.bit.eccurve.weak", "%1$d-bit %2$s key (weak)"},
-        {"key.bit.disabled", "%d-bit key (disabled)"},
-        {"key.bit.eccurve.disabled", "%1$d-bit %2$s key (disabled)"},
-        {"unknown.size", "unknown size"},
-        {"extra.attributes.detected", "POSIX file permission and/or symlink attributes detected. These attributes are ignored when signing and are not protected by the signature."},
+        {"key.bit", "%s key"},
+        {"key.bit.weak", "%s key (weak)"},
+        {"key.bit.disabled", "%s key (disabled)"},
+        {"nonexistent.entries.found", "This jar contains signed entries for files that do not exist. See the -verbose output for more details."},
+        {"external.file.attributes.detected", "POSIX file permission and/or symlink attributes detected. These attributes are ignored when signing and are not protected by the signature."},
 
         {"jarsigner.", "jarsigner: "},
         {"signature.filename.must.consist.of.the.following.characters.A.Z.0.9.or.",
@@ -240,8 +232,6 @@ public class Resources extends java.util.ListResourceBundle {
         {"or", "or"},
         {"Certificate.not.found.for.alias.alias.must.reference.a.valid.KeyStore.entry.containing.an.X.509.public.key.certificate.for.the",
                 "Certificate not found for: {0}.  {1} must reference a valid KeyStore entry containing an X.509 public key certificate for the Timestamping Authority."},
-        {"using.an.alternative.signing.mechanism",
-                "using an alternative signing mechanism"},
         {"entry.was.signed.on", "entry was signed on {0}"},
         {"Warning.", "Warning: "},
         {"Error.", "Error: "},
@@ -304,10 +294,12 @@ public class Resources extends java.util.ListResourceBundle {
                 "The %1$s digest algorithm is considered a security risk. This algorithm will be disabled in a future update."},
         {"The.signature.algorithm.1.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update.",
                 "The %1$s signature algorithm is considered a security risk. This algorithm will be disabled in a future update."},
-        {"The.1.signing.key.has.a.keysize.of.2.which.is.considered.a.security.risk..This.key.size.will.be.disabled.in.a.future.update.",
-                "The %1$s signing key has a keysize of %2$d which is considered a security risk. This key size will be disabled in a future update."},
-        {"The.1.signing.key.has.a.keysize.of.2.which.is.considered.a.security.risk.and.is.disabled.",
-                "The %1$s signing key has a keysize of %2$d which is considered a security risk and is disabled."},
+        {"size.bit.alg",
+                "%1$d-bit %2$s"},
+        {"The.full.keyAlgName.signing.key.is.considered.a.security.risk..It.will.be.disabled.in.a.future.update.",
+                "The %s signing key is considered a security risk. It will be disabled in a future update."},
+        {"The.full.keyAlgName.signing.key.is.considered.a.security.risk.and.is.disabled.",
+                "The %s signing key is considered a security risk and is disabled."},
         {"This.jar.contains.entries.whose.certificate.chain.is.invalid.reason.1",
                  "This jar contains entries whose certificate chain is invalid. Reason: %s"},
         {"This.jar.contains.entries.whose.tsa.certificate.chain.is.invalid.reason.1",

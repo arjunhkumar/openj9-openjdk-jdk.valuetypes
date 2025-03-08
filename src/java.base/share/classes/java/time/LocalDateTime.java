@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -121,11 +121,18 @@ import java.util.Objects;
  * to be accurate will find the ISO-8601 approach unsuitable.
  * <p>
  * This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
- * The {@code equals} method should be used for comparisons.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization, mutexes, or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code LocalDateTime} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization, mutexes, or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * @implSpec
  * This class is immutable and thread-safe.
@@ -133,6 +140,7 @@ import java.util.Objects;
  * @since 1.8
  */
 @jdk.internal.ValueBased
+@jdk.internal.MigratedValueClass
 public final class LocalDateTime
         implements Temporal, TemporalAdjuster, ChronoLocalDateTime<LocalDate>, Serializable {
 
@@ -158,11 +166,11 @@ public final class LocalDateTime
     private static final long serialVersionUID = 6207766400415563566L;
 
     /**
-     * The date part.
+     * @serial The date part.
      */
     private final LocalDate date;
     /**
-     * The time part.
+     * @serial The time part.
      */
     private final LocalTime time;
 
@@ -1807,7 +1815,11 @@ public final class LocalDateTime
      * chronology is also considered, see {@link ChronoLocalDateTime#compareTo}.
      *
      * @param other  the other date-time to compare to, not null
-     * @return the comparator value, negative if less, positive if greater
+     * @return the comparator value, that is the comparison of this local date-time with
+     *          the {@code other} local date-time and this chronology with the {@code other} chronology,
+     *          in order, returning the first non-zero result, and otherwise returning zero
+     * @see #isBefore
+     * @see #isAfter
      */
     @Override  // override for Javadoc and performance
     public int compareTo(ChronoLocalDateTime<?> other) {
@@ -1961,7 +1973,18 @@ public final class LocalDateTime
      */
     @Override
     public String toString() {
-        return date.toString() + 'T' + time.toString();
+        var buf = new StringBuilder(29);
+        formatTo(buf);
+        return buf.toString();
+    }
+
+    /**
+     * Prints the toString result to the given buf, avoiding extra string allocations.
+     */
+    void formatTo(StringBuilder buf) {
+        date.formatTo(buf);
+        buf.append('T');
+        time.formatTo(buf);
     }
 
     //-----------------------------------------------------------------------

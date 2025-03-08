@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,16 @@
 
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 2022, 2022 All Rights Reserved
+ * (c) Copyright IBM Corp. 2022, 2024 All Rights Reserved
  * ===========================================================================
  */
 
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+#if defined(_AIX) || defined(__MVS__)
+#include <dlfcn.h>
+#endif /* defined(_AIX) || defined(__MVS__) */
 
 #include "jni.h"
 #include "jni_util.h"
@@ -64,48 +67,37 @@ static jboolean initIDs(JNIEnv *env)
     return JNI_TRUE;
 }
 
-
 /*
  * Support for finding JNI_On(Un)Load_<lib_name> if it exists.
  * If cname == NULL then just find normal JNI_On(Un)Load entry point
  */
 static void *findJniFunction(JNIEnv *env, void *handle,
                                     const char *cname, jboolean isLoad) {
-    const char *onLoadSymbols[] = JNI_ONLOAD_SYMBOLS;
-    const char *onUnloadSymbols[] = JNI_ONUNLOAD_SYMBOLS;
-    const char **syms;
-    int symsLen;
+    const char *sym;
     void *entryName = NULL;
     char *jniFunctionName;
-    int i;
     size_t len;
 
     // Check for JNI_On(Un)Load<_libname> function
-    if (isLoad) {
-        syms = onLoadSymbols;
-        symsLen = sizeof(onLoadSymbols) / sizeof(char *);
-    } else {
-        syms = onUnloadSymbols;
-        symsLen = sizeof(onUnloadSymbols) / sizeof(char *);
+    sym = isLoad ? "JNI_OnLoad" : "JNI_OnUnload";
+
+    // sym + '_' + cname + '\0'
+    if ((len = strlen(sym) + (cname != NULL ? (strlen(cname) + 1) : 0) + 1) >
+        FILENAME_MAX) {
+        goto done;
     }
-    for (i = 0; i < symsLen; i++) {
-        // cname + sym + '_' + '\0'
-        if ((len = (cname != NULL ? strlen(cname) : 0) + strlen(syms[i]) + 2) >
-            FILENAME_MAX) {
-            goto done;
-        }
-        jniFunctionName = malloc(len);
-        if (jniFunctionName == NULL) {
-            JNU_ThrowOutOfMemoryError(env, NULL);
-            goto done;
-        }
-        buildJniFunctionName(syms[i], cname, jniFunctionName);
-        entryName = JVM_FindLibraryEntry(handle, jniFunctionName);
-        free(jniFunctionName);
-        if(entryName) {
-            break;
-        }
+    jniFunctionName = malloc(len);
+    if (jniFunctionName == NULL) {
+        JNU_ThrowOutOfMemoryError(env, NULL);
+        goto done;
     }
+    strcpy(jniFunctionName, sym);
+    if (cname != NULL) {
+        strcat(jniFunctionName, "_");
+        strcat(jniFunctionName, cname);
+    }
+    entryName = JVM_FindLibraryEntry(handle, jniFunctionName);
+    free(jniFunctionName);
 
  done:
     return entryName;
@@ -306,7 +298,7 @@ Java_jdk_internal_loader_NativeLibraries_findBuiltinLib
     return NULL;
 }
 
-#if defined(_AIX)
+#if defined(_AIX) || defined(__MVS__)
 /*
  * Class:     jdk_internal_loader_NativeLibraries
  * Method:    findEntryInProcess
@@ -328,8 +320,8 @@ Java_jdk_internal_loader_NativeLibraries_findEntryInProcess
         return jlong_zero;
     }
 
-    res = ptr_to_jlong(findEntryInProcess(cname));
+    res = ptr_to_jlong(JVM_FindLibraryEntry(RTLD_DEFAULT, cname));
     (*env)->ReleaseStringUTFChars(env, name, cname);
     return res;
 }
-#endif /* defined(_AIX) */
+#endif /* defined(_AIX) || defined(__MVS__) */

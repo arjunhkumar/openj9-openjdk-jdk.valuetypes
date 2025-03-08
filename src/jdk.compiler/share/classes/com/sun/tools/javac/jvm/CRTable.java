@@ -33,6 +33,7 @@ import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.EndPosTable;
+import com.sun.tools.javac.tree.JCTree.JCSwitchExpression;
 
 /** This class contains the CharacterRangeTable for some method
  *  and the hashtable for mapping trees or lists of trees to their
@@ -281,13 +282,6 @@ implements CRTFlags {
             result = sr;
         }
 
-        public void visitWithField(JCWithField tree) {
-            SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
-            sr.mergeWith(csp(tree.field));
-            sr.mergeWith(csp(tree.value));
-            result = sr;
-        }
-
         public void visitForLoop(JCForLoop tree) {
             SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
             sr.mergeWith(csp(tree.init));
@@ -299,7 +293,7 @@ implements CRTFlags {
 
         public void visitForeachLoop(JCEnhancedForLoop tree) {
             SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
-            sr.mergeWith(csp(tree.varOrRecordPattern));
+            sr.mergeWith(csp(tree.var));
             sr.mergeWith(csp(tree.expr));
             sr.mergeWith(csp(tree.body));
             result = sr;
@@ -329,6 +323,7 @@ implements CRTFlags {
         public void visitCase(JCCase tree) {
             SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
             sr.mergeWith(csp(tree.labels));
+            sr.mergeWith(csp(tree.guard));
             sr.mergeWith(csp(tree.stats));
             result = sr;
         }
@@ -349,7 +344,6 @@ implements CRTFlags {
         public void visitPatternCaseLabel(JCPatternCaseLabel tree) {
             SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
             sr.mergeWith(csp(tree.pat));
-            sr.mergeWith(csp(tree.guard));
             result = sr;
         }
 
@@ -381,13 +375,6 @@ implements CRTFlags {
             sr.mergeWith(csp(tree.cond));
             sr.mergeWith(csp(tree.truepart));
             sr.mergeWith(csp(tree.falsepart));
-            result = sr;
-        }
-
-        @Override
-        public void visitDefaultValue(JCDefaultValue tree) {
-            SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
-            sr.mergeWith(csp(tree.clazz));
             result = sr;
         }
 

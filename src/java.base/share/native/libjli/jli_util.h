@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,12 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ */
+
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2023, 2023 All Rights Reserved
+ * ===========================================================================
  */
 
 #ifndef _JLI_UTIL_H
@@ -100,16 +106,7 @@ JLI_CmdToArgs(char *cmdline);
 #define JLI_StrCaseCmp(p1, p2)          strcasecmp((p1), (p2))
 #define JLI_StrNCaseCmp(p1, p2, p3)     strncasecmp((p1), (p2), (p3))
 #define JLI_Open                        open
-#ifdef __linux__
-#define _LARGFILE64_SOURCE
-#define JLI_Lseek                       lseek64
-#endif
-#ifdef MACOSX
 #define JLI_Lseek                       lseek
-#endif
-#ifdef _AIX
-#define JLI_Lseek                       lseek
-#endif
 #endif /* _WIN32 */
 
 /*
@@ -121,6 +118,9 @@ JNIEXPORT void JNICALL
 JLI_SetTraceLauncher();
 
 jboolean JLI_IsTraceLauncher();
+
+// This is defined in link_type.c due to linking restraints
+jboolean JLI_IsStaticallyLinked();
 
 /*
  * JLI_List - a dynamic list of char*
@@ -157,5 +157,11 @@ JLI_PreprocessArg(const char *arg, jboolean expandSourceOpt);
 
 JNIEXPORT jboolean JNICALL
 JLI_AddArgsFromEnvVar(JLI_List args, const char *var_name);
+
+JNIEXPORT jboolean JNICALL
+JLI_ParseOpenJ9ArgsFromEnvVar(JLI_List args, const char *var_name);
+
+JNIEXPORT JLI_List JNICALL
+JLI_ParseOpenJ9ArgsFile(const char *filename);
 
 #endif  /* _JLI_UTIL_H */

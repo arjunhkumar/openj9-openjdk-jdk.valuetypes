@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,20 +26,22 @@
 package java.lang;
 
 import jdk.internal.misc.CDS;
+import jdk.internal.value.DeserializeConstructor;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
+import jdk.internal.vm.annotation.Stable;
 
 import java.lang.constant.Constable;
 import java.lang.constant.DynamicConstantDesc;
 import java.util.Optional;
 
 import static java.lang.constant.ConstantDescs.BSM_EXPLICIT_CAST;
-import static java.lang.constant.ConstantDescs.CD_int;
 import static java.lang.constant.ConstantDescs.CD_short;
 import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
 
 /**
- * The {@code Short} class wraps a value of primitive type {@code
- * short} in an object.  An object of type {@code Short} contains a
+ * The {@code Short} class is the {@linkplain
+ * java.lang##wrapperClass wrapper class} for values of the primitive
+ * type {@code short}. An object of type {@code Short} contains a
  * single field whose type is {@code short}.
  *
  * <p>In addition, this class provides several methods for converting
@@ -48,16 +50,25 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  * dealing with a {@code short}.
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization, mutexes, or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code Short} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization, mutexes, or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * @author  Nakul Saraiya
  * @author  Joseph D. Darcy
  * @see     java.lang.Number
  * @since   1.1
  */
+@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
 public final class Short extends Number implements Comparable<Short>, Constable {
 
@@ -77,8 +88,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * The {@code Class} instance representing the primitive type
      * {@code short}.
      */
-    @SuppressWarnings("unchecked")
-    public static final Class<Short>    TYPE = (Class<Short>) Class.getPrimitiveClass("short");
+    public static final Class<Short> TYPE = Class.getPrimitiveClass("short");
 
     /**
      * Returns a new {@code String} object representing the
@@ -231,9 +241,10 @@ public final class Short extends Number implements Comparable<Short>, Constable 
         return Optional.of(DynamicConstantDesc.ofNamed(BSM_EXPLICIT_CAST, DEFAULT_NAME, CD_short, intValue()));
     }
 
-    private static class ShortCache {
+    private static final class ShortCache {
         private ShortCache() {}
 
+        @Stable
         static final Short[] cache;
         static Short[] archivedCache;
 
@@ -242,7 +253,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
 
             // Load and use the archived cache if it exists
             CDS.initializeFromArchive(ShortCache.class);
-            if (archivedCache == null || archivedCache.length != size) {
+            if (archivedCache == null) {
                 Short[] c = new Short[size];
                 short value = -128;
                 for(int i = 0; i < size; i++) {
@@ -251,6 +262,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
                 archivedCache = c;
             }
             cache = archivedCache;
+            assert cache.length == size;
         }
     }
 
@@ -271,6 +283,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * @since  1.5
      */
     @IntrinsicCandidate
+    @DeserializeConstructor
     public static Short valueOf(short s) {
         final int offset = 128;
         int sAsInt = s;
@@ -480,8 +493,8 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      *                  {@code false} otherwise.
      */
     public boolean equals(Object obj) {
-        if (obj instanceof Short) {
-            return value == ((Short)obj).shortValue();
+        if (obj instanceof Short s) {
+            return value == s.shortValue();
         }
         return false;
     }

@@ -1,4 +1,4 @@
-# Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -22,24 +22,7 @@
 # questions.
 #
 
-default: all
-
-include $(SPEC)
-include MakeBase.gmk
-include Execute.gmk
-include Modules.gmk
-include ModuleTools.gmk
-include ProcessMarkdown.gmk
-include ToolsJdk.gmk
-include ZipArchive.gmk
-include TextFileProcessing.gmk
-
-# This is needed to properly setup DOCS_MODULES.
-$(eval $(call ReadImportMetaData))
-
-################################################################################
-# Hook to include the corresponding custom file, if present.
-$(eval $(call IncludeCustomExtension, Docs.gmk))
+include MakeFileStart.gmk
 
 ################################################################################
 # This file generates all documentation for OpenJDK.
@@ -52,7 +35,19 @@ $(eval $(call IncludeCustomExtension, Docs.gmk))
 #
 # We will also generate separate, free-standing specifications from either
 # markdown or existing html files.
-#
+################################################################################
+
+include CopyFiles.gmk
+include Execute.gmk
+include Modules.gmk
+include ProcessMarkdown.gmk
+include TextFileProcessing.gmk
+include ZipArchive.gmk
+include $(TOPDIR)/make/ModuleTools.gmk
+include $(TOPDIR)/make/ToolsJdk.gmk
+
+# This is needed to properly setup DOCS_MODULES.
+$(eval $(call ReadImportMetaData))
 
 ################################################################################
 # Javadoc settings
@@ -66,11 +61,6 @@ MODULES_SOURCE_PATH := $(call PathList, $(call GetModuleSrcPath) )
 # In order to get a specific ordering it's necessary to specify the total
 # ordering of tags as the tags are otherwise ordered in order of definition.
 JAVADOC_TAGS := \
-    -tag beaninfo:X \
-    -tag revised:X \
-    -tag since.unbundled:X \
-    -tag Note:X \
-    -tag ToDo:X \
     -tag 'apiNote:a:API Note:' \
     -tag 'implSpec:a:Implementation Requirements:' \
     -tag 'implNote:a:Implementation Note:' \
@@ -108,15 +98,16 @@ JAVA_WARNINGS_ARE_ERRORS ?= -Werror
 
 # The initial set of options for javadoc
 JAVADOC_OPTIONS := -XDignore.symbol.file=true -use -keywords -notimestamp \
-    -encoding ISO-8859-1 -docencoding UTF-8 -breakiterator \
+    -serialwarn -encoding ISO-8859-1 -docencoding UTF-8 -breakiterator \
     -splitIndex --system none -javafx --expand-requires transitive \
     -XDenableValueTypes \
+    --enable-preview -source $(JDK_SOURCE_TARGET_VERSION) \
     --override-methods=summary
 
 # The reference options must stay stable to allow for comparisons across the
 # development cycle.
 REFERENCE_OPTIONS := -XDignore.symbol.file=true -use -keywords -notimestamp \
-    -encoding ISO-8859-1 -breakiterator -splitIndex --system none \
+    -serialwarn -encoding ISO-8859-1 -breakiterator -splitIndex --system none \
     -html5 -javafx --expand-requires transitive
 
 # Should we add DRAFT stamps to the generated javadoc?
@@ -143,11 +134,6 @@ ifeq ($(IS_DRAFT), true)
   endif
   DRAFT_TEXT := This specification is not final and is subject to change. \
       Use is subject to <a href="$(LICENSE_URL)">license terms</a>.
-
-  # Workaround stylesheet bug
-  HEADER_STYLE := style="margin-top: 9px;"
-else
-  HEADER_STYLE := style="margin-top: 14px;"
 endif
 
 # $1 - Relative prefix to COPYRIGHT_URL
@@ -254,7 +240,7 @@ define create_overview_file
       <!DOCTYPE html> \
       <html><head></head><body> \
       #
-  ifneq ($$($1_GROUPS),)
+  ifneq ($$($1_GROUPS), )
     $1_OVERVIEW_TEXT += \
       <p>This document is divided into \
       $$(subst 2,two,$$(subst 3,three,$$(words $$($1_GROUPS)))) sections:</p> \
@@ -343,7 +329,7 @@ define SetupApiDocsGenerationBody
   $1_DOC_TITLE := $$($1_LONG_NAME)<br>Version $$(VERSION_SPECIFICATION) API \
       Specification
   $1_WINDOW_TITLE := $$(subst &amp;,&,$$($1_SHORT_NAME))$$(DRAFT_MARKER_TITLE)
-  $1_HEADER_TITLE := <div $$(HEADER_STYLE)><strong>$$($1_SHORT_NAME)</strong> \
+  $1_HEADER_TITLE := <div><strong>$$($1_SHORT_NAME)</strong> \
       $$(DRAFT_MARKER_STR)</div>
   ifneq ($$($1_OTHER_VERSIONS), )
       $1_JAVADOC_BOTTOM := $$(call JAVADOC_BOTTOM, <a href="$$($1_OTHER_VERSIONS)">Other versions.</a>)
@@ -651,7 +637,7 @@ ifeq ($(ENABLE_PANDOC), true)
   GLOBAL_SPECS_DEFAULT_CSS_FILE := $(DOCS_OUTPUTDIR)/resources/jdk-default.css
   # Unset the following to suppress the link to the tool guides
   NAV_LINK_GUIDES := --nav-link-guides
-  HEADER_RIGHT_SIDE_INFO := <strong>$(subst &amp;,&,$(JDK_SHORT_NAME))$(DRAFT_MARKER_STR)</strong>
+  HEADER_RIGHT_SIDE_INFO := <strong>$(subst &amp;,&,$(JDK_SHORT_NAME))</strong>$(DRAFT_MARKER_STR)
 
   $(foreach m, $(ALL_MODULES), \
     $(eval SPECS_$m := $(call FindModuleSpecsDirs, $m)) \
@@ -688,28 +674,25 @@ ifeq ($(ENABLE_PANDOC), true)
       $(TOPDIR)/make/jdk/src/classes/build/tools/pandocfilter)
 
   $(foreach m, $(ALL_MODULES), \
-    $(eval MAN_$m := $(call FindModuleManDirs, $m)) \
-    $(foreach d, $(MAN_$m), \
-      $(foreach f, $(call ApplySpecFilter, $(filter %.md, $(call FindFiles, $d))), \
-        $(eval $m_$f_NAME := MAN_TO_HTML_$m_$(strip $(call RelativePath, $f, $(TOPDIR)))) \
-        $(eval $(call SetupProcessMarkdown, $($m_$f_NAME), \
-            SRC := $d, \
-            FILES := $f, \
-            DEST := $(DOCS_OUTPUTDIR)/specs/man, \
-            FILTER := $(PANDOC_HTML_MANPAGE_FILTER), \
-            CSS := $(GLOBAL_SPECS_DEFAULT_CSS_FILE), \
-            REPLACEMENTS := \
-		@@COPYRIGHT_YEAR@@ => $(COPYRIGHT_YEAR) ; \
-		@@VERSION_SHORT@@ => $(VERSION_SHORT) ; \
-		@@VERSION_SPECIFICATION@@ => $(VERSION_SPECIFICATION), \
-            OPTIONS := --toc -V include-before='$(SPECS_TOP)' -V include-after='$(SPECS_BOTTOM_1)', \
-            POST_PROCESS := $(TOOL_FIXUPPANDOC) --insert-nav --nav-right-info '$(HEADER_RIGHT_SIDE_INFO)' \
-                --nav-subdirs 1 --nav-link-guides, \
-            EXTRA_DEPS := $(PANDOC_HTML_MANPAGE_FILTER) \
-                $(PANDOC_HTML_MANPAGE_FILTER_SOURCE), \
-        )) \
-        $(eval JDK_SPECS_TARGETS += $($($m_$f_NAME))) \
-      ) \
+    $(eval MAN_$m := $(call ApplySpecFilter, $(filter %.md, $(call FindFiles, \
+          $(call FindModuleManDirsForDocs, $m))))) \
+    $(if $(MAN_$m), \
+      $(eval $(call SetupProcessMarkdown, MAN_TO_HTML_$m, \
+        FILES := $(MAN_$m), \
+        DEST := $(DOCS_OUTPUTDIR)/specs/man, \
+        FILTER := $(PANDOC_HTML_MANPAGE_FILTER), \
+        CSS := $(GLOBAL_SPECS_DEFAULT_CSS_FILE), \
+        REPLACEMENTS := \
+            @@COPYRIGHT_YEAR@@ => $(COPYRIGHT_YEAR) ; \
+            @@VERSION_SHORT@@ => $(VERSION_SHORT) ; \
+            @@VERSION_SPECIFICATION@@ => $(VERSION_SPECIFICATION), \
+        OPTIONS := --toc -V include-before='$(SPECS_TOP)' -V include-after='$(SPECS_BOTTOM_1)', \
+        POST_PROCESS := $(TOOL_FIXUPPANDOC) --insert-nav --nav-right-info '$(HEADER_RIGHT_SIDE_INFO)' \
+            --nav-subdirs 1 --nav-link-guides, \
+        EXTRA_DEPS := $(PANDOC_HTML_MANPAGE_FILTER) \
+            $(PANDOC_HTML_MANPAGE_FILTER_SOURCE), \
+      )) \
+      $(eval JDK_SPECS_TARGETS += $(MAN_TO_HTML_$m)) \
     ) \
   )
 
@@ -724,7 +707,7 @@ SPEC_HEADER_BLOCK := \
     <div class="navbar"> \
         <div>$(HEADER_RIGHT_SIDE_INFO)</div> \
         <nav><ul><li><a href="PATH_TO_SPECS/../api/index.html">API</a> \
-        <li><a href="PATH_TO_SPECS/index.html">OTHER SPECIFICATIONS \
+        <li><a href="PATH_TO_SPECS/index.html">OTHER SPECIFICATIONS</a> \
         <li><a href="PATH_TO_SPECS/man/index.html">TOOL GUIDES</a></ul></nav> \
     </div> \
 </header>
@@ -774,10 +757,6 @@ $(eval $(call SetupZipArchive, BUILD_JAVADOC_ZIP, \
 ZIP_TARGETS += $(BUILD_JAVADOC_ZIP)
 
 ################################################################################
-# Hook to include the corresponding custom file, if present.
-$(eval $(call IncludeCustomExtension, Docs-post.gmk))
-
-################################################################################
 # Bundles all generated specs into a zip archive, skipping javadocs.
 
 SPECS_ZIP_NAME := jdk-$(VERSION_STRING)-specs.zip
@@ -818,7 +797,11 @@ all: docs-jdk-api-javadoc docs-jdk-api-graphs docs-javase-api-javadoc \
     docs-reference-api-graphs docs-jdk-specs docs-jdk-index docs-zip \
     docs-specs-zip
 
-.PHONY: default all docs-jdk-api-javadoc docs-jdk-api-graphs \
+.PHONY: docs-jdk-api-javadoc docs-jdk-api-graphs \
     docs-javase-api-javadoc docs-javase-api-graphs \
     docs-reference-api-javadoc docs-reference-api-graphs docs-jdk-specs \
     docs-jdk-index docs-zip docs-specs-zip
+
+################################################################################
+
+include MakeFileEnd.gmk

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,7 +57,6 @@ public class Names {
 
     // keywords
     public final Name _class;
-    public final Name _default;
     public final Name _super;
     public final Name _this;
     public final Name var;
@@ -70,6 +69,7 @@ public class Names {
     public final Name transitive;
     public final Name uses;
     public final Name open;
+    public final Name underscore;
     public final Name when;
     public final Name with;
     public final Name yield;
@@ -92,23 +92,21 @@ public class Names {
     public final Name getClass;
     public final Name hasNext;
     public final Name hashCode;
-    public final Name vnew;
     public final Name init;
+    public final Name invoke;
     public final Name iterator;
     public final Name length;
     public final Name next;
+    public final Name of;
     public final Name ordinal;
     public final Name provider;
     public final Name serialVersionUID;
     public final Name toString;
     public final Name value;
-    public final Name primitive;
-    public final Name identity;
     public final Name valueOf;
     public final Name values;
     public final Name readResolve;
     public final Name readObject;
-    public final Name isValueObject;
 
     // class names
     public final Name java_io_Serializable;
@@ -130,6 +128,7 @@ public class Names {
 
     // module names
     public final Name java_base;
+    public final Name java_se;
     public final Name jdk_unsupported;
 
     // attribute names
@@ -154,7 +153,7 @@ public class Names {
     public final Name ModuleResolution;
     public final Name NestHost;
     public final Name NestMembers;
-    public final Name Preload;
+    public final Name LoadableDescriptors;
     public final Name Record;
     public final Name RuntimeInvisibleAnnotations;
     public final Name RuntimeInvisibleParameterAnnotations;
@@ -197,6 +196,7 @@ public class Names {
     public final Name module_info;
     public final Name package_info;
     public final Name requireNonNull;
+    public final Name main;
 
     // lambda-related
     public final Name lambda;
@@ -210,8 +210,6 @@ public class Names {
 
     // values
     public final Name dollarValue;
-    public final Name ref;
-    public final Name val;
 
 
     // record related
@@ -234,9 +232,11 @@ public class Names {
     // pattern switches
     public final Name typeSwitch;
     public final Name enumSwitch;
+    public final Name enumConstant;
 
     public final Name.Table table;
 
+    @SuppressWarnings("this-escape")
     public Names(Context context) {
         Options options = Options.instance(context);
         table = createTable(options);
@@ -251,7 +251,6 @@ public class Names {
 
         // keywords
         _class = fromString("class");
-        _default = fromString("default");
         _super = fromString("super");
         _this = fromString("this");
         var = fromString("var");
@@ -264,6 +263,7 @@ public class Names {
         transitive = fromString("transitive");
         uses = fromString("uses");
         open = fromString("open");
+        underscore = fromString("_");
         when = fromString("when");
         with = fromString("with");
         yield = fromString("yield");
@@ -286,23 +286,21 @@ public class Names {
         getClass = fromString("getClass");
         hasNext = fromString("hasNext");
         hashCode = fromString("hashCode");
-        vnew = fromString("<vnew>");
         init = fromString("<init>");
+        invoke = fromString("invoke");
         iterator = fromString("iterator");
         length = fromString("length");
         next = fromString("next");
+        of = fromString("of");
         ordinal = fromString("ordinal");
         provider = fromString("provider");
         serialVersionUID = fromString("serialVersionUID");
         toString = fromString("toString");
         value = fromString("value");
-        primitive = fromString("primitive");
-        identity = fromString("identity");
         valueOf = fromString("valueOf");
         values = fromString("values");
         readResolve = fromString("readResolve");
         readObject = fromString("readObject");
-        isValueObject = fromString("isValueObject");
         dollarThis = fromString("$this");
 
         // class names
@@ -325,6 +323,7 @@ public class Names {
 
         // module names
         java_base = fromString("java.base");
+        java_se = fromString("java.se");
         jdk_unsupported = fromString("jdk.unsupported");
 
         // attribute names
@@ -349,7 +348,7 @@ public class Names {
         ModuleResolution = fromString("ModuleResolution");
         NestHost = fromString("NestHost");
         NestMembers = fromString("NestMembers");
-        Preload = fromString("Preload");
+        LoadableDescriptors = fromString("LoadableDescriptors");
         Record = fromString("Record");
         RuntimeInvisibleAnnotations = fromString("RuntimeInvisibleAnnotations");
         RuntimeInvisibleParameterAnnotations = fromString("RuntimeInvisibleParameterAnnotations");
@@ -392,6 +391,7 @@ public class Names {
         module_info = fromString("module-info");
         package_info = fromString("package-info");
         requireNonNull = fromString("requireNonNull");
+        main = fromString("main");
 
         //lambda-related
         lambda = fromString("lambda$");
@@ -402,10 +402,7 @@ public class Names {
         makeConcat = fromString("makeConcat");
         makeConcatWithConstants = fromString("makeConcatWithConstants");
 
-        // primitive classes
         dollarValue = fromString("$value");
-        ref = fromString("ref");
-        val = fromString("val");
 
         bootstrap = fromString("bootstrap");
         record = fromString("record");
@@ -420,21 +417,38 @@ public class Names {
         permits = fromString("permits");
         sealed = fromString("sealed");
 
+
         // pattern switches
         typeSwitch = fromString("typeSwitch");
         enumSwitch = fromString("enumSwitch");
+        enumConstant = fromString("enumConstant");
     }
 
     protected Name.Table createTable(Options options) {
         boolean useUnsharedTable = options.isSet("useUnsharedTable");
         if (useUnsharedTable)
-            return UnsharedNameTable.create(this);
-        else
-            return SharedNameTable.create(this);
+            return newUnsharedNameTable();
+        boolean useSharedTable = options.isSet("useSharedTable");
+        if (useSharedTable)
+            return newSharedNameTable();
+        boolean internStringTable = options.isSet("internStringTable");
+        return newStringNameTable(internStringTable);
     }
 
-    public boolean isInitOrVNew(Name name) {
-        return name == init || name == vnew;
+    public StringNameTable newStringNameTable(boolean intern) {
+        return StringNameTable.create(this, intern);
+    }
+
+    public SharedNameTable newSharedNameTable() {
+        return SharedNameTable.create(this);
+    }
+
+    public UnsharedNameTable newUnsharedNameTable() {
+        return UnsharedNameTable.create(this);
+    }
+
+    public boolean isInit(Name name) {
+        return name == init;
     }
 
     public void dispose() {
@@ -449,11 +463,19 @@ public class Names {
         return table.fromString(s);
     }
 
-    public Name fromUtf(byte[] cs) {
+    public Name fromUtf(byte[] cs) throws InvalidUtfException {
         return table.fromUtf(cs);
     }
 
-    public Name fromUtf(byte[] cs, int start, int len) {
-        return table.fromUtf(cs, start, len);
+    public Name fromUtf(byte[] cs, int start, int len, Convert.Validation validation) throws InvalidUtfException {
+        return table.fromUtf(cs, start, len, validation);
+    }
+
+    public Name fromUtfLax(byte[] cs, int start, int len) {
+        try {
+            return table.fromUtf(cs, start, len, Convert.Validation.NONE);
+        } catch (InvalidUtfException e) {
+            throw new AssertionError(e);
+        }
     }
 }

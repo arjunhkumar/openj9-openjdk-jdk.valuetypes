@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,19 @@
  * questions.
  */
 
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2023, 2024 All Rights Reserved
+ * ===========================================================================
+ */
+
+#include "jvm.h"
 #include "util.h"
 #include "utf_util.h"
 #include "transport.h"
 #include "debugLoop.h"
 #include "sys.h"
+#include "j9cfg.h"
 
 static jdwpTransportEnv *transport = NULL;
 static unsigned transportVersion = JDWPTRANSPORT_VERSION_1_0;
@@ -104,13 +112,6 @@ findTransportOnLoad(void *handle)
     if (handle == NULL) {
         return onLoad;
     }
-#if defined(_WIN32) && !defined(_WIN64)
-    onLoad = (jdwpTransport_OnLoad_t)
-                 dbgsysFindLibraryEntry(handle, "_jdwpTransport_OnLoad@16");
-    if (onLoad != NULL) {
-        return onLoad;
-    }
-#endif
     onLoad = (jdwpTransport_OnLoad_t)
                  dbgsysFindLibraryEntry(handle, "jdwpTransport_OnLoad");
     return onLoad;
@@ -121,7 +122,11 @@ static void *
 loadTransportLibrary(const char *libdir, const char *name)
 {
     char buf[MAXPATHLEN*2+100];
-#ifndef STATIC_BUILD
+
+    if (JVM_IsStaticallyLinked()) {
+        return (dbgsysLoadLibrary(NULL, buf, sizeof(buf)));
+    }
+
     void *handle;
     char libname[MAXPATHLEN+2];
     const char *plibdir;
@@ -145,9 +150,6 @@ loadTransportLibrary(const char *libdir, const char *name)
     /* dlopen (unix) / LoadLibrary (windows) the transport library */
     handle = dbgsysLoadLibrary(libname, buf, sizeof(buf));
     return handle;
-#else
-    return (dbgsysLoadLibrary(NULL, buf, sizeof(buf)));
-#endif
 }
 
 /*
@@ -345,6 +347,22 @@ transport_waitForConnection(void)
     }
 }
 
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+void
+transport_waitForConnectionOnRestore(void)
+{
+    /* Assuming the caller already checked the flag suspendOnRestore.
+     * We need to wait for a connection since the VM won't continue
+     * without a remote debugger telling it to.
+     */
+    debugMonitorEnter(listenerLock);
+    while (NULL == transport) {
+        debugMonitorWait(listenerLock);
+    }
+    debugMonitorExit(listenerLock);
+}
+#endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
+
 static void JNICALL
 acceptThread(jvmtiEnv* jvmti_env, JNIEnv* jni_env, void* arg)
 {
@@ -508,7 +526,7 @@ transport_startTransport(jboolean isServer, char *name, char *address,
     trans = info->transport;
 
     if (isServer) {
-        char *retAddress;
+        char *retAddress = NULL;
         char *launchCommand;
         jvmtiError error;
         int len;
@@ -607,9 +625,13 @@ transport_startTransport(jboolean isServer, char *name, char *address,
                     name, retAddress));
             }
         }
+        jvmtiDeallocate(retAddress);
         return JDWP_ERROR(NONE);
 
 handleError:
+        if (retAddress != NULL) {
+            jvmtiDeallocate(retAddress);
+        }
         freeTransportInfo(info);
     } else {
         /*

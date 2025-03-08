@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,19 @@
  */
 package runtime.valhalla.inlinetypes;
 
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
 
 /*
  * @test InlineTypeCreation
  * @summary Inline Type creation test
  * @library /test/lib
- * @compile -XDallowFlattenabilityModifiers -XDenablePrimitiveClasses InlineTypeCreation.java Point.java Long8Inline.java Person.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.InlineTypeCreation
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile InlineTypeCreation.java Point.java Long8Inline.java Person.java
+ * @run main/othervm runtime.valhalla.inlinetypes.InlineTypeCreation
  */
 public class InlineTypeCreation {
     public static void main(String[] args) {
@@ -42,6 +47,7 @@ public class InlineTypeCreation {
         testLong8();
         testPerson();
         StaticSelf.test();
+        testUnresolvedAndResolvedNew();
     }
 
     void testPoint() {
@@ -72,10 +78,12 @@ public class InlineTypeCreation {
         Asserts.assertEquals(person.getLastName(), "Smith", "Last name incorrect");
     }
 
-    static final primitive class StaticSelf {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class StaticSelf {
 
-        static final StaticSelf.ref DEFAULT = new StaticSelf(0);
-        final int f1;
+        static final StaticSelf DEFAULT = new StaticSelf(0);
+        int f1;
 
         public StaticSelf(int f1) { this.f1 = f1; }
         public String toString() { return "StaticSelf f1=" + f1; }
@@ -85,4 +93,19 @@ public class InlineTypeCreation {
         }
 
     }
+
+    static value class MyPoint {
+         int x,y;
+         MyPoint(int x, int y) {
+             this.x = x;
+             this.y = y;
+         }
+     }
+
+    // Two instantiations of the same class to exercise both the unresolved and resolved paths
+    // in bytecode 'new' implementation
+    void testUnresolvedAndResolvedNew(){
+         MyPoint p1 = new MyPoint(10, 20);
+         MyPoint p2 = new MyPoint(20, 20);
+     }
 }

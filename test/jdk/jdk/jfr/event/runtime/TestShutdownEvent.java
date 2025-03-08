@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,7 @@ import jdk.test.lib.jfr.Events;
 /**
  * @test
  * @summary Test Shutdown event
- * @key jfr
+ * @requires vm.flagless
  * @requires vm.hasJFR
  * @library /test/lib
  * @modules jdk.jfr
@@ -89,7 +89,7 @@ public class TestShutdownEvent {
     }
 
     private static void runSubtest(int subTestIndex) throws Exception {
-        ProcessBuilder pb = ProcessTools.createTestJvm(
+        ProcessBuilder pb = ProcessTools.createTestJavaProcessBuilder(
                                 "-Xlog:jfr=debug",
                                 "-XX:-CreateCoredumpOnCrash",
                                 "-XX:-TieredCompilation",
@@ -114,7 +114,7 @@ public class TestShutdownEvent {
             .collect(Collectors.toList());
 
         Asserts.assertEquals(filteredEvents.size(), 1);
-        RecordedEvent event = filteredEvents.get(0);
+        RecordedEvent event = filteredEvents.getFirst();
         subTests[subTestIndex].verifyEvents(event, exitCode);
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,11 +26,7 @@
 #include <string.h>
 #include <jni.h>
 
-#if !defined(_WIN32) && !defined(_WIN64)
-
 JNIEXPORT jboolean JNICALL
 Java_TestJNIIsSameObject_isSameObject(JNIEnv* env, jclass klass, jobject obj0, jobject obj1) {
   return (*env)->IsSameObject(env, obj0, obj1);
 }
-
-#endif

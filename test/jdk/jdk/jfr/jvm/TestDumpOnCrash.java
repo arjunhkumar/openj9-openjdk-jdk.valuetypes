@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,7 @@ import jdk.test.lib.process.ProcessTools;
 
 /**
  * @test
- * @key jfr
+ * @requires vm.flagless
  * @summary Verifies that data associated with a running recording can be evacuated to an hs_err_pidXXX.jfr when the VM crashes
  * @requires vm.hasJFR
  *
@@ -131,7 +131,7 @@ public class TestDumpOnCrash {
         }
         options.add(crasher.getName());
         options.add(signal);
-        Process p = ProcessTools.createTestJvm(options).start();
+        Process p = ProcessTools.createTestJavaProcessBuilder(options).start();
 
         OutputAnalyzer output = new OutputAnalyzer(p);
         System.out.println("========== Crasher process output:");
@@ -153,7 +153,7 @@ public class TestDumpOnCrash {
 
             List<RecordedEvent> events = RecordingFile.readAllEvents(file);
             Asserts.assertFalse(events.isEmpty(), "No event found");
-            System.out.printf("Found event %s%n", events.get(0).getEventType().getName());
+            System.out.printf("Found event %s%n", events.getFirst().getEventType().getName());
 
             Files.delete(file);
         } else {

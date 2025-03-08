@@ -25,8 +25,8 @@
  * @test
  * @bug 8199193
  * @summary Tests for the --enable-preview option
- * @requires vm.continuations
  * @run testng ToolEnablePreviewTest
+ * @ignore 8316628
  */
 
 import org.testng.annotations.Test;

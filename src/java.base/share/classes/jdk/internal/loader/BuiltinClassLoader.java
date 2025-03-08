@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,14 +46,8 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;							//OpenJ9-shared_classes_misc
 import java.nio.file.Path;							//OpenJ9-shared_classes_misc
 import java.nio.file.Paths;							//OpenJ9-shared_classes_misc
-import java.security.AccessControlException;
-import java.security.AccessController;
 import java.security.CodeSigner;
 import java.security.CodeSource;
-import java.security.PermissionCollection;
-import java.security.PrivilegedAction;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
 import java.security.SecureClassLoader;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -76,7 +70,6 @@ import jdk.internal.misc.VM;
 import jdk.internal.module.ModulePatcher.PatchedModuleReader;
 import jdk.internal.module.Resources;
 import jdk.internal.vm.annotation.Stable;
-import sun.security.util.LazyCodeSourcePermissionCollection;
 
 
 /**
@@ -246,11 +239,7 @@ public class BuiltinClassLoader
     	 * when jdk.internal.lambda.dumpProxyClasses is enabled.								//OpenJ9-shared_classes_misc
     	 * More details are at https://github.com/eclipse-openj9/openj9/issues/3399					//OpenJ9-shared_classes_misc
     	 */																						//OpenJ9-shared_classes_misc
-    	return AccessController.doPrivileged(new PrivilegedAction<Boolean>() {					//OpenJ9-shared_classes_misc
-    		public Boolean run() {																//OpenJ9-shared_classes_misc
-    			return Boolean.getBoolean("com.ibm.oti.shared.enabled");						//OpenJ9-shared_classes_misc
-    		}																					//OpenJ9-shared_classes_misc
-    	});																						//OpenJ9-shared_classes_misc
+    	return Boolean.getBoolean("com.ibm.oti.shared.enabled");						//OpenJ9-shared_classes_misc
    	}																							//OpenJ9-shared_classes_misc
 
     /*                                                                          					//OpenJ9-shared_classes_misc
@@ -262,11 +251,7 @@ public class BuiltinClassLoader
     	 * when jdk.internal.lambda.dumpProxyClasses is enabled.								//OpenJ9-shared_classes_misc
     	 * More details are at https://github.com/eclipse-openj9/openj9/issues/3399					//OpenJ9-shared_classes_misc
     	 */																						//OpenJ9-shared_classes_misc
-		String javaHome = AccessController.doPrivileged( new PrivilegedAction<String>() {		//OpenJ9-shared_classes_misc
-			public String run() {																//OpenJ9-shared_classes_misc
-				return System.getProperty("java.home");											//OpenJ9-shared_classes_misc
-			}																					//OpenJ9-shared_classes_misc
-		});																						//OpenJ9-shared_classes_misc
+		String javaHome = System.getProperty("java.home");										//OpenJ9-shared_classes_misc
 		Path p = Paths.get(javaHome, "lib", "modules");											//OpenJ9-shared_classes_misc
 		if (Files.isRegularFile(p)) {															//OpenJ9-shared_classes_misc
 			try {																				//OpenJ9-shared_classes_misc
@@ -464,31 +449,30 @@ public class BuiltinClassLoader
             url = findResourceOnClassPath(name);
         }
 
-        return checkURL(url);  // check access before returning
+        return url;
     }
 
     /**
      * Returns an input stream to a resource of the given name in a module
      * defined to this class loader.
      */
-    @SuppressWarnings("removal")
     public InputStream findResourceAsStream(String mn, String name)
         throws IOException
     {
-        // Need URL to resource when running with a security manager so that
-        // the right permission check is done.
-        if (System.getSecurityManager() != null || mn == null) {
-            URL url = findResource(mn, name);
-            return (url != null) ? url.openStream() : null;
-        }
-
-        // find in module defined to this loader, no security manager
-        ModuleReference mref = nameToModule.get(mn);
-        if (mref != null) {
-            return moduleReaderFor(mref).open(name).orElse(null);
+        InputStream in = null;
+        if (mn != null) {
+            // find in module defined to this loader
+            ModuleReference mref = nameToModule.get(mn);
+            if (mref != null) {
+                in = moduleReaderFor(mref).open(name).orElse(null);
+            }
         } else {
-            return null;
+            URL url = findResourceOnClassPath(name);
+            if (url != null) {
+                in = url.openStream();
+            }
         }
+        return in;
     }
 
     /**
@@ -505,7 +489,7 @@ public class BuiltinClassLoader
             if (module.loader() == this) {
                 URL url;
                 try {
-                    url = findResource(module.name(), name); // checks URL
+                    url = findResource(module.name(), name);
                 } catch (IOException ioe) {
                     return null;
                 }
@@ -525,7 +509,7 @@ public class BuiltinClassLoader
                 if (!urls.isEmpty()) {
                     URL url = urls.get(0);
                     if (url != null) {
-                        return checkURL(url); // check access before returning
+                        return url;
                     }
                 }
             } catch (IOException ioe) {
@@ -535,8 +519,7 @@ public class BuiltinClassLoader
         }
 
         // search class path
-        URL url = findResourceOnClassPath(name);
-        return checkURL(url);
+        return findResourceOnClassPath(name);
     }
 
     /**
@@ -546,7 +529,7 @@ public class BuiltinClassLoader
      */
     @Override
     public Enumeration<URL> findResources(String name) throws IOException {
-        List<URL> checked = new ArrayList<>();  // list of checked URLs
+        List<URL> resources = new ArrayList<>();  // list of resource URLs
 
         String pn = Resources.toPackageName(name);
         LoadedModule module = packageToModule.get(pn);
@@ -554,31 +537,30 @@ public class BuiltinClassLoader
 
             // resource is in a package of a module defined to this loader
             if (module.loader() == this) {
-                URL url = findResource(module.name(), name); // checks URL
+                URL url = findResource(module.name(), name);
                 if (url != null
                     && (name.endsWith(".class")
                         || url.toString().endsWith("/")
                         || isOpen(module.mref(), pn))) {
-                    checked.add(url);
+                    resources.add(url);
                 }
             }
 
         } else {
             // not in a package of a module defined to this loader
             for (URL url : findMiscResource(name)) {
-                url = checkURL(url);
                 if (url != null) {
-                    checked.add(url);
+                    resources.add(url);
                 }
             }
         }
 
-        // class path (not checked)
+        // class path
         Enumeration<URL> e = findResourcesOnClassPath(name);
 
-        // concat the checked URLs and the (not checked) class path
+        // concat the URLs of the resource in the modules and the class path
         return new Enumeration<>() {
-            final Iterator<URL> iterator = checked.iterator();
+            final Iterator<URL> iterator = resources.iterator();
             URL next;
             private boolean hasNext() {
                 if (next != null) {
@@ -587,9 +569,8 @@ public class BuiltinClassLoader
                     next = iterator.next();
                     return true;
                 } else {
-                    // need to check each URL
                     while (e.hasMoreElements() && next == null) {
-                        next = checkURL(e.nextElement());
+                        next = e.nextElement();
                     }
                     return next != null;
                 }
@@ -619,7 +600,6 @@ public class BuiltinClassLoader
      *
      * The cache used by this method avoids repeated searching of all modules.
      */
-    @SuppressWarnings("removal")
     private List<URL> findMiscResource(String name) throws IOException {
         SoftReference<Map<String, List<URL>>> ref = this.resourceCache;
         Map<String, List<URL>> map = (ref != null) ? ref.get() : null;
@@ -636,38 +616,25 @@ public class BuiltinClassLoader
         }
 
         // search all modules for the resource
-        List<URL> urls;
-        try {
-            urls = AccessController.doPrivileged(
-                new PrivilegedExceptionAction<>() {
-                    @Override
-                    public List<URL> run() throws IOException {
-                        List<URL> result = null;
-                        for (ModuleReference mref : nameToModule.values()) {
-                            URI u = moduleReaderFor(mref).find(name).orElse(null);
-                            if (u != null) {
-                                try {
-                                    if (result == null)
-                                        result = new ArrayList<>();
-                                    result.add(u.toURL());
-                                } catch (MalformedURLException |
-                                         IllegalArgumentException e) {
-                                }
-                            }
-                        }
-                        return (result != null) ? result : Collections.emptyList();
-                    }
-                });
-        } catch (PrivilegedActionException pae) {
-            throw (IOException) pae.getCause();
+        List<URL> urls = null;
+        for (ModuleReference mref : nameToModule.values()) {
+            URI u = moduleReaderFor(mref).find(name).orElse(null);
+            if (u != null) {
+                try {
+                    if (urls == null)
+                        urls = new ArrayList<>();
+                    urls.add(u.toURL());
+                } catch (MalformedURLException | IllegalArgumentException e) {
+                }
+            }
+        }
+        if (urls == null) {
+            urls = List.of();
         }
 
         // only cache resources after VM is fully initialized
         if (map != null) {
             map.putIfAbsent(name, urls);
-        } else {
-        	if (urls == null)
-                urls = Collections.emptyList();
         }
 
         return urls;
@@ -676,23 +643,8 @@ public class BuiltinClassLoader
     /**
      * Returns the URL to a resource in a module or {@code null} if not found.
      */
-    @SuppressWarnings("removal")
     private URL findResource(ModuleReference mref, String name) throws IOException {
-        URI u;
-        if (System.getSecurityManager() == null) {
-            u = moduleReaderFor(mref).find(name).orElse(null);
-        } else {
-            try {
-                u = AccessController.doPrivileged(new PrivilegedExceptionAction<> () {
-                    @Override
-                    public URI run() throws IOException {
-                        return moduleReaderFor(mref).find(name).orElse(null);
-                    }
-                });
-            } catch (PrivilegedActionException pae) {
-                throw (IOException) pae.getCause();
-            }
-        }
+        URI u = moduleReaderFor(mref).find(name).orElse(null);
         if (u != null) {
             try {
                 return u.toURL();
@@ -702,29 +654,11 @@ public class BuiltinClassLoader
     }
 
     /**
-     * Returns the URL to a resource in a module. Returns {@code null} if not found
-     * or an I/O error occurs.
-     */
-    private URL findResourceOrNull(ModuleReference mref, String name) {
-        try {
-            return findResource(mref, name);
-        } catch (IOException ignore) {
-            return null;
-        }
-    }
-
-    /**
      * Returns a URL to a resource on the class path.
      */
-    @SuppressWarnings("removal")
     private URL findResourceOnClassPath(String name) {
         if (hasClassPath()) {
-            if (System.getSecurityManager() == null) {
-                return ucp.findResource(name, false);
-            } else {
-                PrivilegedAction<URL> pa = () -> ucp.findResource(name, false);
-                return AccessController.doPrivileged(pa);
-            }
+            return ucp.findResource(name);
         } else {
             // no class path
             return null;
@@ -734,16 +668,9 @@ public class BuiltinClassLoader
     /**
      * Returns the URLs of all resources of the given name on the class path.
      */
-    @SuppressWarnings("removal")
     private Enumeration<URL> findResourcesOnClassPath(String name) {
         if (hasClassPath()) {
-            if (System.getSecurityManager() == null) {
-                return ucp.findResources(name, false);
-            } else {
-                PrivilegedAction<Enumeration<URL>> pa;
-                pa = () -> ucp.findResources(name, false);
-                return AccessController.doPrivileged(pa);
-            }
+            return ucp.findResources(name);
         } else {
             // no class path
             return Collections.emptyEnumeration();
@@ -921,11 +848,9 @@ public class BuiltinClassLoader
      *
      * @return the resulting Class or {@code null} if not found
      */
-    @SuppressWarnings("removal")
     private Class<?> findClassInModuleOrNull(LoadedModule loadedModule, String cn) {
 		Class<?> c = null;												//OpenJ9-shared_classes_misc
-		PrivilegedAction<ModuleReader> paModuleReaderFor = () -> moduleReaderFor(loadedModule.mref()); //OpenJ9-shared_classes_misc
-		ModuleReader reader = AccessController.doPrivileged(paModuleReaderFor); //OpenJ9-shared_classes_misc
+		ModuleReader reader = moduleReaderFor(loadedModule.mref()); //OpenJ9-shared_classes_misc
 		if (!(reader instanceof PatchedModuleReader)) {					//OpenJ9-shared_classes_misc
 			c = findClassInSharedClassesCache(cn, loadedModule, false);	//OpenJ9-shared_classes_misc
 		}																//OpenJ9-shared_classes_misc
@@ -933,12 +858,7 @@ public class BuiltinClassLoader
 			return c;													//OpenJ9-shared_classes_misc
 		}																//OpenJ9-shared_classes_misc
 
-        if (System.getSecurityManager() == null) {
-            return defineClass(cn, loadedModule);
-        } else {
-            PrivilegedAction<Class<?>> pa = () -> defineClass(cn, loadedModule);
-            return AccessController.doPrivileged(pa);
-        }
+        return defineClass(cn, loadedModule);
     }
 
     /**
@@ -946,7 +866,6 @@ public class BuiltinClassLoader
      *
      * @return the resulting Class or {@code null} if not found
      */
-    @SuppressWarnings("removal")
     private Class<?> findClassOnClassPathOrNull(String cn) {
 		Class<?> c = findClassInSharedClassesCache(cn, null, true);		//OpenJ9-shared_classes_misc
 		if (null != c) {												//OpenJ9-shared_classes_misc
@@ -954,33 +873,15 @@ public class BuiltinClassLoader
 		}																//OpenJ9-shared_classes_misc
 
         String path = cn.replace('.', '/').concat(".class");
-        if (System.getSecurityManager() == null) {
-            Resource res = ucp.getResource(path, false);
-            if (res != null) {
-                try {
-                    return defineClass(cn, res);
-                } catch (IOException ioe) {
-                    // TBD on how I/O errors should be propagated
-                }
+        Resource res = ucp.getResource(path);
+        if (res != null) {
+            try {
+                return defineClass(cn, res);
+            } catch (IOException ioe) {
+                // TBD on how I/O errors should be propagated
             }
-            return null;
-        } else {
-            // avoid use of lambda here
-            PrivilegedAction<Class<?>> pa = new PrivilegedAction<>() {
-                public Class<?> run() {
-                    Resource res = ucp.getResource(path, false);
-                    if (res != null) {
-                        try {
-                            return defineClass(cn, res);
-                        } catch (IOException ioe) {
-                            // TBD on how I/O errors should be propagated
-                        }
-                    }
-                    return null;
-                }
-            };
-            return AccessController.doPrivileged(pa);
         }
+        return null;
     }
 
 	 /**																											//OpenJ9-shared_classes_misc
@@ -1316,16 +1217,6 @@ public class BuiltinClassLoader
         return "true".equalsIgnoreCase(sealed);
     }
 
-    // -- permissions
-
-    /**
-     * Returns the permissions for the given CodeSource.
-     */
-    @Override
-    protected PermissionCollection getPermissions(CodeSource cs) {
-        return new LazyCodeSourcePermissionCollection(super.getPermissions(cs), cs);
-    }
-
     // -- miscellaneous supporting methods
 
     /**
@@ -1390,17 +1281,12 @@ public class BuiltinClassLoader
         return false;
     }
 
-    /**
-     * Checks access to the given URL. We use URLClassPath for consistent
-     * checking with java.net.URLClassLoader.
-     */
-    private static URL checkURL(URL url) {
-        return URLClassPath.checkURL(url);
-    }
-
     // Called from VM only, during -Xshare:dump
     private void resetArchivedStates() {
         ucp = null;
         resourceCache = null;
+        if (!moduleToReader.isEmpty()) {
+            moduleToReader.clear();
+        }
     }
 }

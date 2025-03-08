@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@ VALID_JVM_VARIANTS="server client minimal core zero custom"
 # Valhalla temporarily disabled
 VALHALLA_TEMP=false
 
-###############################################################################
+################################################################################
 # Check if the specified JVM variant should be built. To be used in shell if
 # constructs, like this:
 # if HOTSPOT_CHECK_JVM_VARIANT(server); then
@@ -41,7 +41,7 @@ VALHALLA_TEMP=false
 AC_DEFUN([HOTSPOT_CHECK_JVM_VARIANT],
 [ [ [[ " $JVM_VARIANTS " =~ " $1 " ]] ] ])
 
-###############################################################################
+################################################################################
 # Check which variants of the JVM that we want to build. Available variants are:
 #   server: normal interpreter, and a tiered C1/C2 compiler
 #   client: normal interpreter, and C1 (no C2 compiler)
@@ -105,7 +105,7 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_VARIANTS],
   AC_SUBST(JVM_VARIANT_MAIN)
 ])
 
-###############################################################################
+################################################################################
 # Misc hotspot setup that does not fit elsewhere.
 #
 AC_DEFUN_ONCE([HOTSPOT_SETUP_MISC],

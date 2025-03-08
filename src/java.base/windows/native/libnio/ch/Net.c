@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,12 @@
  * questions.
  */
 
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2025, 2025 All Rights Reserved
+ * ===========================================================================
+ */
+
 #include <windows.h>
 #include <winsock2.h>
 
@@ -36,6 +42,8 @@
 
 #include "sun_nio_ch_Net.h"
 #include "sun_nio_ch_PollArrayWrapper.h"
+
+#include "ut_jcl_nio.h"
 
 /**
  * Definitions to allow for building with older SDK include files.
@@ -75,12 +83,6 @@ static void setConnectionReset(SOCKET s, BOOL enable) {
     DWORD bytesReturned = 0;
     WSAIoctl(s, SIO_UDP_CONNRESET, &enable, sizeof(enable),
              NULL, 0, &bytesReturned, NULL, NULL);
-}
-
-jint handleSocketError(JNIEnv *env, int errorValue)
-{
-    NET_ThrowNew(env, errorValue, NULL);
-    return IOS_THROWN;
 }
 
 static jclass isa_class;        /* java.net.InetSocketAddress */
@@ -126,7 +128,7 @@ Java_sun_nio_ch_Net_isExclusiveBindAvailable(JNIEnv *env, jclass clazz) {
 JNIEXPORT jboolean JNICALL
 Java_sun_nio_ch_Net_shouldSetBothIPv4AndIPv6Options0(JNIEnv* env, jclass cl)
 {
-    /* Set both IPv4 and IPv6 socket options when setting multicast options */
+    /* Set both IPv4 and IPv6 socket options when setting IPPROTO_IPV6 options */
     return JNI_TRUE;
 }
 
@@ -162,7 +164,7 @@ Java_sun_nio_ch_Net_socket0(JNIEnv *env, jclass cl, jboolean preferIPv6,
     if (s != INVALID_SOCKET) {
         SetHandleInformation((HANDLE)s, HANDLE_FLAG_INHERIT, 0);
 
-        /* IPV6_V6ONLY is true by default */
+        /* Attempt to disable IPV6_V6ONLY to ensure dual-socket support; ignore errors */
         if (domain == AF_INET6) {
             int opt = 0;
             setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
@@ -243,6 +245,14 @@ Java_sun_nio_ch_Net_connect0(JNIEnv *env, jclass clazz, jboolean preferIPv6, job
      */
     if (so_rv == 0 && type == SOCK_STREAM && IS_LOOPBACK_ADDRESS(&sa)) {
         NET_EnableFastTcpLoopbackConnect((jint)s);
+    }
+
+    if (AF_INET == sa.sa4.sin_family) {
+        char buf[INET_ADDRSTRLEN];
+        Trc_nio_ch_Net_connect4((jlong)s, inet_ntop(AF_INET, &sa.sa4.sin_addr, buf, sizeof(buf)), port, sa_len);
+    } else if (AF_INET6 == sa.sa6.sin6_family) {
+        char buf[INET6_ADDRSTRLEN];
+        Trc_nio_ch_Net_connect6((jlong)s, inet_ntop(AF_INET6, &sa.sa6.sin6_addr, buf, sizeof(buf)), port, ntohl(sa.sa6.sin6_scope_id), sa_len);
     }
 
     rv = connect(s, &sa.sa, sa_len);
@@ -392,7 +402,7 @@ Java_sun_nio_ch_Net_getIntOption0(JNIEnv *env, jclass clazz, jobject fdo,
         n = getsockopt(fdval(env, fdo), level, opt, arg, &arglen);
     }
     if (n == SOCKET_ERROR) {
-        handleSocketError(env, WSAGetLastError());
+        NET_ThrowNew(env, WSAGetLastError(), "getsockopt");
         return IOS_THROWN;
     }
 
@@ -436,7 +446,7 @@ Java_sun_nio_ch_Net_setIntOption0(JNIEnv *env, jclass clazz, jobject fdo,
         n = setsockopt(fdval(env, fdo), level, opt, parg, arglen);
     }
     if (n == SOCKET_ERROR)
-        handleSocketError(env, WSAGetLastError());
+        NET_ThrowNew(env, WSAGetLastError(), "setsocketopt");
 }
 
 JNIEXPORT jint JNICALL
@@ -467,7 +477,7 @@ Java_sun_nio_ch_Net_joinOrDrop4(JNIEnv *env, jobject this, jboolean join, jobjec
     if (n == SOCKET_ERROR) {
         if (join && (WSAGetLastError() == WSAENOPROTOOPT))
             return IOS_UNAVAILABLE;
-        handleSocketError(env, WSAGetLastError());
+        NET_ThrowNew(env, WSAGetLastError(), "setsocketopt");
     }
     return 0;
 }
@@ -489,7 +499,7 @@ Java_sun_nio_ch_Net_blockOrUnblock4(JNIEnv *env, jobject this, jboolean block, j
     if (n == SOCKET_ERROR) {
         if (block && (WSAGetLastError() == WSAENOPROTOOPT))
             return IOS_UNAVAILABLE;
-        handleSocketError(env, WSAGetLastError());
+        NET_ThrowNew(env, WSAGetLastError(), "setsockopt");
     }
     return 0;
 }
@@ -542,7 +552,7 @@ Java_sun_nio_ch_Net_joinOrDrop6(JNIEnv *env, jobject this, jboolean join, jobjec
     }
 
     if (n == SOCKET_ERROR) {
-        handleSocketError(env, WSAGetLastError());
+        NET_ThrowNew(env, WSAGetLastError(), "setsockopt");
     }
     return 0;
 }
@@ -554,7 +564,7 @@ Java_sun_nio_ch_Net_blockOrUnblock6(JNIEnv *env, jobject this, jboolean block, j
     int opt = (block) ? MCAST_BLOCK_SOURCE : MCAST_UNBLOCK_SOURCE;
     int n = setGroupSourceReqOption(env, fdo, opt, group, index, source);
     if (n == SOCKET_ERROR) {
-        handleSocketError(env, WSAGetLastError());
+        NET_ThrowNew(env, WSAGetLastError(), "setsocketopt to block or unblock source");
     }
     return 0;
 }
@@ -571,7 +581,7 @@ Java_sun_nio_ch_Net_setInterface4(JNIEnv* env, jobject this, jobject fdo, jint i
     n = setsockopt(fdval(env, fdo), IPPROTO_IP, IP_MULTICAST_IF,
                    (void*)&(in.s_addr), arglen);
     if (n == SOCKET_ERROR) {
-        handleSocketError(env, WSAGetLastError());
+        NET_ThrowNew(env, WSAGetLastError(), "setsockopt");
     }
 }
 
@@ -584,7 +594,7 @@ Java_sun_nio_ch_Net_getInterface4(JNIEnv* env, jobject this, jobject fdo)
 
     n = getsockopt(fdval(env, fdo), IPPROTO_IP, IP_MULTICAST_IF, (void*)&in, &arglen);
     if (n == SOCKET_ERROR) {
-        handleSocketError(env, WSAGetLastError());
+        NET_ThrowNew(env, WSAGetLastError(), "getsockopt");
         return IOS_THROWN;
     }
     return ntohl(in.s_addr);
@@ -600,7 +610,7 @@ Java_sun_nio_ch_Net_setInterface6(JNIEnv* env, jobject this, jobject fdo, jint i
     n = setsockopt(fdval(env, fdo), IPPROTO_IPV6, IPV6_MULTICAST_IF,
                    (void*)&(index), arglen);
     if (n == SOCKET_ERROR) {
-        handleSocketError(env, WSAGetLastError());
+        NET_ThrowNew(env, WSAGetLastError(), "setsockopt");
     }
 }
 
@@ -613,7 +623,7 @@ Java_sun_nio_ch_Net_getInterface6(JNIEnv* env, jobject this, jobject fdo)
 
     n = getsockopt(fdval(env, fdo), IPPROTO_IPV6, IPV6_MULTICAST_IF, (void*)&index, &arglen);
     if (n == SOCKET_ERROR) {
-        handleSocketError(env, WSAGetLastError());
+        NET_ThrowNew(env, WSAGetLastError(), "getsockopt");
         return -1;
     }
     return (jint)index;
@@ -631,12 +641,12 @@ Java_sun_nio_ch_Net_shutdown(JNIEnv *env, jclass cl, jobject fdo, jint jhow) {
 JNIEXPORT jint JNICALL
 Java_sun_nio_ch_Net_available(JNIEnv *env, jclass cl, jobject fdo)
 {
-    int count = 0;
-    if (NET_SocketAvailable(fdval(env, fdo), &count) != 0) {
-        handleSocketError(env, WSAGetLastError());
+    u_long arg;
+    if (ioctlsocket((SOCKET) fdval(env, fdo), FIONREAD, &arg) == SOCKET_ERROR) {
+        NET_ThrowNew(env, WSAGetLastError(), "ioctlsocket");
         return IOS_THROWN;
     }
-    return (jint) count;
+    return (jint) arg;
 }
 
 JNIEXPORT jint JNICALL
@@ -667,7 +677,7 @@ Java_sun_nio_ch_Net_poll(JNIEnv* env, jclass this, jobject fdo, jint events, jlo
 
     /* save last winsock error */
     if (rv == SOCKET_ERROR) {
-        handleSocketError(env, WSAGetLastError());
+        NET_ThrowNew(env, WSAGetLastError(), "select");
         return IOS_THROWN;
     } else if (rv >= 0) {
         rv = 0;
@@ -707,7 +717,7 @@ Java_sun_nio_ch_Net_pollConnect(JNIEnv* env, jclass this, jobject fdo, jlong tim
     result = select(fd+1, 0, &wr, &ex, (timeout >= 0) ? &t : NULL);
 
     if (result == SOCKET_ERROR) {
-        handleSocketError(env, WSAGetLastError());
+        NET_ThrowNew(env, WSAGetLastError(), "select");
         return JNI_FALSE;
     } else if (result == 0) {
         return JNI_FALSE;
@@ -727,7 +737,7 @@ Java_sun_nio_ch_Net_pollConnect(JNIEnv* env, jclass this, jobject fdo, jlong tim
                 NET_ThrowNew(env, lastError, "getsockopt");
             }
         } else if (optError != NO_ERROR) {
-            handleSocketError(env, optError);
+            NET_ThrowNew(env, optError, "getsockopt");
         }
         return JNI_FALSE;
     }

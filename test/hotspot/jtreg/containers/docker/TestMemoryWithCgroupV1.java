@@ -77,6 +77,7 @@ public class TestMemoryWithCgroupV1 {
         Common.logNewTestCase("Test print_container_info()");
 
         DockerRunOptions opts = Common.newOpts(imageName, "PrintContainerInfo").addJavaOpts("-XshowSettings:system");
+        opts.addDockerOpts("--cpus", "4"); // Avoid OOM kill on many-core systems
         opts.addDockerOpts("--memory", dockerMemLimit, "--memory-swappiness", "0", "--memory-swap", dockerSwapMemLimit);
         Common.addWhiteBoxOpts(opts);
 
@@ -85,8 +86,8 @@ public class TestMemoryWithCgroupV1 {
         // capabilities or the cgroup is not mounted. Memory limited without swap."
         // we only have 'Memory and Swap Limit is: -2' in the output
         try {
-            if (out.getOutput().contains("memory_and_swap_limit_in_bytes: not supported")) {
-                System.out.println("memory_and_swap_limit_in_bytes not supported, avoiding Memory and Swap Limit check");
+            if (out.getOutput().contains("Memory and Swap Limit is: -2")) {
+                System.out.println("System doesn't seem to allow swap, avoiding Memory and Swap Limit check");
             } else {
                 out.shouldContain("Memory and Swap Limit is: " + expectedReadLimit)
                     .shouldContain(
@@ -104,6 +105,7 @@ public class TestMemoryWithCgroupV1 {
             String swappiness, String expectedSwap) throws Exception {
         Common.logNewTestCase("Check OperatingSystemMXBean");
         DockerRunOptions opts = Common.newOpts(imageName, "CheckOperatingSystemMXBean")
+                .addDockerOpts("--cpus", "4") // Avoid OOM kill on many-core systems
                 .addDockerOpts(
                         "--memory", memoryAllocation,
                         "--memory-swappiness", swappiness,

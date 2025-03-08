@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 2022, 2022 All Rights Reserved
+ * (c) Copyright IBM Corp. 2022, 2024 All Rights Reserved
  * ===========================================================================
  */
 
@@ -33,12 +33,11 @@ package jdk.internal.loader;
 
 import jdk.internal.misc.VM;
 import jdk.internal.ref.CleanerFactory;
+import jdk.internal.util.OperatingSystem;
 import jdk.internal.util.StaticProperty;
 
 import java.io.File;
 import java.io.IOException;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.function.BiFunction;
@@ -61,13 +60,21 @@ import java.util.concurrent.locks.ReentrantLock;
  * will fail.
  */
 public final class NativeLibraries {
-    private static final boolean loadLibraryOnlyIfPresent = ClassLoaderHelper.loadLibraryOnlyIfPresent();
+    private static boolean loadLibraryOnlyIfPresent;
     private final Map<String, NativeLibraryImpl> libraries = new ConcurrentHashMap<>();
     private final ClassLoader loader;
     // caller, if non-null, is the fromClass parameter for NativeLibraries::loadLibrary
     // unless specified
     private final Class<?> caller;      // may be null
     private final boolean searchJavaLibraryPath;
+
+    // The loadLibraryOnlyIfPresent is lazily initialized to avoid OpenJ9 bootstrap issue.
+    // This lazy initialization is only required by macOS.
+    private static boolean loadLibraryOnlyIfPresentInitialized;
+    private static void initLoadLibraryOnlyIfPresent() {
+        loadLibraryOnlyIfPresent = ClassLoaderHelper.loadLibraryOnlyIfPresent();
+        loadLibraryOnlyIfPresentInitialized = true;
+    }
 
     /**
      * Creates a NativeLibraries instance for loading JNI native libraries
@@ -121,25 +128,20 @@ public final class NativeLibraries {
      * @param file the path of the native library
      * @throws UnsatisfiedLinkError if any error in loading the native library
      */
-    @SuppressWarnings("removal")
     public NativeLibrary loadLibrary(Class<?> fromClass, File file) {
         // Check to see if we're attempting to access a static library
         String name = findBuiltinLib(file.getName());
         boolean isBuiltin = (name != null);
         if (!isBuiltin) {
-            name = AccessController.doPrivileged(new PrivilegedAction<>() {
-                    public String run() {
-                        try {
-                            if (loadLibraryOnlyIfPresent && !file.exists()) {
-                                return null;
-                            }
-                            return file.getCanonicalPath();
-                        } catch (IOException e) {
-                            return null;
-                        }
-                    }
-                });
-            if (name == null) {
+            try {
+                if (!loadLibraryOnlyIfPresentInitialized) {
+                    initLoadLibraryOnlyIfPresent();
+                }
+                if (loadLibraryOnlyIfPresent && !file.exists()) {
+                    return null;
+                }
+                name = file.getCanonicalPath();
+            } catch (IOException e) {
                 return null;
             }
         }
@@ -338,18 +340,16 @@ public final class NativeLibraries {
             return load(this, name, isBuiltin, throwExceptionIfFail());
         }
 
-        @SuppressWarnings("removal")
         private boolean throwExceptionIfFail() {
+            if (!loadLibraryOnlyIfPresentInitialized) {
+                initLoadLibraryOnlyIfPresent();
+            }
             if (loadLibraryOnlyIfPresent) return true;
 
             // If the file exists but fails to load, UnsatisfiedLinkException thrown by the VM
             // will include the error message from dlopen to provide diagnostic information
-            return AccessController.doPrivileged(new PrivilegedAction<>() {
-                public Boolean run() {
-                    File file = new File(name);
-                    return file.exists();
-                }
-            });
+            File file = new File(name);
+            return file.exists();
         }
 
         /*
@@ -369,11 +369,10 @@ public final class NativeLibraries {
 
         @Override
         public long find(String name) {
-            boolean isAixOS = System.getProperty("os.name").toLowerCase().contains("aix");
-            if (isAixOS) {
+            if (OperatingSystem.isAix() || OperatingSystem.isZOS()) {
                 return NativeLibraries.findEntryInProcess(name);
             } else {
-                throw new UnsupportedOperationException("Cannot find on non-AIX platforms");
+                throw new UnsupportedOperationException("Cannot find on non-AIX/zOS platforms");
             }
         }
 

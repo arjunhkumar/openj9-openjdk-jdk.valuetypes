@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,7 +44,6 @@ public class Resources_zh_CN extends java.util.ListResourceBundle {
         {"provider.class.not.found", "\u672A\u627E\u5230\u63D0\u4F9B\u65B9 \"%s\""},
         {"jarsigner.error.", "jarsigner \u9519\u8BEF: "},
         {"Illegal.option.", "\u975E\u6CD5\u9009\u9879: "},
-        {"This.option.is.forremoval", "\u8BE5\u9009\u9879\u5DF2\u8FC7\u65F6\uFF0C\u5728\u5C06\u6765\u7684\u53D1\u884C\u7248\u4E2D\u5C06\u88AB\u5220\u9664\uFF1A"},
         {".keystore.must.be.NONE.if.storetype.is.{0}",
                 "\u5982\u679C -storetype \u4E3A {0}, \u5219 -keystore \u5FC5\u987B\u4E3A NONE"},
         {".keypass.can.not.be.specified.if.storetype.is.{0}",
@@ -97,10 +96,6 @@ public class Resources_zh_CN extends java.util.ListResourceBundle {
                 "[-tsapolicyid <oid>]        \u65F6\u95F4\u6233\u9881\u53D1\u673A\u6784\u7684 TSAPolicyID"},
         {".tsadigestalg.algorithm.of.digest.data.in.timestamping.request",
                 "[-tsadigestalg <\u7B97\u6CD5>]      \u65F6\u95F4\u6233\u8BF7\u6C42\u4E2D\u7684\u6458\u8981\u6570\u636E\u7684\u7B97\u6CD5"},
-        {".altsigner.class.class.name.of.an.alternative.signing.mechanism",
-                "[-altsigner <class>]        \u66FF\u4EE3\u7B7E\u540D\u673A\u5236\u7684\u7C7B\u540D\n                            \uFF08\u8BE5\u9009\u9879\u5DF2\u8FC7\u65F6\uFF0C\u5728\u5C06\u6765\u7684\u53D1\u884C\u7248\u4E2D\u5C06\u88AB\u5220\u9664\u3002\uFF09"},
-        {".altsignerpath.pathlist.location.of.an.alternative.signing.mechanism",
-                "[-altsignerpath <pathlist>] \u66FF\u4EE3\u7B7E\u540D\u673A\u5236\u7684\u4F4D\u7F6E\n                            \uFF08\u8BE5\u9009\u9879\u5DF2\u8FC7\u65F6\uFF0C\u5728\u5C06\u6765\u7684\u53D1\u884C\u7248\u4E2D\u5C06\u88AB\u5220\u9664\u3002\uFF09"},
         {".internalsf.include.the.SF.file.inside.the.signature.block",
                 "[-internalsf]               \u5728\u7B7E\u540D\u5757\u5185\u5305\u542B .SF \u6587\u4EF6"},
         {".sectionsonly.don.t.compute.hash.of.entire.manifest",
@@ -169,6 +164,7 @@ public class Resources_zh_CN extends java.util.ListResourceBundle {
 
         {"history.with.ts", "- \u7531 \"%1$s\" \u7B7E\u540D\n    \u6458\u8981\u7B97\u6CD5: %2$s\n    \u7B7E\u540D\u7B97\u6CD5: %3$s, %4$s\n  \u7531 \"%6$s\" \u4E8E %5$tc \u52A0\u65F6\u95F4\u6233\n    \u65F6\u95F4\u6233\u6458\u8981\u7B97\u6CD5: %7$s\n    \u65F6\u95F4\u6233\u7B7E\u540D\u7B97\u6CD5: %8$s, %9$s"},
         {"history.without.ts", "- \u7531 \"%1$s\" \u7B7E\u540D\n    \u6458\u8981\u7B97\u6CD5: %2$s\n    \u7B7E\u540D\u7B97\u6CD5: %3$s, %4$s"},
+        {"history.nonexistent.entries", "\u8B66\u544A\uFF1A\u4E0D\u5B58\u5728\u7684\u7B7E\u540D\u6761\u76EE\uFF1A "},
         {"history.unparsable", "- \u65E0\u6CD5\u89E3\u6790\u7684\u4E0E\u7B7E\u540D\u76F8\u5173\u7684\u6587\u4EF6 %s"},
         {"history.nosf", "- \u7F3A\u5C11\u4E0E\u7B7E\u540D\u76F8\u5173\u7684\u6587\u4EF6 META-INF/%s.SF"},
         {"history.nobk", "- \u4E0E\u7B7E\u540D\u76F8\u5173\u7684\u6587\u4EF6 META-INF/%s.SF \u7F3A\u5C11\u5757\u6587\u4EF6"},
@@ -177,13 +173,11 @@ public class Resources_zh_CN extends java.util.ListResourceBundle {
         {"with.algparams.weak", "%1$s \u4F7F\u7528 %2$s\uFF08\u5F31\uFF09"},
         {"with.disabled", "%s\uFF08\u7981\u7528\uFF09"},
         {"with.algparams.disabled", "%1$s \u4F7F\u7528 %2$s\uFF08\u7981\u7528\uFF09"},
-        {"key.bit", "%d \u4F4D\u5BC6\u94A5"},
-        {"key.bit.weak", "%d \u4F4D\u5BC6\u94A5 (\u5F31)"},
-        {"key.bit.eccurve.weak", "%1$d \u4F4D %2$s \u5BC6\u94A5 (\u5F31)"},
-        {"key.bit.disabled", "%d \u4F4D\u5BC6\u94A5\uFF08\u7981\u7528\uFF09"},
-        {"key.bit.eccurve.disabled", "%1$d \u4F4D %2$s \u5BC6\u94A5\uFF08\u7981\u7528\uFF09"},
-        {"unknown.size", "\u672A\u77E5\u5927\u5C0F"},
-        {"extra.attributes.detected", "\u68C0\u6D4B\u5230 POSIX \u6587\u4EF6\u6743\u9650\u548C/\u6216 symlink \u5C5E\u6027\u3002\u8FD9\u4E9B\u5C5E\u6027\u5728\u8FDB\u884C\u7B7E\u540D\u65F6\u4F1A\u88AB\u5FFD\u7565\uFF0C\u4E0D\u53D7\u8BE5\u7B7E\u540D\u7684\u4FDD\u62A4\u3002"},
+        {"key.bit", "%s \u5BC6\u94A5"},
+        {"key.bit.weak", "%s \u5BC6\u94A5\uFF08\u5F31\uFF09"},
+        {"key.bit.disabled", "%s \u5BC6\u94A5\uFF08\u5DF2\u7981\u7528\uFF09"},
+        {"nonexistent.entries.found", "\u6B64 jar \u7684\u6587\u4EF6\u5305\u542B\u4E0D\u5B58\u5728\u7684\u7B7E\u540D\u6761\u76EE\u3002\u6709\u5173\u66F4\u591A\u8BE6\u7EC6\u4FE1\u606F\uFF0C\u8BF7\u53C2\u89C1 -verbose \u8F93\u51FA\u3002"},
+        {"external.file.attributes.detected", "\u68C0\u6D4B\u5230 POSIX \u6587\u4EF6\u6743\u9650\u548C/\u6216 symlink \u5C5E\u6027\u3002\u8FD9\u4E9B\u5C5E\u6027\u5728\u8FDB\u884C\u7B7E\u540D\u65F6\u4F1A\u88AB\u5FFD\u7565\uFF0C\u4E0D\u53D7\u8BE5\u7B7E\u540D\u7684\u4FDD\u62A4\u3002"},
 
         {"jarsigner.", "jarsigner: "},
         {"signature.filename.must.consist.of.the.following.characters.A.Z.0.9.or.",
@@ -236,8 +230,6 @@ public class Resources_zh_CN extends java.util.ListResourceBundle {
         {"or", "\u6216"},
         {"Certificate.not.found.for.alias.alias.must.reference.a.valid.KeyStore.entry.containing.an.X.509.public.key.certificate.for.the",
                 "\u627E\u4E0D\u5230{0}\u7684\u8BC1\u4E66\u3002{1}\u5FC5\u987B\u5F15\u7528\u5305\u542B\u65F6\u95F4\u6233\u9881\u53D1\u673A\u6784\u7684 X.509 \u516C\u5171\u5BC6\u94A5\u8BC1\u4E66\u7684\u6709\u6548\u5BC6\u94A5\u5E93\u6761\u76EE\u3002"},
-        {"using.an.alternative.signing.mechanism",
-                "\u6B63\u5728\u4F7F\u7528\u66FF\u4EE3\u7684\u7B7E\u540D\u673A\u5236"},
         {"entry.was.signed.on", "\u6761\u76EE\u7684\u7B7E\u540D\u65E5\u671F\u4E3A {0}"},
         {"Warning.", "\u8B66\u544A: "},
         {"Error.", "\u9519\u8BEF: "},
@@ -300,10 +292,12 @@ public class Resources_zh_CN extends java.util.ListResourceBundle {
                 "%1$s \u6458\u8981\u7B97\u6CD5\u88AB\u89C6\u4E3A\u5B58\u5728\u5B89\u5168\u98CE\u9669\u3002\u6B64\u7B97\u6CD5\u5C06\u5728\u672A\u6765\u7684\u66F4\u65B0\u4E2D\u88AB\u7981\u7528\u3002"},
         {"The.signature.algorithm.1.is.considered.a.security.risk..This.algorithm.will.be.disabled.in.a.future.update.",
                 "%1$s \u7B7E\u540D\u7B97\u6CD5\u88AB\u89C6\u4E3A\u5B58\u5728\u5B89\u5168\u98CE\u9669\u3002\u6B64\u7B97\u6CD5\u5C06\u5728\u672A\u6765\u7684\u66F4\u65B0\u4E2D\u88AB\u7981\u7528\u3002"},
-        {"The.1.signing.key.has.a.keysize.of.2.which.is.considered.a.security.risk..This.key.size.will.be.disabled.in.a.future.update.",
-                "%1$s \u7B7E\u540D\u5BC6\u94A5\u7684\u5BC6\u94A5\u5927\u5C0F %2$d \u88AB\u89C6\u4E3A\u5B58\u5728\u5B89\u5168\u98CE\u9669\u3002\u6B64\u5BC6\u94A5\u5927\u5C0F\u5C06\u5728\u672A\u6765\u7684\u66F4\u65B0\u4E2D\u88AB\u7981\u7528\u3002"},
-        {"The.1.signing.key.has.a.keysize.of.2.which.is.considered.a.security.risk.and.is.disabled.",
-                "%1$s \u7B7E\u540D\u5BC6\u94A5\u7684\u5BC6\u94A5\u5927\u5C0F %2$d \u88AB\u89C6\u4E3A\u5B58\u5728\u5B89\u5168\u98CE\u9669\u800C\u4E14\u88AB\u7981\u7528\u3002"},
+        {"size.bit.alg",
+                "%1$d \u4F4D %2$s"},
+        {"The.full.keyAlgName.signing.key.is.considered.a.security.risk..It.will.be.disabled.in.a.future.update.",
+                "%s \u7B7E\u540D\u5BC6\u94A5\u88AB\u89C6\u4E3A\u5B89\u5168\u98CE\u9669\u3002\u5728\u5C06\u6765\u7684\u66F4\u65B0\u4E2D\u5C06\u7981\u7528\u5B83\u3002"},
+        {"The.full.keyAlgName.signing.key.is.considered.a.security.risk.and.is.disabled.",
+                "%s \u7B7E\u540D\u5BC6\u94A5\u88AB\u89C6\u4E3A\u5B89\u5168\u98CE\u9669\u5E76\u88AB\u7981\u7528\u3002"},
         {"This.jar.contains.entries.whose.certificate.chain.is.invalid.reason.1",
                  "\u6B64 jar \u5305\u542B\u5176\u8BC1\u4E66\u94FE\u65E0\u6548\u7684\u6761\u76EE\u3002\u539F\u56E0: %s"},
         {"This.jar.contains.entries.whose.tsa.certificate.chain.is.invalid.reason.1",

@@ -24,8 +24,7 @@
 /**
  * @test
  * @summary Test that virtual threads are GC'ed
- * @enablePreview
- * @run junit Collectable
+ * @run junit/othervm -Xjit:enableAggressiveLiveness Collectable
  */
 
 import java.lang.ref.WeakReference;

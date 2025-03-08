@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,6 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.print.*;
 import java.net.URI;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.print.*;
@@ -44,7 +42,9 @@ import javax.print.attribute.standard.Media;
 import javax.print.attribute.standard.MediaPrintableArea;
 import javax.print.attribute.standard.MediaSize;
 import javax.print.attribute.standard.MediaSizeName;
+import javax.print.attribute.standard.OutputBin;
 import javax.print.attribute.standard.PageRanges;
+import javax.print.attribute.standard.Sides;
 import javax.print.attribute.Attribute;
 
 import sun.java2d.*;
@@ -68,6 +68,10 @@ public final class CPrinterJob extends RasterPrinterJob {
     private static Font defaultFont;
 
     private String tray = null;
+
+    private String outputBin = null;
+
+    private Throwable printerAbortExcpn;
 
     // This is the NSPrintInfo for this PrinterJob. Protect multi thread
     //  access to it. It is used by the pageDialog, jobDialog, and printLoop.
@@ -119,7 +123,7 @@ public final class CPrinterJob extends RasterPrinterJob {
             return super.printDialog(attributes);
         }
 
-        return jobSetup(getPageable(), checkAllowedToPrintToFile());
+        return jobSetup(getPageable());
     }
 
     /**
@@ -190,6 +194,8 @@ public final class CPrinterJob extends RasterPrinterJob {
             tray = customTray.getChoiceName();
         }
 
+        outputBin = getOutputBinValue(attributes.get(OutputBin.class));
+
         PageRanges pageRangesAttr =  (PageRanges)attributes.get(PageRanges.class);
         if (isSupportedValue(pageRangesAttr, attributes)) {
             SunPageSelection rangeSelect = (SunPageSelection)attributes.get(SunPageSelection.class);
@@ -241,7 +247,7 @@ public final class CPrinterJob extends RasterPrinterJob {
         }
     }
 
-    private void completePrintLoop() {
+    private void completePrintLoop(Throwable excpn)  {
         Runnable r = new Runnable() { public void run() {
             synchronized(this) {
                 performingPrinting = false;
@@ -250,6 +256,10 @@ public final class CPrinterJob extends RasterPrinterJob {
                 printingLoop.exit();
             }
         }};
+
+        if (excpn != null && excpn.toString().contains("PrinterAbortException")) {
+            printerAbortExcpn = excpn;
+        }
 
         if (onEventThread) {
             try { EventQueue.invokeAndWait(r); } catch (Exception e) { e.printStackTrace(); }
@@ -278,7 +288,6 @@ public final class CPrinterJob extends RasterPrinterJob {
         return destinationAttr;
     }
 
-    @SuppressWarnings("removal")
     @Override
     public void print(PrintRequestAttributeSet attributes) throws PrinterException {
         // NOTE: Some of this code is copied from RasterPrinterJob.
@@ -338,14 +347,7 @@ public final class CPrinterJob extends RasterPrinterJob {
 
                     onEventThread = true;
 
-                    printingLoop = AccessController.doPrivileged(new PrivilegedAction<SecondaryLoop>() {
-                        @Override
-                        public SecondaryLoop run() {
-                            return Toolkit.getDefaultToolkit()
-                                    .getSystemEventQueue()
-                                    .createSecondaryLoop();
-                        }
-                    });
+                    printingLoop =  Toolkit.getDefaultToolkit().getSystemEventQueue().createSecondaryLoop();
 
                     try {
                         // Fire off the print rendering loop on the AppKit thread, and don't have
@@ -367,6 +369,9 @@ public final class CPrinterJob extends RasterPrinterJob {
                         printLoop(true, firstPage, lastPage);
                     } catch (Exception e) {
                         e.printStackTrace();
+                    }
+                    if (printerAbortExcpn != null) {
+                        throw (PrinterAbortException) printerAbortExcpn;
                     }
                 }
                 if (++loopi < prMembers.length) {
@@ -575,8 +580,8 @@ public final class CPrinterJob extends RasterPrinterJob {
      * dialog.
      * If the dialog is to use a set of attributes, useAttributes is true.
      */
-    private boolean jobSetup(Pageable doc, boolean allowPrintToFile) {
-        CPrinterDialog printerDialog = new CPrinterJobDialog(null, this, doc, allowPrintToFile);
+    private boolean jobSetup(Pageable doc) {
+        CPrinterDialog printerDialog = new CPrinterJobDialog(null, this, doc);
         printerDialog.setVisible(true);
         boolean result = printerDialog.getRetVal();
         printerDialog.dispose();
@@ -631,7 +636,8 @@ public final class CPrinterJob extends RasterPrinterJob {
         } catch (Exception e) {
             return null;
         }
-        return page;
+
+        return FlipPageFormat.flipPage(page);
     }
 
     private Printable getPrintable(int pageIndex) {
@@ -654,6 +660,41 @@ public final class CPrinterJob extends RasterPrinterJob {
 
     private String getPrinterTray() {
         return tray;
+    }
+
+    private String getOutputBin() {
+        return outputBin;
+    }
+
+    private void setOutputBin(String outputBinName) {
+
+        OutputBin outputBin = toOutputBin(outputBinName);
+        if (outputBin != null) {
+            attributes.add(outputBin);
+        }
+    }
+
+    private OutputBin toOutputBin(String outputBinName) {
+
+        PrintService ps = getPrintService();
+        if (ps == null) {
+            return null;
+        }
+
+        OutputBin[] supportedBins = (OutputBin[]) ps.getSupportedAttributeValues(OutputBin.class, null, null);
+        if (supportedBins == null || supportedBins.length == 0) {
+            return null;
+        }
+
+        for (OutputBin bin : supportedBins) {
+            if (bin instanceof CustomOutputBin customBin){
+                if (customBin.getChoiceName().equals(outputBinName)) {
+                    return customBin;
+                }
+            }
+        }
+
+        return null;
     }
 
     private void setPrinterServiceFromNative(String printerName) {
@@ -683,6 +724,24 @@ public final class CPrinterJob extends RasterPrinterJob {
         return pageFormatArea;
     }
 
+    private int getSides() {
+        return (this.sidesAttr == null) ? -1 : this.sidesAttr.getValue();
+    }
+
+    private void setSides(int sides) {
+        if (attributes == null) {
+            return;
+        }
+
+        final Sides[] sidesTable = new Sides[] {Sides.ONE_SIDED, Sides.TWO_SIDED_LONG_EDGE, Sides.TWO_SIDED_SHORT_EDGE};
+
+        if (sides >= 0 && sides < sidesTable.length) {
+            Sides s = sidesTable[sides];
+            attributes.add(s);
+            this.sidesAttr = s;
+        }
+    }
+
     private boolean cancelCheck() {
         // This is called from the native side.
 
@@ -691,15 +750,13 @@ public final class CPrinterJob extends RasterPrinterJob {
         // but that will block the AppKit thread against whomever is holding the synchronized lock
         boolean cancelled = (performingPrinting && userCancelled);
         if (cancelled) {
-            try {
-                LWCToolkit.invokeLater(new Runnable() { public void run() {
-                    try {
+            EventQueue.invokeLater(() -> {
+                try {
                     cancelDoc();
-                    } catch (PrinterAbortException pae) {
-                        // no-op, let the native side handle it
-                    }
-                }}, null);
-            } catch (java.lang.reflect.InvocationTargetException ite) {}
+                } catch (PrinterAbortException pae) {
+                    // no-op, let the native side handle it
+                }
+            });
         }
         return cancelled;
     }
@@ -731,7 +788,7 @@ public final class CPrinterJob extends RasterPrinterJob {
                 Graphics2D pathGraphics = new CPrinterGraphics(delegate, printerJob); // Just stores delegate into an ivar
                 Rectangle2D pageFormatArea = getPageFormatArea(page);
                 initPrinterGraphics(pathGraphics, pageFormatArea);
-                painter.print(pathGraphics, page, pageIndex);
+                painter.print(pathGraphics, FlipPageFormat.getOriginal(page), pageIndex);
                 delegate.dispose();
                 delegate = null;
         } catch (PrinterException pe) { throw new java.lang.reflect.UndeclaredThrowableException(pe); }
@@ -758,7 +815,7 @@ public final class CPrinterJob extends RasterPrinterJob {
         Runnable r = new Runnable() { public void run() { synchronized(ret) {
             try {
                 Pageable pageable = getPageable();
-                PageFormat pageFormat = pageable.getPageFormat(pageIndex);
+                PageFormat pageFormat = getPageFormat(pageIndex);
                 if (pageFormat != null) {
                     Printable printable = pageable.getPrintable(pageIndex);
                     if (printable != null) {
@@ -803,6 +860,10 @@ public final class CPrinterJob extends RasterPrinterJob {
             public void run() {
                 synchronized (ret) {
                     try {
+                        Paper paper = pageFormat.getPaper();
+                        double width = Math.rint(paper.getWidth());
+                        double height = Math.rint(paper.getHeight());
+                        setGraphicsConfigInfo(((Graphics2D)graphics).getTransform(), width, height);
                         int pageResult = printable.print(
                             graphics, pageFormat, pageIndex);
                         if (pageResult != Printable.NO_SUCH_PAGE) {
@@ -870,5 +931,76 @@ public final class CPrinterJob extends RasterPrinterJob {
                 (float) (paper.getImageableWidth() / dpi),
                 (float) (paper.getImageableHeight() / dpi),
                 MediaPrintableArea.INCH);
+    }
+
+    // MacOS NSPrintInfo class has one to one correspondence
+    // between a paper size and its orientation.
+    // NSPrintInfo with paper width less than height
+    // has portrait orientation.
+    // NSPrintInfo with paper width greater than height
+    // has landscape orientation.
+    // (w < h) <-> portrait
+    // (w > h) <-> landscape
+    //
+    // Java PageFormat class has the following relation with NSPrintInfo:
+    // 1. PageFormat:
+    //      page size: width < height
+    //      orientation: portrait
+    //    NSPrintInfo: width < height (portrait orientation)
+    // 2. PageFormat:
+    //      page size: width < height
+    //      orientation: landscape
+    //    NSPrintInfo: width > height (landscape orientation)
+    //
+    // FlipPageFormat class establishes correspondence between
+    // Java PageFormat class which page width is greater than height
+    // with NSPrintInfo in the following way:
+    // 3. PageFormat:
+    //      page size: width > height
+    //      orientation: portrait
+    //    FlipPageFormat
+    //      page size: width < height
+    //      orientation: landscape
+    //    NSPrintInfo: width > height (landscape orientation)
+    // 4. PageFormat:
+    //      page size: width > height
+    //      orientation: landscape
+    //    FlipPageFormat
+    //      page size: width < height
+    //      orientation: portrait
+    //    NSPrintInfo: width < height (portrait orientation)
+    //
+    // FlipPageFormat preserves the original PageFormat class
+    // to pass it to Printable.print(Graphics, PageFormat, int)
+    // method overridden by a user.
+    private static class FlipPageFormat extends PageFormat {
+
+        private final PageFormat original;
+
+        private FlipPageFormat(PageFormat original) {
+            this.original = original;
+            Paper paper = original.getPaper();
+            Paper copyPaper = this.getPaper();
+            copyPaper.setSize(paper.getHeight(), paper.getWidth());
+            copyPaper.setImageableArea(
+                    paper.getImageableY(), paper.getImageableX(),
+                    paper.getImageableHeight(), paper.getImageableWidth());
+            this.setPaper(copyPaper);
+            this.setOrientation((original.getOrientation() == PageFormat.PORTRAIT)
+                    ? PageFormat.LANDSCAPE
+                    : PageFormat.PORTRAIT);
+        }
+
+        private static PageFormat getOriginal(PageFormat page) {
+            return (page instanceof FlipPageFormat) ? ((FlipPageFormat) page).original : page;
+        }
+
+        private static PageFormat flipPage(PageFormat page) {
+            if (page == null) {
+                return null;
+            }
+            Paper paper = page.getPaper();
+            return (paper.getWidth() > paper.getHeight()) ? new FlipPageFormat(page) : page;
+        }
     }
 }

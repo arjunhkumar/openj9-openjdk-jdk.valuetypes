@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,16 @@
  * questions.
  */
 
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2023, 2024 All Rights Reserved
+ * ===========================================================================
+ */
+
 package java.lang.invoke;
+
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.SegmentAllocator;
 
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.foreign.abi.NativeEntryPoint;
@@ -34,23 +43,29 @@ import static java.lang.invoke.MethodHandleNatives.Constants.REF_invokeStatic;
 import static java.lang.invoke.MethodHandleStatics.newInternalError;
 
 /**
- * This class models a method handle to a native function. A native method handle is made up of a {@link NativeEntryPoint},
+ * This class models a method handle to a native function. A native method handle is made up of a bound {@link MethodHandle},
  * which is used to capture the characteristics of the native call (such as calling convention to be used,
  * or whether a native transition is required) and a <em>fallback</em> method handle, which can be used
  * when intrinsification of this method handle is not possible.
  */
 /*non-public*/ final class NativeMethodHandle extends MethodHandle {
-    final NativeEntryPoint nep;
+    /* The native entry point is literally the bound MethodHandle implemented in OpenJ9. */
+    final MethodHandle nep;
 
-    private NativeMethodHandle(MethodType type, LambdaForm form, NativeEntryPoint nep) {
+    /* The cache array for the bound MethodHandle stores MemberName and appendix which are populated
+     * by MethodHandleResolver.ffiCallLinkCallerMethod().
+     */
+    private Object[] invokeCache;
+
+    private NativeMethodHandle(MethodType type, LambdaForm form, MethodHandle nep) {
         super(type, form);
         this.nep = nep;
     }
 
     /**
-     * Creates a new native method handle with given {@link NativeEntryPoint} and <em>fallback</em> method handle.
+     * Creates a new native method handle with given {@link MethodHandle} and <em>fallback</em> method handle.
      */
-    public static MethodHandle make(NativeEntryPoint nep) {
+    public static MethodHandle make(MethodHandle nep) {
         MethodType type = nep.type();
         if (hasIllegalType(type))
             throw new IllegalArgumentException("Illegal type(s) found: " + type);
@@ -65,6 +80,10 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
             return true;
 
         for (Class<?> pType : type.ptypes()) {
+            /* Specifically allow these parameter types for OpenJ9 for the moment. */
+            if (pType == MemorySegment.class || pType == SegmentAllocator.class) {
+                continue;
+            }
             if (isIllegalType(pType))
                 return true;
         }
@@ -77,7 +96,8 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
               || pType == int.class
               || pType == float.class
               || pType == double.class
-              || pType == void.class);
+              || pType == void.class
+              || pType == Object.class);
     }
 
     private static final MemberName.Factory IMPL_NAMES = MemberName.getFactory();
@@ -92,8 +112,12 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
     }
 
     private static LambdaForm makePreparedLambdaForm(MethodType mtype) {
+        /* The NativeMethodHandle object must be appended to the end of the argument
+         * list to ensure the invoke cache of the bound MH is correctly fetched
+         * from linkToNative in the interpreter.
+         */
         MethodType linkerType = mtype
-                .appendParameterTypes(Object.class); // NEP
+                .appendParameterTypes(Object.class); // the NativeMethodHandle object
         MemberName linker = new MemberName(MethodHandle.class, "linkToNative", linkerType, REF_invokeStatic);
         try {
             linker = IMPL_NAMES.resolveOrFail(REF_invokeStatic, linker, null, LM_TRUSTED, NoSuchMethodException.class);
@@ -107,7 +131,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
         final int GET_NEP = nameCursor++;
         final int LINKER_CALL = nameCursor++;
 
-        LambdaForm.Name[] names = arguments(nameCursor - ARG_LIMIT, mtype.invokerType());
+        LambdaForm.Name[] names = invokeArguments(nameCursor - ARG_LIMIT, mtype);
         assert (names.length == nameCursor);
 
         names[GET_NEP] = new LambdaForm.Name(Lazy.NF_internalNativeEntryPoint, names[NMH_THIS]);
@@ -136,8 +160,11 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
     }
 
     @ForceInline
-    static Object internalNativeEntryPoint(Object mh) {
-        return ((NativeMethodHandle)mh).nep;
+    static Object internalNativeEntryPoint(Object nativeMH) {
+        /* Return the nativeMH object as the argument passed over
+         * to linkToNative in the LambdaForm-generated bytecode.
+         */
+        return nativeMH;
     }
 
     /**

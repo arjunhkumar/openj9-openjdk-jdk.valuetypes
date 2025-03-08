@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 1997, 2022 All Rights Reserved
+ * (c) Copyright IBM Corp. 1997, 2025 All Rights Reserved
  * ===========================================================================
  */
 
@@ -45,13 +45,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.net.URLStreamHandlerFactory;
-import java.security.AccessControlContext;
-import java.security.AccessControlException;
-import java.security.AccessController;
 import java.security.CodeSigner;
-import java.security.Permission;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
 import java.security.cert.Certificate;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -59,15 +53,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Properties;
-import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.jar.JarFile;
 import java.util.zip.CRC32;
-import java.util.zip.ZipEntry;
 import java.util.jar.JarEntry;
 import java.util.jar.Manifest;
 import java.util.jar.Attributes;
@@ -78,13 +69,9 @@ import jdk.internal.access.JavaNetURLAccess;
 import jdk.internal.access.JavaUtilZipFileAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.VM;                                    //OpenJ9-shared_classes_misc
-import jdk.internal.util.jar.InvalidJarIndexError;
-import jdk.internal.util.jar.JarIndex;
 import sun.net.util.URLUtil;
 import sun.net.www.ParseUtil;
 import com.ibm.sharedclasses.spi.SharedClassProvider;           //OpenJ9-shared_classes_misc
-
-import sun.security.action.GetPropertyAction;
 
 /**
  * This class is used to maintain a search path of URLs for loading classes
@@ -96,21 +83,18 @@ public class URLClassPath {
     private static final String USER_AGENT_JAVA_VERSION = "UA-Java-Version";
     private static final String JAVA_VERSION;
     private static final boolean DEBUG;
-    private static final boolean DISABLE_JAR_CHECKING;
-    private static final boolean DISABLE_ACC_CHECKING;
+    private static final boolean JAR_CHECKING_ENABLED;
     private static final boolean DISABLE_CP_URL_CHECK;
     private static final boolean DEBUG_CP_URL_CHECK;
-    private static final boolean ENABLE_JAR_INDEX;
 
     static {
-        Properties props = GetPropertyAction.privilegedGetProperties();
+        Properties props = System.getProperties();
         JAVA_VERSION = props.getProperty("java.version");
         DEBUG = (props.getProperty("sun.misc.URLClassPath.debug") != null);
         String p = props.getProperty("sun.misc.URLClassPath.disableJarChecking");
-        DISABLE_JAR_CHECKING = p != null ? p.equals("true") || p.isEmpty() : false;
-
-        p = props.getProperty("jdk.net.URLClassPath.disableRestrictedPermissions");
-        DISABLE_ACC_CHECKING = p != null ? p.equals("true") || p.isEmpty() : false;
+        // JAR check is disabled by default and will be enabled only if the "disable JAR check"
+        // system property has been set to "false".
+        JAR_CHECKING_ENABLED = "false".equals(p);
 
         // This property will be removed in a later release
         p = props.getProperty("jdk.net.URLClassPath.disableClassPathURLCheck");
@@ -120,9 +104,6 @@ public class URLClassPath {
         // the check is not disabled).
         p = props.getProperty("jdk.net.URLClassPath.showIgnoredClassPathEntries");
         DEBUG_CP_URL_CHECK = p != null ? p.equals("true") || p.isEmpty() : false;
-
-        p = props.getProperty("jdk.net.URLClassPath.enableJarIndex");
-        ENABLE_JAR_INDEX = p != null ? p.equals("true") || p.isEmpty() : false;
     }
 
     /* The original search path of URLs. */
@@ -140,29 +121,23 @@ public class URLClassPath {
     /* The jar protocol handler to use when creating new URLs */
     private final URLStreamHandler jarHandler;
 
-   /* Fields for shared classes support starts*/                                //OpenJ9-shared_classes_misc
+    /* Fields for shared classes support starts. */                             //OpenJ9-shared_classes_misc
     /* Shared classes helper. Must be kept up to date with any search path      //OpenJ9-shared_classes_misc
      * changes.                                                                 //OpenJ9-shared_classes_misc
      */                                                                         //OpenJ9-shared_classes_misc
-    private SharedClassProvider sharedClassServiceProvider = null;              //OpenJ9-shared_classes_misc
+    private SharedClassProvider sharedClassServiceProvider;                     //OpenJ9-shared_classes_misc
                                                                                 //OpenJ9-shared_classes_misc
-    /* URLs corresponding to the search path of loaders */                      //OpenJ9-shared_classes_misc
-    private ArrayList loaderURLs = null;                                        //OpenJ9-shared_classes_misc
+    /* URLs corresponding to the search path of loaders. */                     //OpenJ9-shared_classes_misc
+    private ArrayList<URL> loaderURLs;                                          //OpenJ9-shared_classes_misc
                                                                                 //OpenJ9-shared_classes_misc
     /* The number of entries, starting at the 0th element, into the search path //OpenJ9-shared_classes_misc
      * that have been updated with the shared classes helper.                   //OpenJ9-shared_classes_misc
      */                                                                         //OpenJ9-shared_classes_misc
     private int updatedSearchPathCount = -1;                                    //OpenJ9-shared_classes_misc
-    /* Fields for shared classes support ends*/                                 //OpenJ9-shared_classes_misc
+    /* Fields for shared classes support ends. */                               //OpenJ9-shared_classes_misc
 
     /* Whether this URLClassLoader has been closed yet */
     private boolean closed = false;
-
-    /* The context to be used when loading classes and resources.  If non-null
-     * this is the context that was captured during the creation of the
-     * URLClassLoader. null implies no additional security restrictions. */
-    @SuppressWarnings("removal")
-    private final AccessControlContext acc;
 
     /**
      * Creates a new URLClassPath for the given URLs. The URLs will be
@@ -173,12 +148,9 @@ public class URLClassPath {
      * @param urls the directory and JAR file URLs to search for classes
      *        and resources
      * @param factory the URLStreamHandlerFactory to use when creating new URLs
-     * @param acc the context to be used when loading classes and resources, may
-     *            be null
      */
     public URLClassPath(URL[] urls,
-                        URLStreamHandlerFactory factory,
-                        @SuppressWarnings("removal") AccessControlContext acc) {
+                        URLStreamHandlerFactory factory) {
         ArrayList<URL> path = new ArrayList<>(urls.length);
         ArrayDeque<URL> unopenedUrls = new ArrayDeque<>(urls.length);
         for (URL url : urls) {
@@ -193,40 +165,36 @@ public class URLClassPath {
         } else {
             jarHandler = null;
         }
-        if (DISABLE_ACC_CHECKING)
-            this.acc = null;
-        else
-            this.acc = acc;
     }
-    /* Methods for shared classes support starts*/                              //OpenJ9-shared_classes_misc
-    /* Shared classes version of URLClassPath(URL[], URLStreamHandlerFactory)   //OpenJ9-shared_classes_misc
+
+    /* Methods for shared classes support starts. */                            //OpenJ9-shared_classes_misc
+    /* Shared classes version of URLClassPath(URL[], URLStreamHandlerFactory).  //OpenJ9-shared_classes_misc
      */                                                                         //OpenJ9-shared_classes_misc
     public URLClassPath(URL[] urls, URLStreamHandlerFactory factory,            //OpenJ9-shared_classes_misc
-                        AccessControlContext acc, SharedClassProvider helper) {                 //OpenJ9-shared_classes_misc
-        /* Call URLClassPath(URL[], URLStreamHandlerFactory, AccessControlContext) constructor */     //OpenJ9-shared_classes_misc
-        this(urls, factory, acc);                                                    //OpenJ9-shared_classes_misc
+                        SharedClassProvider helper) {                           //OpenJ9-shared_classes_misc
+        this(urls, factory);                                                    //OpenJ9-shared_classes_misc
         /* Set shared classes helper */                                         //OpenJ9-shared_classes_misc
-        sharedClassServiceProvider = helper;                                 //OpenJ9-shared_classes_misc
+        sharedClassServiceProvider = helper;                                    //OpenJ9-shared_classes_misc
         if (usingSharedClasses()) {                                             //OpenJ9-shared_classes_misc
             /* create list to hold search path URLs */                          //OpenJ9-shared_classes_misc
-            loaderURLs = new ArrayList(urls.length);                            //OpenJ9-shared_classes_misc
+            loaderURLs = new ArrayList<>(urls.length);                          //OpenJ9-shared_classes_misc
         }                                                                       //OpenJ9-shared_classes_misc
     }                                                                           //OpenJ9-shared_classes_misc
-    
-    /* Method to set SharedClassProvider and loaderURLs */                      //OpenJ9-shared_classes_misc
-    public synchronized void setSharedClassProvider(SharedClassProvider helper) {            //OpenJ9-shared_classes_misc
+                                                                                //OpenJ9-shared_classes_misc
+    /* Method to set SharedClassProvider and loaderURLs. */                     //OpenJ9-shared_classes_misc
+    public synchronized void setSharedClassProvider(SharedClassProvider helper) { //OpenJ9-shared_classes_misc
         if (null == sharedClassServiceProvider) {                               //OpenJ9-shared_classes_misc
             sharedClassServiceProvider = helper;                                //OpenJ9-shared_classes_misc
         }                                                                       //OpenJ9-shared_classes_misc
         if (usingSharedClasses() && null == loaderURLs) {                       //OpenJ9-shared_classes_misc
-            loaderURLs = new ArrayList(path.size());                            //OpenJ9-shared_classes_misc
+            loaderURLs = new ArrayList<>(path.size());                          //OpenJ9-shared_classes_misc
         }                                                                       //OpenJ9-shared_classes_misc
     }                                                                           //OpenJ9-shared_classes_misc
                                                                                 //OpenJ9-shared_classes_misc
     /* Return true if shared classes support is active, otherwise false.        //OpenJ9-shared_classes_misc
      */                                                                         //OpenJ9-shared_classes_misc
     private boolean usingSharedClasses() {                                      //OpenJ9-shared_classes_misc
-        return (sharedClassServiceProvider != null);                         //OpenJ9-shared_classes_misc
+        return (sharedClassServiceProvider != null);                            //OpenJ9-shared_classes_misc
     }                                                                           //OpenJ9-shared_classes_misc
                                                                                 //OpenJ9-shared_classes_misc
     /* When using shared classes the shared classes helper's classpath must     //OpenJ9-shared_classes_misc
@@ -255,30 +223,29 @@ public class URLClassPath {
          */                                                                     //OpenJ9-shared_classes_misc
         int searchPathSize = loaderURLs.size();                                 //OpenJ9-shared_classes_misc
         if (updatedSearchPathCount < searchPathSize) {                          //OpenJ9-shared_classes_misc
-            URL[] newSearchPath = new URL[searchPathSize];                      //OpenJ9-shared_classes_misc
-            newSearchPath = (URL[])loaderURLs.toArray(newSearchPath);           //OpenJ9-shared_classes_misc
-                                                                          //OpenJ9-shared_classes_misc
-                /* update shared classes helper with the extended search path */ //OpenJ9-shared_classes_misc
-            if (sharedClassServiceProvider.setURLClasspath(newSearchPath)) {     //OpenJ9-shared_classes_misc
-                updatedSearchPathCount = searchPathSize;         /*ibm@96437*/ /* ibm@96499 */ //OpenJ9-shared_classes_misc
-			} else {
-				throw new IllegalStateException(                                //OpenJ9-shared_classes_misc
-                            "Unable to set shared class path");
-			}
+            URL[] newSearchPath = loaderURLs.toArray(new URL[searchPathSize]);  //OpenJ9-shared_classes_misc
+                                                                                //OpenJ9-shared_classes_misc
+            /* update shared classes helper with the extended search path */    //OpenJ9-shared_classes_misc
+            if (sharedClassServiceProvider.setURLClasspath(newSearchPath)) {    //OpenJ9-shared_classes_misc
+                updatedSearchPathCount = searchPathSize; /*ibm@96437*/ /* ibm@96499*/ //OpenJ9-shared_classes_misc
+            } else {                                                            //OpenJ9-shared_classes_misc
+                throw new IllegalStateException(                                //OpenJ9-shared_classes_misc
+                            "Unable to set shared class path");                 //OpenJ9-shared_classes_misc
+            }                                                                   //OpenJ9-shared_classes_misc
                                                                                 //OpenJ9-shared_classes_misc
         }                                                                       //OpenJ9-shared_classes_misc
                                                                                 //OpenJ9-shared_classes_misc
         if (index >= searchPathSize) {                                          //OpenJ9-shared_classes_misc
-            /* Unable to extend the search path to contain supplied index */    //OpenJ9-shared_classes_misc
+            /* Unable to extend the search path to contain supplied index. */   //OpenJ9-shared_classes_misc
             throw new IllegalStateException(                                    //OpenJ9-shared_classes_misc
                         "Unable to extend shared class path to index " + index); //OpenJ9-shared_classes_misc
         }                                                                       //OpenJ9-shared_classes_misc
                                                                                 //OpenJ9-shared_classes_misc
     }                                                                           //OpenJ9-shared_classes_misc
-    /* Methods for shared classes support ends*/                                //OpenJ9-shared_classes_misc
+    /* Methods for shared classes support ends. */                              //OpenJ9-shared_classes_misc
 
-    public URLClassPath(URL[] urls, @SuppressWarnings("removal") AccessControlContext acc) {
-        this(urls, null, acc);
+    public URLClassPath(URL[] urls) {
+        this(urls, null);
     }
 
     /**
@@ -317,8 +284,9 @@ public class URLClassPath {
 
         this.unopenedUrls = unopenedUrls;
         this.path = path;
-        this.jarHandler = null;
-        this.acc = null;
+        // the application class loader uses the built-in protocol handler to avoid protocol
+        // handler lookup when opening JAR files on the class path.
+        this.jarHandler = new sun.net.www.protocol.jar.Handler();
     }
 
     public synchronized List<IOException> closeLoaders() {
@@ -388,45 +356,18 @@ public class URLClassPath {
 
     /**
      * Finds the resource with the specified name on the URL search path
-     * or null if not found or security check fails.
+     * or null if not found.
      *
      * @param name      the name of the resource
-     * @param check     whether to perform a security check
      * @return a {@code URL} for the resource, or {@code null}
      * if the resource could not be found.
      */
-    public URL findResource(String name, boolean check) {
+    public URL findResource(String name) {
         Loader loader;
         for (int i = 0; (loader = getLoader(i)) != null; i++) {
-            URL url = loader.findResource(name, check);
+            URL url = loader.findResource(name);
             if (url != null) {
                 return url;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Finds the first Resource on the URL search path which has the specified
-     * name. Returns null if no Resource could be found.
-     *
-     * @param name the name of the Resource
-     * @param check     whether to perform a security check
-     * @return the Resource, or null if not found
-     */
-    public Resource getResource(String name, boolean check, ClassLoader classloader) { //OpenJ9-shared_classes_misc
-        if (DEBUG) {
-            System.err.println("URLClassPath.getResource(\"" + name + "\")");
-        }
-
-        Loader loader;
-        for (int i = 0; (loader = getLoader(i)) != null; i++) {
-            Resource res = loader.getResource(name, check);
-            if (res != null) {
-               res.setClasspathLoadIndex(i); /* Store the classpath index that this resource came from */ //OpenJ9-shared_classes_misc
-               /* Update the search path with shared Classes Helper, this is only if we are using Shared classes */ //OpenJ9-shared_classes_misc
-               updateClasspathWithSharedClassesHelper(i);                       //OpenJ9-shared_classes_misc
-                return res;
             }
         }
         return null;
@@ -439,8 +380,7 @@ public class URLClassPath {
      * @param name the resource name
      * @return an Enumeration of all the urls having the specified name
      */
-    public Enumeration<URL> findResources(final String name,
-                                     final boolean check) {
+    public Enumeration<URL> findResources(final String name) {
         return new Enumeration<>() {
             private int index = 0;
             private URL url = null;
@@ -451,7 +391,7 @@ public class URLClassPath {
                 } else {
                     Loader loader;
                     while ((loader = getLoader(index++)) != null) {
-                        url = loader.findResource(name, check);
+                        url = loader.findResource(name);
                         if (url != null) {
                             return true;
                         }
@@ -475,11 +415,29 @@ public class URLClassPath {
         };
     }
 
-    public Resource getResource(String name, boolean check) {                    //OpenJ9-shared_classes_misc
-        return getResource(name, check, null);                            //OpenJ9-shared_classes_misc
-    }                                                                           //OpenJ9-shared_classes_misc
+    /**
+     * Finds the first Resource on the URL search path which has the specified
+     * name. Returns null if no Resource could be found.
+     *
+     * @param name the name of the Resource
+     * @return the Resource, or null if not found
+     */
     public Resource getResource(String name) {
-        return getResource(name, true, null);                            //OpenJ9-shared_classes_misc
+        if (DEBUG) {
+            System.err.println("URLClassPath.getResource(\"" + name + "\")");
+        }
+
+        Loader loader;
+        for (int i = 0; (loader = getLoader(i)) != null; i++) {
+            Resource res = loader.getResource(name);
+            if (res != null) {
+                res.setClasspathLoadIndex(i); /* Store the classpath index that this resource came from. */ //OpenJ9-shared_classes_misc
+                /* Update the search path with shared Classes Helper, this is only if we are using shared classes. */ //OpenJ9-shared_classes_misc
+                updateClasspathWithSharedClassesHelper(i);                      //OpenJ9-shared_classes_misc
+                return res;
+            }
+        }
+        return null;
     }
 
     /**
@@ -489,8 +447,7 @@ public class URLClassPath {
      * @param name the resource name
      * @return an Enumeration of all the resources having the specified name
      */
-    public Enumeration<Resource> getResources(final String name,
-                                    final boolean check) {
+    public Enumeration<Resource> getResources(final String name) {
         return new Enumeration<>() {
             private int index = 0;
             private Resource res = null;
@@ -501,7 +458,7 @@ public class URLClassPath {
                 } else {
                     Loader loader;
                     while ((loader = getLoader(index++)) != null) {
-                        res = loader.getResource(name, check);
+                        res = loader.getResource(name);
                         if (res != null) {
                             return true;
                         }
@@ -525,10 +482,6 @@ public class URLClassPath {
         };
     }
 
-    public Enumeration<Resource> getResources(final String name) {
-        return getResources(name, true);
-    }
-
     /*
      * Returns the Loader at the specified position in the URL search
      * path. The URLs are opened and expanded as needed. Returns null
@@ -547,34 +500,32 @@ public class URLClassPath {
                 if (url == null)
                     return null;
             }
-            // Skip this URL if it already has a Loader. (Loader
-            // may be null in the case where URL has not been opened
-            // but is referenced by a JAR index.)
+            // Skip this URL if it already has a Loader.
             String urlNoFragString = URLUtil.urlNoFragString(url);
             if (lmap.containsKey(urlNoFragString)) {
                 continue;
             }
             // Otherwise, create a new Loader for the URL.
-            Loader loader;
+            Loader loader = null;
+            final URL[] loaderClassPathURLs;
             try {
                 loader = getLoader(url);
                 // If the loader defines a local class path then add the
                 // URLs as the next URLs to be opened.
-                URL[] urls = loader.getClassPath();
-                if (urls != null) {
-                    push(urls);
-                }
+                loaderClassPathURLs = loader.getClassPath();
             } catch (IOException e) {
-                // Silently ignore for now...
-                continue;
-            } catch (SecurityException se) {
-                // Always silently ignore. The context, if there is one, that
-                // this URLClassPath was given during construction will never
-                // have permission to access the URL.
+                // log the error and close the unusable loader (if any)
                 if (DEBUG) {
-                    System.err.println("Failed to access " + url + ", " + se );
+                    System.err.println("Failed to construct a loader or construct its" +
+                            " local classpath for " + url + ", cause:" + e);
+                }
+                if (loader != null) {
+                    closeQuietly(loader);
                 }
                 continue;
+            }
+            if (loaderClassPathURLs != null) {
+                push(loaderClassPathURLs);
             }
             // Finally, add the Loader to the search path.
             loaders.add(loader);
@@ -584,14 +535,13 @@ public class URLClassPath {
                 loaderURLs.add(url);                                                     //OpenJ9-shared_classes_misc
             } else {                                                                     //OpenJ9-shared_classes_misc
                 if (!VM.isModuleSystemInited()) {                                        //OpenJ9-shared_classes_misc
-                    /**                                                                  //OpenJ9-shared_classes_misc
-                     * usingSharedClasses() is false. If Module System is not            //OpenJ9-shared_classes_misc
+                    /* usingSharedClasses() is false. If the module system is not        //OpenJ9-shared_classes_misc
                      * initialized yet, it is likely that BuiltinClassLoader             //OpenJ9-shared_classes_misc
                      * hasn't called setSharedClassProvider(). We still need to          //OpenJ9-shared_classes_misc
                      * update loaderURLs in this case.                                   //OpenJ9-shared_classes_misc
                      */                                                                  //OpenJ9-shared_classes_misc
                     if (null == loaderURLs) {                                            //OpenJ9-shared_classes_misc
-                        loaderURLs = new ArrayList(path.size());                         //OpenJ9-shared_classes_misc
+                        loaderURLs = new ArrayList<>(path.size());                       //OpenJ9-shared_classes_misc
                     }                                                                    //OpenJ9-shared_classes_misc
                     loaderURLs.add(url);                                                 //OpenJ9-shared_classes_misc
                 }                                                                        //OpenJ9-shared_classes_misc
@@ -600,37 +550,38 @@ public class URLClassPath {
         return loaders.get(index);
     }
 
+    // closes the given loader and ignores any IOException that may occur during close
+    private static void closeQuietly(final Loader loader) {
+        try {
+            loader.close();
+        } catch (IOException ioe) {
+            if (DEBUG) {
+                System.err.println("ignoring exception " + ioe + " while closing loader " + loader);
+            }
+        }
+    }
+
     /*
      * Returns the Loader for the specified base URL.
      */
-    @SuppressWarnings("removal")
     private Loader getLoader(final URL url) throws IOException {
-        try {
-            return AccessController.doPrivileged(
-                    new PrivilegedExceptionAction<>() {
-                        public Loader run() throws IOException {
-                            String protocol = url.getProtocol();  // lower cased in URL
-                            String file = url.getFile();
-                            if (file != null && file.endsWith("/")) {
-                                if ("file".equals(protocol)) {
-                                    return new FileLoader(url);
-                                } else if ("jar".equals(protocol) &&
-                                        isDefaultJarHandler(url) &&
-                                        file.endsWith("!/")) {
-                                    // extract the nested URL
-                                    @SuppressWarnings("deprecation")
-                                    URL nestedUrl = new URL(file.substring(0, file.length() - 2));
-                                    return new JarLoader(nestedUrl, jarHandler, lmap, acc, usingSharedClasses());   //OpenJ9-shared_classes_misc
-                                } else {
-                                    return new Loader(url);
-                                }
-                            } else {
-                                return new JarLoader(url, jarHandler, lmap, acc, usingSharedClasses());   //OpenJ9-shared_classes_misc
-                            }
-                        }
-                    }, acc);
-        } catch (PrivilegedActionException pae) {
-            throw (IOException)pae.getException();
+        String protocol = url.getProtocol();  // lower cased in URL
+        String file = url.getFile();
+        if (file != null && file.endsWith("/")) {
+            if ("file".equals(protocol)) {
+                return new FileLoader(url);
+            } else if ("jar".equals(protocol) &&
+                    isDefaultJarHandler(url) &&
+                    file.endsWith("!/")) {
+                // extract the nested URL
+                @SuppressWarnings("deprecation")
+                URL nestedUrl = new URL(file.substring(0, file.length() - 2));
+                return new JarLoader(nestedUrl, jarHandler, usingSharedClasses()); //OpenJ9-shared_classes_misc
+            } else {
+                return new Loader(url);
+            }
+        } else {
+            return new JarLoader(url, jarHandler, usingSharedClasses()); //OpenJ9-shared_classes_misc
         }
     }
 
@@ -649,59 +600,6 @@ public class URLClassPath {
         synchronized (unopenedUrls) {
             for (int i = urls.length - 1; i >= 0; --i) {
                 unopenedUrls.addFirst(urls[i]);
-            }
-        }
-    }
-
-    /*
-     * Checks whether the resource URL should be returned.
-     * Returns null on security check failure.
-     * Called by java.net.URLClassLoader.
-     */
-    public static URL checkURL(URL url) {
-        if (url != null) {
-            try {
-                check(url);
-            } catch (Exception e) {
-                return null;
-            }
-        }
-        return url;
-    }
-
-    /*
-     * Checks whether the resource URL should be returned.
-     * Throws exception on failure.
-     * Called internally within this file.
-     */
-    public static void check(URL url) throws IOException {
-        @SuppressWarnings("removal")
-        SecurityManager security = System.getSecurityManager();
-        if (security != null) {
-            URLConnection urlConnection = url.openConnection();
-            Permission perm = urlConnection.getPermission();
-            if (perm != null) {
-                try {
-                    security.checkPermission(perm);
-                } catch (SecurityException se) {
-                    // fallback to checkRead/checkConnect for pre 1.2
-                    // security managers
-                    if ((perm instanceof java.io.FilePermission) &&
-                        perm.getActions().contains("read")) {
-                        security.checkRead(perm.getName());
-                    } else if ((perm instanceof
-                        java.net.SocketPermission) &&
-                        perm.getActions().contains("connect")) {
-                        URL locUrl = url;
-                        if (urlConnection instanceof JarURLConnection) {
-                            locUrl = ((JarURLConnection)urlConnection).getJarFileURL();
-                        }
-                        security.checkConnect(locUrl.getHost(),
-                                              locUrl.getPort());
-                    } else {
-                        throw se;
-                    }
-                }
             }
         }
     }
@@ -728,7 +626,7 @@ public class URLClassPath {
             return base;
         }
 
-        URL findResource(final String name, boolean check) {
+        URL findResource(final String name) {
             URL url;
             try {
                 @SuppressWarnings("deprecation")
@@ -738,10 +636,6 @@ public class URLClassPath {
             }
 
             try {
-                if (check) {
-                    URLClassPath.check(url);
-                }
-
                 /*
                  * For a HTTP connection we use the HEAD method to
                  * check if the resource exists.
@@ -765,7 +659,11 @@ public class URLClassPath {
             }
         }
 
-        Resource getResource(final String name, boolean check) {
+        /*
+         * Returns the Resource for the specified name, or null if not
+         * found.
+         */
+        Resource getResource(final String name) {
             final URL url;
             try {
                 @SuppressWarnings("deprecation")
@@ -775,9 +673,6 @@ public class URLClassPath {
             }
             final URLConnection uc;
             try {
-                if (check) {
-                    URLClassPath.check(url);
-                }
                 uc = url.openConnection();
 
                 if (uc instanceof JarURLConnection) {
@@ -806,15 +701,6 @@ public class URLClassPath {
         }
 
         /*
-         * Returns the Resource for the specified name, or null if not
-         * found or the caller does not have the permission to get the
-         * resource.
-         */
-        Resource getResource(final String name) {
-            return getResource(name, true);
-        }
-
-        /*
          * Closes this loader and release all resources.
          * Method overridden in sub-classes.
          */
@@ -839,12 +725,7 @@ public class URLClassPath {
     private static class JarLoader extends Loader {
         private JarFile jar;
         private final URL csu;
-        private JarIndex index;
-        private URLStreamHandler handler;
-        private final HashMap<String, Loader> lmap;
-        private boolean usingSharedClasses;                                     //OpenJ9-shared_classes_misc
-        @SuppressWarnings("removal")
-        private final AccessControlContext acc;
+        private final boolean usingSharedClasses;                               //OpenJ9-shared_classes_misc
         private boolean closed = false;
         private static final JavaUtilZipFileAccess zipAccess =
                 SharedSecrets.getJavaUtilZipFileAccess();
@@ -853,18 +734,12 @@ public class URLClassPath {
          * Creates a new JarLoader for the specified URL referring to
          * a JAR file.
          */
-        private JarLoader(URL url, URLStreamHandler jarHandler,
-                          HashMap<String, Loader> loaderMap,
-                          @SuppressWarnings("removal") AccessControlContext acc, boolean usingSharedClasses)   //OpenJ9-shared_classes_misc
+        private JarLoader(URL url, URLStreamHandler jarHandler, boolean usingSharedClasses) //OpenJ9-shared_classes_misc
             throws IOException
         {
             super(newURL("jar", "", -1, url + "!/", jarHandler));
             this.usingSharedClasses = usingSharedClasses;                       //OpenJ9-shared_classes_misc
             csu = url;
-            handler = jarHandler;
-            lmap = loaderMap;
-            this.acc = acc;
-
             ensureOpen();
         }
 
@@ -886,70 +761,26 @@ public class URLClassPath {
             }
         }
 
-        JarFile getJarFile () {
-            return jar;
-        }
-
         private boolean isOptimizable(URL url) {
             return "file".equals(url.getProtocol());
         }
 
-        @SuppressWarnings("removal")
         private void ensureOpen() throws IOException {
             if (jar == null) {
-                try {
-                    AccessController.doPrivileged(
-                        new PrivilegedExceptionAction<>() {
-                            public Void run() throws IOException {
-                                if (DEBUG) {
-                                    System.err.println("Opening " + csu);
-                                    Thread.dumpStack();
-                                }
-                                jar = getJarFile(csu);
-                                if (!ENABLE_JAR_INDEX) {
-                                    return null;
-                                }
-                                if (usingSharedClasses) {                       //OpenJ9-shared_classes_misc
-                                    /* do not use Jar indexing with shared classes */ //OpenJ9-shared_classes_misc
-                                    index = null;                                   //OpenJ9-shared_classes_misc
-                                } else {                                         //OpenJ9-shared_classes_misc
-                                    index = JarIndex.getJarIndex(jar); //OpenJ9-shared_classes_misc
-                                }                                                //OpenJ9-shared_classes_misc
-                                if (index != null) {
-                                    String[] jarfiles = index.getJarFiles();
-                                // Add all the dependent URLs to the lmap so that loaders
-                                // will not be created for them by URLClassPath.getLoader(int)
-                                // if the same URL occurs later on the main class path.  We set
-                                // Loader to null here to avoid creating a Loader for each
-                                // URL until we actually need to try to load something from them.
-                                    for (int i = 0; i < jarfiles.length; i++) {
-                                        try {
-                                            @SuppressWarnings("deprecation")
-                                            URL jarURL = new URL(csu, jarfiles[i]);
-                                            // If a non-null loader already exists, leave it alone.
-                                            String urlNoFragString = URLUtil.urlNoFragString(jarURL);
-                                            if (!lmap.containsKey(urlNoFragString)) {
-                                                lmap.put(urlNoFragString, null);
-                                            }
-                                        } catch (MalformedURLException e) {
-                                            continue;
-                                        }
-                                    }
-                                }
-                                return null;
-                            }
-                        }, acc);
-                } catch (PrivilegedActionException pae) {
-                    throw (IOException)pae.getException();
+                if (DEBUG) {
+                    System.err.println("Opening " + csu);
+                    Thread.dumpStack();
                 }
+                jar = getJarFile(csu);
             }
         }
 
-        /* Throws if the given jar file is does not start with the correct LOC */
-        @SuppressWarnings("removal")
+        /*
+         * Throws an IOException if the LOC file Header Signature (0x04034b50),
+         * is not found starting at byte 0 of the given jar.
+         */
         static JarFile checkJar(JarFile jar) throws IOException {
-            if (System.getSecurityManager() != null && !DISABLE_JAR_CHECKING
-                && !zipAccess.startsWithLocHeader(jar)) {
+            if (JAR_CHECKING_ENABLED && !zipAccess.startsWithLocHeader(jar)) {
                 IOException x = new IOException("Invalid Jar file");
                 try {
                     jar.close();
@@ -958,7 +789,6 @@ public class URLClassPath {
                 }
                 throw x;
             }
-
             return jar;
         }
 
@@ -980,23 +810,9 @@ public class URLClassPath {
         }
 
         /*
-         * Returns the index of this JarLoader if it exists.
+         * Creates and returns the Resource. Returns null if the Resource couldn't be created.
          */
-        JarIndex getIndex() {
-            try {
-                ensureOpen();
-            } catch (IOException e) {
-                throw new InternalError(e);
-            }
-            return index;
-        }
-
-        /*
-         * Creates the resource and if the check flag is set to true, checks if
-         * is its okay to return the resource.
-         */
-        Resource checkResource(final String name, boolean check,
-            final JarEntry entry) {
+        Resource createResource(final String name, final JarEntry entry) {
 
             final URL url;
             try {
@@ -1008,10 +824,7 @@ public class URLClassPath {
                 }
                 @SuppressWarnings("deprecation")
                 var _unused = url = new URL(getBaseURL(), ParseUtil.encodePath(nm, false));
-                if (check) {
-                    URLClassPath.check(url);
-                }
-            } catch (@SuppressWarnings("removal") AccessControlException | IOException e) {
+            } catch (IOException e) {
                 return null;
             }
 
@@ -1047,39 +860,12 @@ public class URLClassPath {
             };
         }
 
-
-        /*
-         * Returns true iff at least one resource in the jar file has the same
-         * package name as that of the specified resource name.
-         */
-        boolean validIndex(final String name) {
-            String packageName = name;
-            int pos;
-            if ((pos = name.lastIndexOf('/')) != -1) {
-                packageName = name.substring(0, pos);
-            }
-
-            String entryName;
-            ZipEntry entry;
-            Enumeration<JarEntry> enum_ = jar.entries();
-            while (enum_.hasMoreElements()) {
-                entry = enum_.nextElement();
-                entryName = entry.getName();
-                if ((pos = entryName.lastIndexOf('/')) != -1)
-                    entryName = entryName.substring(0, pos);
-                if (entryName.equals(packageName)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
         /*
          * Returns the URL for a resource with the specified name
          */
         @Override
-        URL findResource(final String name, boolean check) {
-            Resource rsc = getResource(name, check);
+        URL findResource(final String name) {
+            Resource rsc = getResource(name);
             if (rsc != null) {
                 return rsc.getURL();
             }
@@ -1090,148 +876,24 @@ public class URLClassPath {
          * Returns the JAR Resource for the specified name.
          */
         @Override
-        Resource getResource(final String name, boolean check) {
+        Resource getResource(final String name) {
             try {
                 ensureOpen();
             } catch (IOException e) {
                 throw new InternalError(e);
             }
             final JarEntry entry = jar.getJarEntry(name);
-            if (entry != null)
-                return checkResource(name, check, entry);
-
-            if (index == null)
-                return null;
-
-            HashSet<String> visited = new HashSet<>();
-            return getResource(name, check, visited);
-        }
-
-        /*
-         * Version of getResource() that tracks the jar files that have been
-         * visited by linking through the index files. This helper method uses
-         * a HashSet to store the URLs of jar files that have been searched and
-         * uses it to avoid going into an infinite loop, looking for a
-         * non-existent resource.
-         */
-        @SuppressWarnings("removal")
-        Resource getResource(final String name, boolean check,
-                             Set<String> visited) {
-            Resource res;
-            String[] jarFiles;
-            int count = 0;
-            List<String> jarFilesList;
-
-            /* If there no jar files in the index that can potential contain
-             * this resource then return immediately.
-             */
-            if ((jarFilesList = index.get(name)) == null)
-                return null;
-
-            do {
-                int size = jarFilesList.size();
-                jarFiles = jarFilesList.toArray(new String[size]);
-                /* loop through the mapped jar file list */
-                while (count < size) {
-                    String jarName = jarFiles[count++];
-                    JarLoader newLoader;
-                    final URL url;
-
-                    try{
-                        @SuppressWarnings("deprecation")
-                        var _unused = url = new URL(csu, jarName);
-                        String urlNoFragString = URLUtil.urlNoFragString(url);
-                        if ((newLoader = (JarLoader)lmap.get(urlNoFragString)) == null) {
-                            /* no loader has been set up for this jar file
-                             * before
-                             */
-                            newLoader = AccessController.doPrivileged(
-                                new PrivilegedExceptionAction<>() {
-                                    public JarLoader run() throws IOException {
-                                        return new JarLoader(url, handler,
-                                            lmap, acc, usingSharedClasses);   //OpenJ9-shared_classes_misc
-                                    }
-                                }, acc);
-
-                            /* this newly opened jar file has its own index,
-                             * merge it into the parent's index, taking into
-                             * account the relative path.
-                             */
-                            JarIndex newIndex = newLoader.getIndex();
-                            if (newIndex != null) {
-                                int pos = jarName.lastIndexOf('/');
-                                newIndex.merge(this.index, (pos == -1 ?
-                                    null : jarName.substring(0, pos + 1)));
-                            }
-
-                            /* put it in the global hashtable */
-                            lmap.put(urlNoFragString, newLoader);
-                        }
-                    } catch (PrivilegedActionException | MalformedURLException e) {
-                        continue;
-                    }
-
-                    /* Note that the addition of the url to the list of visited
-                     * jars incorporates a check for presence in the hashmap
-                     */
-                    boolean visitedURL = !visited.add(URLUtil.urlNoFragString(url));
-                    if (!visitedURL) {
-                        try {
-                            newLoader.ensureOpen();
-                        } catch (IOException e) {
-                            throw new InternalError(e);
-                        }
-                        final JarEntry entry = newLoader.jar.getJarEntry(name);
-                        if (entry != null) {
-                            return newLoader.checkResource(name, check, entry);
-                        }
-
-                        /* Verify that at least one other resource with the
-                         * same package name as the lookedup resource is
-                         * present in the new jar
-                         */
-                        if (!newLoader.validIndex(name)) {
-                            /* the mapping is wrong */
-                            throw new InvalidJarIndexError("Invalid index");
-                        }
-                    }
-
-                    /* If newLoader is the current loader or if it is a
-                     * loader that has already been searched or if the new
-                     * loader does not have an index then skip it
-                     * and move on to the next loader.
-                     */
-                    if (visitedURL || newLoader == this ||
-                            newLoader.getIndex() == null) {
-                        continue;
-                    }
-
-                    /* Process the index of the new loader
-                     */
-                    if ((res = newLoader.getResource(name, check, visited))
-                            != null) {
-                        return res;
-                    }
-                }
-                // Get the list of jar files again as the list could have grown
-                // due to merging of index files.
-                jarFilesList = index.get(name);
-
-            // If the count is unchanged, we are done.
-            } while (count < jarFilesList.size());
+            if (entry != null) {
+                return createResource(name, entry);
+            }
             return null;
         }
-
 
         /*
          * Returns the JAR file local class path, or null if none.
          */
         @Override
         URL[] getClassPath() throws IOException {
-            if (index != null) {
-                return null;
-            }
-
             ensureOpen();
 
             // Only get manifest when necessary
@@ -1364,7 +1026,11 @@ public class URLClassPath {
         private FileLoader(URL url) throws IOException {
             super(url);
             String path = url.getFile().replace('/', File.separatorChar);
-            path = ParseUtil.decode(path);
+            try {
+                path = ParseUtil.decode(path);
+            } catch (IllegalArgumentException iae) {
+                throw new IOException(iae);
+            }
             dir = (new File(path)).getCanonicalFile();
             @SuppressWarnings("deprecation")
             var _unused = normalizedBase = new URL(getBaseURL(), ".");
@@ -1374,8 +1040,8 @@ public class URLClassPath {
          * Returns the URL for a resource with the specified name
          */
         @Override
-        URL findResource(final String name, boolean check) {
-            Resource rsc = getResource(name, check);
+        URL findResource(final String name) {
+            Resource rsc = getResource(name);
             if (rsc != null) {
                 return rsc.getURL();
             }
@@ -1383,7 +1049,7 @@ public class URLClassPath {
         }
 
         @Override
-        Resource getResource(final String name, boolean check) {
+        Resource getResource(final String name) {
             final URL url;
             try {
                 @SuppressWarnings("deprecation")
@@ -1393,10 +1059,6 @@ public class URLClassPath {
                     // requested resource had ../..'s in path
                     return null;
                 }
-
-                if (check)
-                    URLClassPath.check(url);
-
                 final File file;
                 if (name.contains("..")) {
                     file = (new File(dir, name.replace('/', File.separatorChar)))
@@ -1427,4 +1089,3 @@ public class URLClassPath {
         }
     }
 }
-//OpenJ9-shared_classes_misc

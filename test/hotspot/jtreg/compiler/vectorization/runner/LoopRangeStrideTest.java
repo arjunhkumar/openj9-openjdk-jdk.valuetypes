@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, 2023, Arm Limited. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +36,8 @@
  *                   -XX:+WhiteBoxAPI
  *                   compiler.vectorization.runner.LoopRangeStrideTest
  *
- * @requires vm.compiler2.enabled & vm.flagless
+ * @requires (os.simpleArch == "x64") | (os.simpleArch == "aarch64")
+ * @requires vm.compiler2.enabled
  */
 
 package compiler.vectorization.runner;
@@ -110,7 +112,7 @@ public class LoopRangeStrideTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4_1", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true"},
         counts = {IRNode.STORE_VECTOR, ">0"})
     public int[] shortInductionLoop() {
         int[] res = new int[SIZE];
@@ -175,7 +177,7 @@ public class LoopRangeStrideTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4_1", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true"},
         counts = {IRNode.STORE_VECTOR, ">0"})
     public int[] countDownLoop() {
         int[] res = new int[SIZE];
@@ -196,7 +198,7 @@ public class LoopRangeStrideTest extends VectorizationTestRunner {
 
     // ---------- Stride with scale ----------
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4_1", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true"},
         counts = {IRNode.STORE_VECTOR, ">0"})
     public int[] countupLoopWithNegScale() {
         int[] res = new int[SIZE];
@@ -207,7 +209,7 @@ public class LoopRangeStrideTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4_1", "true"},
+    @IR(applyIfCPUFeatureOr = {"asimd", "true", "sse4.1", "true"},
         counts = {IRNode.STORE_VECTOR, ">0"})
     public int[] countDownLoopWithNegScale() {
         int[] res = new int[SIZE];

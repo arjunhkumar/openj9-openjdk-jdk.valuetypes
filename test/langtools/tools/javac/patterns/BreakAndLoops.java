@@ -25,6 +25,7 @@
  * @test
  * @bug 8234922
  * @summary Verify proper scope of binding related to loops and breaks.
+ * @enablePreview
  * @library /tools/lib /tools/javac/lib
  * @modules
  *      jdk.compiler/com.sun.tools.javac.api
@@ -104,6 +105,17 @@ public class BreakAndLoops extends ComboInstance<BreakAndLoops> {
                 shouldPass = true;
             } else if (innerLoop.supportsAnonymousBreak && brk == Break.BREAK) {
                 shouldPass = true;
+             } else if (outterLabel == OutterLabel.LABEL && brk == Break.BREAK_LABEL && outterLoop != OutterLoop.NONE) {
+                 shouldPass = switch(mainLoop) {
+                     case WHILE, FOR -> true;
+                     case DO_WHILE -> switch (innerLoop) {
+                         case WHILE, FOR, FOR_EACH -> true;
+                         //the statement following the do-while is unreachable:
+                         case BLOCK, DO_WHILE, NONE -> {
+                             yield false;
+                         }
+                     };
+                 };
             } else {
                 shouldPass = false;
             }

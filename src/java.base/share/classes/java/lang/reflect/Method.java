@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,15 @@
  * questions.
  */
 
+ /*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2023, 2023 All Rights Reserved
+ * ===========================================================================
+ */
+
 package java.lang.reflect;
 
 import jdk.internal.access.SharedSecrets;
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.VM;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.CallerSensitiveAdapter;
@@ -82,20 +87,20 @@ public final class Method extends Executable {
     private final int                 modifiers;
     // Generics and annotations support
     private final transient String    signature;
-    // generic info repository; lazily initialized
-    private transient MethodRepository genericInfo;
     private final byte[]              annotations;
     private final byte[]              parameterAnnotations;
     private final byte[]              annotationDefault;
-    @Stable
-    private MethodAccessor      methodAccessor;
-    // For sharing of MethodAccessors. This branching structure is
-    // currently only two levels deep (i.e., one root Method and
-    // potentially many Method objects pointing to it.)
-    //
-    // If this branching structure would ever contain cycles, deadlocks can
-    // occur in annotation code.
-    private Method              root;
+
+    /**
+     * Methods are mutable due to {@link AccessibleObject#setAccessible(boolean)}.
+     * Thus, we return a new copy of a root each time a method is returned.
+     * Some lazily initialized immutable states can be stored on root and shared to the copies.
+     */
+    private Method root;
+    private transient volatile MethodRepository genericInfo;
+    private @Stable MethodAccessor methodAccessor;
+    // End shared states
+    private int hash; // not shared right now, eligible if expensive
 
     // Generics infrastructure
     private String getGenericSignature() {return signature;}
@@ -109,13 +114,17 @@ public final class Method extends Executable {
     // Accessor for generic info repository
     @Override
     MethodRepository getGenericInfo() {
-        // lazily initialize repository if necessary
+        var genericInfo = this.genericInfo;
         if (genericInfo == null) {
-            // create and cache generic info repository
-            genericInfo = MethodRepository.make(getGenericSignature(),
-                                                getFactory());
+            var root = this.root;
+            if (root != null) {
+                genericInfo = root.getGenericInfo();
+            } else {
+                genericInfo = MethodRepository.make(getGenericSignature(), getFactory());
+            }
+            this.genericInfo = genericInfo;
         }
-        return genericInfo; //return cached repository
+        return genericInfo;
     }
 
     /**
@@ -132,7 +141,6 @@ public final class Method extends Executable {
            byte[] annotations,
            byte[] parameterAnnotations,
            byte[] annotationDefault) {
-        assert PrimitiveClass.isPrimaryType(declaringClass);
         this.clazz = declaringClass;
         this.name = name;
         this.parameterTypes = parameterTypes;
@@ -152,13 +160,6 @@ public final class Method extends Executable {
      * "root" field points to this Method.
      */
     Method copy() {
-        // This routine enables sharing of MethodAccessor objects
-        // among Method objects which refer to the same underlying
-        // method in the VM. (All of this contortion is only necessary
-        // because of the "accessibility" bit in AccessibleObject,
-        // which implicitly requires that new java.lang.reflect
-        // objects be fabricated for each reflective call on Class
-        // objects.)
         if (this.root != null)
             throw new IllegalArgumentException("Can not copy a non-root Method");
 
@@ -166,34 +167,18 @@ public final class Method extends Executable {
                                 exceptionTypes, modifiers, slot, signature,
                                 annotations, parameterAnnotations, annotationDefault);
         res.root = this;
-        // Might as well eagerly propagate this if already present
+        // Propagate shared states
         res.methodAccessor = methodAccessor;
-        return res;
-    }
-
-    /**
-     * Make a copy of a leaf method.
-     */
-    Method leafCopy() {
-        if (this.root == null)
-            throw new IllegalArgumentException("Can only leafCopy a non-root Method");
-
-        Method res = new Method(clazz, name, parameterTypes, returnType,
-                exceptionTypes, modifiers, slot, signature,
-                annotations, parameterAnnotations, annotationDefault);
-        res.root = root;
-        res.methodAccessor = methodAccessor;
+        res.genericInfo = genericInfo;
         return res;
     }
 
     /**
      * @throws InaccessibleObjectException {@inheritDoc}
-     * @throws SecurityException {@inheritDoc}
      */
     @Override
     @CallerSensitive
     public void setAccessible(boolean flag) {
-        AccessibleObject.checkPermission();
         if (flag) checkCanSetAccessible(Reflection.getCallerClass());
         setAccessible0(flag);
     }
@@ -252,7 +237,7 @@ public final class Method extends Executable {
      * @jls 8.4.4 Generic Methods
      */
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings("unchecked")
     public TypeVariable<Method>[] getTypeParameters() {
         if (getGenericSignature() != null)
             return (TypeVariable<Method>[])getGenericInfo().getTypeParameters();
@@ -315,7 +300,7 @@ public final class Method extends Executable {
      */
     @Override
     public Class<?>[] getParameterTypes() {
-        return parameterTypes.clone();
+        return parameterTypes.length == 0 ? parameterTypes: parameterTypes.clone();
     }
 
     /**
@@ -342,7 +327,7 @@ public final class Method extends Executable {
      */
     @Override
     public Class<?>[] getExceptionTypes() {
-        return exceptionTypes.clone();
+        return exceptionTypes.length == 0 ? exceptionTypes : exceptionTypes.clone();
     }
 
     /**
@@ -381,7 +366,13 @@ public final class Method extends Executable {
      * method's declaring class name and the method's name.
      */
     public int hashCode() {
-        return getDeclaringClass().getName().hashCode() ^ getName().hashCode();
+        int hc = hash;
+
+        if (hc == 0) {
+            hc = hash = getDeclaringClass().getName().hashCode() ^ getName()
+                .hashCode();
+        }
+        return hc;
     }
 
     /**
@@ -422,13 +413,13 @@ public final class Method extends Executable {
     @Override
     void specificToStringHeader(StringBuilder sb) {
         sb.append(getReturnType().getTypeName()).append(' ');
-        sb.append(getDeclaringClassTypeName()).append('.');
+        sb.append(getDeclaringClass().getTypeName()).append('.');
         sb.append(getName());
     }
 
     @Override
     String toShortString() {
-        return "method " + getDeclaringClassTypeName() +
+        return "method " + getDeclaringClass().getTypeName() +
                 '.' + toShortSignature();
     }
 
@@ -491,7 +482,7 @@ public final class Method extends Executable {
     void specificToGenericStringHeader(StringBuilder sb) {
         Type genRetType = getGenericReturnType();
         sb.append(genRetType.getTypeName()).append(' ');
-        sb.append(getDeclaringClassTypeName()).append('.');
+        sb.append(getDeclaringClass().getTypeName()).append('.');
         sb.append(getName());
     }
 
@@ -762,7 +753,7 @@ public final class Method extends Executable {
      *     {@link Class} and no definition can be found for the
      *     default class value.
      * @since  1.5
-     * @jls 9.6.2 Defaults for Annotation Type Elements
+     * @jls 9.6.2 Defaults for Annotation Interface Elements
      */
     public Object getDefaultValue() {
         if  (annotationDefault == null)
@@ -771,8 +762,7 @@ public final class Method extends Executable {
             getReturnType());
         Object result = AnnotationParser.parseMemberValue(
             memberType, ByteBuffer.wrap(annotationDefault),
-            SharedSecrets.getJavaLangAccess().
-                getConstantPool(getDeclaringClass()),
+            com.ibm.oti.vm.VM.getConstantPoolFromAnnotationBytes(getDeclaringClass(), annotationDefault),
             getDeclaringClass());
         if (result instanceof ExceptionProxy) {
             if (result instanceof TypeNotPresentExceptionProxy proxy) {

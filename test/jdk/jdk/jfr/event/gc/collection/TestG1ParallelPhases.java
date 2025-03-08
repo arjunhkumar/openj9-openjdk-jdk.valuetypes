@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,7 +51,7 @@ import jdk.test.whitebox.WhiteBox;
 
 /**
  * @test
- * @key jfr
+ * @requires vm.flagless
  * @requires vm.hasJFR
  * @requires vm.gc == "G1" | vm.gc == null
  * @library /test/lib /test/jdk /test/hotspot/jtreg
@@ -87,6 +87,8 @@ public class TestG1ParallelPhases {
             .collect(toSet());
 
         Set<String> allPhases = of(
+            "RetireTLABsAndFlushLogs",
+            "NonJavaThreadFlushLogs",
             "ExtRootScan",
             "ThreadRoots",
             "VM Global",
@@ -109,6 +111,7 @@ public class TestG1ParallelPhases {
             "FreeCSet",
             "UpdateDerivedPointers",
             "EagerlyReclaimHumongousObjects",
+            "ResetPartialArrayStateManager",
             "ClearLoggedCards",
             "MergePSS",
             "NonYoungFreeCSet",
@@ -123,10 +126,10 @@ public class TestG1ParallelPhases {
         // since we can not reliably guarantee that they occur (or not).
         Set<String> optPhases = of(
             // The following phases only occur on evacuation failure.
-            "RestoreRetainedRegions",
+            "RestoreEvacuationFailedRegions",
             "RemoveSelfForwards",
             "RestorePreservedMarks",
-            "ClearRetainedRegionsBitmap",
+            "ProcessEvacuationFailedRegions",
             // Generally optional phases.
             "OptScanHR",
             "OptMergeRS",

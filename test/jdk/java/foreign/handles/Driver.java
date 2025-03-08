@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,17 +22,8 @@
  */
 
 /*
- * ===========================================================================
- * (c) Copyright IBM Corp. 2022, 2022 All Rights Reserved
- * ===========================================================================
- */
-
-/*
  * @test
- * @enablePreview
- * @requires ((os.arch == "amd64" | os.arch == "x86_64") & sun.arch.data.model == "64") | os.arch == "aarch64" | os.arch == "riscv64"
- * | os.arch == "ppc64" | os.arch == "ppc64le" | os.arch == "s390x"
  * @build invoker_module/* lookup_module/*
- * @run testng/othervm --enable-native-access=invoker_module
+ * @run testng/othervm --illegal-native-access=deny --enable-native-access=invoker_module
  *                     lookup_module/handle.lookup.MethodHandleLookup
  */

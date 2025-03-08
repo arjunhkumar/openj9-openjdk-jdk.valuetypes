@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,12 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ */
+
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2024, 2024 All Rights Reserved
+ * ===========================================================================
  */
 
 package java.lang.invoke;
@@ -46,20 +52,20 @@ class MethodHandleNatives {
 
     private MethodHandleNatives() { } // static only
 
-    /// MemberName support
+    //--- MemberName support
 
     static native void init(MemberName self, Object ref);
     static native void expand(MemberName self);
     static native MemberName resolve(MemberName self, Class<?> caller, int lookupMode,
             boolean speculativeResolve) throws LinkageError, ClassNotFoundException;
 
-    /// Field layout queries parallel to jdk.internal.misc.Unsafe:
+    //--- Field layout queries parallel to jdk.internal.misc.Unsafe:
     static native long objectFieldOffset(MemberName self);  // e.g., returns vmindex
     static native long staticFieldOffset(MemberName self);  // e.g., returns vmindex
     static native Object staticFieldBase(MemberName self);  // e.g., returns clazz
     static native Object getMemberVMInfo(MemberName self);  // returns {vmindex,vmtarget}
 
-    /// CallSite support
+    //--- CallSite support
 
     /** Tell the JVM that we need to change the target of a CallSite. */
     static native void setCallSiteTargetNormal(CallSite site, MethodHandle target);
@@ -70,31 +76,6 @@ class MethodHandleNatives {
                                                  Object[] buf, int pos,
                                                  boolean resolve,
                                                  Object ifNotAvailable);
-
-    /** Represents a context to track nmethod dependencies on CallSite instance target. */
-    static class CallSiteContext implements Runnable {
-        //@Injected JVM_nmethodBucket* vmdependencies;
-        //@Injected jlong last_cleanup;
-
-        static CallSiteContext make(CallSite cs) {
-            final CallSiteContext newContext = new CallSiteContext();
-            // CallSite instance is tracked by a Cleanable which clears native
-            // structures allocated for CallSite context. Though the CallSite can
-            // become unreachable, its Context is retained by the Cleanable instance
-            // (which is referenced from Cleaner instance which is referenced from
-            // CleanerFactory class) until cleanup is performed.
-            CleanerFactory.cleaner().register(cs, newContext);
-            return newContext;
-        }
-
-        @Override
-        public void run() {
-            MethodHandleNatives.clearCallSiteContext(this);
-        }
-    }
-
-    /** Invalidate all recorded nmethods. */
-    private static native void clearCallSiteContext(CallSiteContext context);
 
     private static native void registerNatives();
     static {
@@ -110,15 +91,18 @@ class MethodHandleNatives {
         Constants() { } // static only
 
         static final int
-            MN_IS_METHOD           = 0x00010000, // method (not constructor)
-            MN_IS_OBJECT_CONSTRUCTOR = 0x00020000, // constructor
-            MN_IS_FIELD            = 0x00040000, // field
-            MN_IS_TYPE             = 0x00080000, // nested type
-            MN_CALLER_SENSITIVE    = 0x00100000, // @CallerSensitive annotation detected
-            MN_TRUSTED_FINAL       = 0x00200000, // trusted final field
-            MN_FLATTENED           = 0x00400000, // flattened field
-            MN_REFERENCE_KIND_SHIFT = 24, // refKind
-            MN_REFERENCE_KIND_MASK = 0x0F000000 >> MN_REFERENCE_KIND_SHIFT;
+            MN_IS_METHOD             = 0x00010000, // method (not object constructor)
+            MN_IS_CONSTRUCTOR        = 0x00020000, // object constructor
+            MN_IS_FIELD              = 0x00040000, // field
+            MN_IS_TYPE               = 0x00080000, // nested type
+            MN_CALLER_SENSITIVE      = 0x00100000, // @CallerSensitive annotation detected
+            MN_TRUSTED_FINAL         = 0x00200000, // trusted final field
+            MN_HIDDEN_MEMBER         = 0x00400000, // members defined in a hidden class or with @Hidden
+            MN_NULL_RESTRICTED       = 0x00800000, // null-restricted field
+            MN_REFERENCE_KIND_SHIFT  = 24, // refKind
+            MN_REFERENCE_KIND_MASK   = 0x0F000000 >>> MN_REFERENCE_KIND_SHIFT, // 4 bits
+            MN_LAYOUT_SHIFT          = 28, // field layout
+            MN_LAYOUT_MASK           = 0x70000000 >>> MN_LAYOUT_SHIFT;  // 3 bits
 
         /**
          * Constant pool reference-kind codes, as used by CONSTANT_MethodHandle CP entries.
@@ -172,7 +156,7 @@ class MethodHandleNatives {
     static boolean refKindIsMethod(byte refKind) {
         return !refKindIsField(refKind) && (refKind != REF_newInvokeSpecial);
     }
-    static boolean refKindIsObjectConstructor(byte refKind) {
+    static boolean refKindIsConstructor(byte refKind) {
         return (refKind == REF_newInvokeSpecial);
     }
     static boolean refKindHasReceiver(byte refKind) {
@@ -351,10 +335,10 @@ class MethodHandleNatives {
     }
 
     private static String staticArglistForTrace(Object staticArguments) {
-        if (staticArguments instanceof Object[])
-            return "BSA="+java.util.Arrays.asList((Object[]) staticArguments);
-        if (staticArguments instanceof int[])
-            return "BSA@"+java.util.Arrays.toString((int[]) staticArguments);
+        if (staticArguments instanceof Object[] array)
+            return "BSA="+java.util.Arrays.asList(array);
+        if (staticArguments instanceof int[] array)
+            return "BSA@"+java.util.Arrays.toString(array);
         if (staticArguments == null)
             return "BSA0=null";
         return "BSA1="+staticArguments;
@@ -510,8 +494,8 @@ class MethodHandleNatives {
         throw new LinkageError("no such method "+defc.getName()+"."+name+type);
     }
     private static MethodType fixMethodType(Class<?> callerClass, Object type) {
-        if (type instanceof MethodType)
-            return (MethodType) type;
+        if (type instanceof MethodType mt)
+            return mt;
         else
             return MethodType.fromDescriptor((String)type, callerClass.getClassLoader());
     }
@@ -600,12 +584,12 @@ class MethodHandleNatives {
         sb.append(prefix);
         for (int i = 1; i < guardType.parameterCount() - 1; i++) {
             Class<?> pt = guardType.parameterType(i);
-            sb.append(getCharErasedType(pt));
+            sb.append(getCharType(pt));
         }
-        sb.append('_').append(getCharErasedType(guardType.returnType()));
+        sb.append('_').append(getCharType(guardType.returnType()));
         return sb.toString();
     }
-    static char getCharErasedType(Class<?> pt) {
+    static char getCharType(Class<?> pt) {
         return Wrapper.forBasicType(pt).basicTypeChar();
     }
     static NoSuchMethodError newNoSuchMethodErrorOnVarHandle(String name, MethodType mtype) {
@@ -638,8 +622,8 @@ class MethodHandleNatives {
         LinkageError err;
         if (ex instanceof IllegalAccessException) {
             Throwable cause = ex.getCause();
-            if (cause instanceof AbstractMethodError) {
-                return (AbstractMethodError) cause;
+            if (cause instanceof AbstractMethodError ame) {
+                return ame;
             } else {
                 err = new IllegalAccessError(ex.getMessage());
             }
@@ -690,4 +674,25 @@ class MethodHandleNatives {
         return (definingClass.isAssignableFrom(symbolicRefClass) ||  // Msym overrides Mdef
                 symbolicRefClass.isInterface());                     // Mdef implements Msym
     }
+
+    //--- AOTCache support
+
+    /**
+     * In normal execution, this is set to true, so that LambdaFormEditor and MethodTypeForm will
+     * use soft references to allow class unloading.
+     *
+     * When dumping the AOTCache, this is set to false so that no cached heap objects will
+     * contain soft references (which are not yet supported by AOTCache - see JDK-8341587). AOTCache
+     * only stores LambdaFormEditors and MethodTypeForms for classes in the boot/platform/app loaders.
+     * Such classes will never be unloaded, so it's OK to use hard references.
+     */
+	// The system property java.lang.invoke.MethodHandleNatives.USE_SOFT_CACHE is
+	// from -XX:AOTCache which OpenJ9 doesn't support.
+	// Set it to the default value true.
+    static final boolean USE_SOFT_CACHE = true;
+
+    /**
+     * Inform the VM that a MemberName belonging to class c has been collected.
+     */
+    static native void markClassForMemberNamePruning(Class<?> c);
 }

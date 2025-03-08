@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -199,8 +199,10 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
         List<Attribute.TypeCompound> annos = t.getAnnotationMirrors();
         if (!annos.isEmpty()) {
             if (prefix) sb.append(' ');
-            sb.append(annos);
-            sb.append(' ');
+            for (Attribute.TypeCompound anno : annos) {
+                sb.append(anno);
+                sb.append(' ');
+            }
         }
         return sb.toString();
     }
@@ -233,16 +235,6 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
         } else {
             buf.append(printAnnotations(t));
             buf.append(className(t, true, locale));
-        }
-        boolean isReferenceProjection;
-        try {
-            isReferenceProjection = t.isReferenceProjection();
-        } catch (CompletionFailure cf) {
-            isReferenceProjection = false; // handle missing types gracefully.
-        }
-        if (isReferenceProjection) {
-            buf.append('.');
-            buf.append(t.tsym.name.table.names.ref);
         }
         if (t.getTypeArguments().nonEmpty()) {
             buf.append('<');
@@ -381,7 +373,9 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
         if (s.isStaticOrInstanceInit()) {
             return s.owner.name.toString();
         } else {
-            String ms = s.isInitOrVNew() ? s.owner.name.toString() : s.name.toString();
+            String ms = (s.name == s.name.table.names.init)
+                    ? s.owner.name.toString()
+                    : s.name.toString();
             if (s.type != null) {
                 if (s.type.hasTag(FORALL)) {
                     ms = "<" + visitTypes(s.type.getTypeArguments(), locale) + ">" + ms;

@@ -7,6 +7,11 @@
 
 <configuration version="2.0" label="Continuous" description="Low overhead configuration safe for continuous use in production environments, typically less than 1 % overhead." provider="Oracle">
 
+    <event name="jdk.ResidentSetSize">
+      <setting name="enabled">true</setting>
+      <setting name="period">1000 ms</setting>
+    </event>
+
     <event name="jdk.ThreadAllocationStatistics">
       <setting name="enabled">true</setting>
       <setting name="period">everyChunk</setting>
@@ -195,16 +200,6 @@
       <setting name="threshold">10 ms</setting>
     </event>
 
-    <event name="jdk.SafepointCleanup">
-      <setting name="enabled">false</setting>
-      <setting name="threshold">10 ms</setting>
-    </event>
-
-    <event name="jdk.SafepointCleanupTask">
-      <setting name="enabled">false</setting>
-      <setting name="threshold">10 ms</setting>
-    </event>
-
     <event name="jdk.SafepointEnd">
       <setting name="enabled">false</setting>
       <setting name="threshold">10 ms</setting>
@@ -322,6 +317,16 @@
       <setting name="enabled">false</setting>
     </event>
 
+    <event name="jdk.GCHeapMemoryUsage">
+      <setting name="enabled" control="gc-enabled-normal">true</setting>
+      <setting name="period">everyChunk</setting>
+    </event>
+
+    <event name="jdk.GCHeapMemoryPoolUsage">
+      <setting name="enabled" control="gc-enabled-normal">true</setting>
+      <setting name="period">everyChunk</setting>
+    </event>
+
     <event name="jdk.GCHeapSummary">
       <setting name="enabled" control="gc-enabled-normal">true</setting>
     </event>
@@ -422,6 +427,11 @@
       <setting name="threshold">0 ms</setting>
     </event>
 
+    <event name="jdk.GCPhaseConcurrentLevel2">
+      <setting name="enabled" control="gc-enabled-high">true</setting>
+      <setting name="threshold">0 ms</setting>
+    </event>
+
     <event name="jdk.GCReferenceStatistics">
       <setting name="enabled" control="gc-enabled-normal">true</setting>
     </event>
@@ -503,6 +513,10 @@
     </event>
 
     <event name="jdk.ShenandoahHeapRegionStateChange">
+      <setting name="enabled" control="gc-enabled-high">false</setting>
+    </event>
+
+    <event name="jdk.ShenandoahEvacuationInformation">
       <setting name="enabled" control="gc-enabled-high">false</setting>
     </event>
 
@@ -643,12 +657,22 @@
       <setting name="period">5 s</setting>
     </event>
 
+    <event name="jdk.CompilerQueueUtilization">
+      <setting name="enabled">true</setting>
+      <setting name="period">10 s</setting>
+    </event>
+
     <event name="jdk.InitialEnvironmentVariable">
       <setting name="enabled">true</setting>
       <setting name="period">beginChunk</setting>
     </event>
 
     <event name="jdk.PhysicalMemory">
+      <setting name="enabled">true</setting>
+      <setting name="period">everyChunk</setting>
+    </event>
+
+    <event name="jdk.SwapSpace">
       <setting name="enabled">true</setting>
       <setting name="period">everyChunk</setting>
     </event>
@@ -672,6 +696,18 @@
     <event name="jdk.NativeLibrary">
       <setting name="enabled">true</setting>
       <setting name="period">everyChunk</setting>
+    </event>
+
+    <event name="jdk.NativeLibraryLoad">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
+      <setting name="threshold">0 ms</setting>
+    </event>
+
+    <event name="jdk.NativeLibraryUnload">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
+      <setting name="threshold">0 ms</setting>
     </event>
 
     <event name="jdk.ModuleRequire">
@@ -715,8 +751,12 @@
     </event>
 
     <event name="jdk.Deserialization">
-       <setting name="enabled">false</setting>
-       <setting name="stackTrace">true</setting>
+      <setting name="enabled">false</setting>
+      <setting name="stackTrace">true</setting>
+    </event>
+
+    <event name="jdk.SerializationMisdeclaration">
+        <setting name="enabled">false</setting>
     </event>
 
     <event name="jdk.InitialSecurityProperty">
@@ -725,13 +765,13 @@
     </event>
 
     <event name="jdk.SecurityPropertyModification">
-       <setting name="enabled">false</setting>
-       <setting name="stackTrace">true</setting>
+      <setting name="enabled">false</setting>
+      <setting name="stackTrace">true</setting>
     </event>
 
     <event name="jdk.SecurityProviderService">
-       <setting name="enabled">false</setting>
-       <setting name="stackTrace">true</setting>
+      <setting name="enabled">false</setting>
+      <setting name="stackTrace">true</setting>
     </event>
 
     <event name="jdk.TLSHandshake">
@@ -740,13 +780,13 @@
     </event>
 
     <event name="jdk.X509Validation">
-       <setting name="enabled">false</setting>
-       <setting name="stackTrace">true</setting>
+      <setting name="enabled">false</setting>
+      <setting name="stackTrace">true</setting>
     </event>
 
     <event name="jdk.X509Certificate">
-       <setting name="enabled">false</setting>
-       <setting name="stackTrace">true</setting>
+      <setting name="enabled">false</setting>
+      <setting name="stackTrace">true</setting>
     </event>
 
     <event name="jdk.JavaExceptionThrow">
@@ -787,6 +827,7 @@
 
     <event name="jdk.ZAllocationStall">
       <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
       <setting name="threshold">0 ms</setting>
     </event>
 
@@ -831,6 +872,16 @@
       <setting name="threshold">0 ms</setting>
     </event>
 
+    <event name="jdk.ZYoungGarbageCollection">
+      <setting name="enabled">true</setting>
+      <setting name="threshold">0 ms</setting>
+    </event>
+
+    <event name="jdk.ZOldGarbageCollection">
+      <setting name="enabled">true</setting>
+      <setting name="threshold">0 ms</setting>
+    </event>
+
     <event name="jdk.Deoptimization">
       <setting name="enabled">true</setting>
       <setting name="stackTrace">false</setting>
@@ -847,18 +898,26 @@
       <setting name="period">5 s</setting>
     </event>
 
-    <event name="jdk.GCLocker">
-      <setting name="enabled">true</setting>
-      <setting name="threshold">1 s</setting>
-      <setting name="stackTrace">true</setting>
-    </event>
-
     <event name="jdk.FinalizerStatistics">
       <setting name="enabled">true</setting>
       <setting name="period">endChunk</setting>
     </event>
 
+    <event name="jdk.JavaAgent">
+      <setting name="enabled">true</setting>
+      <setting name="period">endChunk</setting>
+    </event>
 
+    <event name="jdk.NativeAgent">
+      <setting name="enabled">true</setting>
+      <setting name="period">endChunk</setting>
+    </event>
+
+    <event name="jdk.DeprecatedInvocation">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
+      <setting name="level">forRemoval</setting>
+    </event>
 
 
 
@@ -889,7 +948,7 @@
   carry the control attribute.
   -->
     <control>
-     <selection name="gc" default="normal" label="Garbage Collector">
+      <selection name="gc" default="normal" label="Garbage Collector">
         <option label="Off" name="off">off</option>
         <option label="Normal" name="normal">normal</option>
         <option label="Detailed" name="detailed">detailed</option>
@@ -934,7 +993,7 @@
       </selection>
 
       <condition name="object-allocation-enabled" true="true" false="false">
-	 <not>
+        <not>
           <test name="allocation-profiling" operator="equal" value="off"/>
         </not>
       </condition>
@@ -1082,7 +1141,6 @@
       <text name="socket-threshold" label="Socket I/O Threshold" contentType="timespan" minimum="0 s">20 ms</text>
 
       <flag name="class-loading" label="Class Loading">false</flag>
-
     </control>
 
 </configuration>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,8 +42,28 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * Library," <a
  * href="https://www.netlib.org/fdlibm/">{@code fdlibm}</a>. These
  * algorithms, which are written in the C programming language, are
- * then to be understood as executed with all floating-point
- * operations following the rules of Java floating-point arithmetic.
+ * then to be understood to be transliterated into Java and executed
+ * with all floating-point and integer operations following the rules
+ * of Java arithmetic. The following transformations are used in the
+ * transliteration:
+ *
+ * <ul>
+ * <li>Extraction and setting of the high and low halves of a 64-bit
+ * {@code double} in C is expressed using Java platform methods that
+ * perform bit-wise conversions {@linkplain
+ * Double#doubleToRawLongBits(double) from {@code double} to {@code
+ * long}} and {@linkplain Double#longBitsToDouble(long) {@code long}
+ * to {@code double}}.
+ *
+ * <li>Unsigned {@code int} values in C are mapped to signed {@code
+ * int} values in Java with updates to operations to replicate
+ * unsigned semantics where the results on the same textual operation
+ * would differ. For example, {@code >>} shifts on unsigned C values
+ * are replaced with {@code >>>} shifts on signed Java values. Sized
+ * comparisons on unsigned C values ({@code <}, {@code <=}, {@code >},
+ * {@code >=}) are replaced with semantically equivalent calls to
+ * {@link Integer#compareUnsigned(int, int) compareUnsigned}.
+ * </ul>
  *
  * <p>The Java math library is defined with respect to
  * {@code fdlibm} version 5.3. Where {@code fdlibm} provides
@@ -78,8 +98,8 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * href="Math.html#Ieee754RecommendedOps">relate to the IEEE 754
  * recommended operations</a>.
  *
- * @see <a href="https://standards.ieee.org/ieee/754/6210/">
- *      <cite>IEEE Standard for Floating-Point Arithmetic</cite></a>
+ * @spec https://standards.ieee.org/ieee/754/6210/
+ *       IEEE Standard for Floating-Point Arithmetic
  *
  * @author  Joseph D. Darcy
  * @since   1.3
@@ -127,7 +147,9 @@ public final class StrictMath {
      * @param   a   an angle, in radians.
      * @return  the sine of the argument.
      */
-    public static native double sin(double a);
+    public static double sin(double a) {
+        return FdLibm.Sin.compute(a);
+    }
 
     /**
      * Returns the trigonometric cosine of an angle. Special cases:
@@ -139,7 +161,9 @@ public final class StrictMath {
      * @param   a   an angle, in radians.
      * @return  the cosine of the argument.
      */
-    public static native double cos(double a);
+    public static double cos(double a) {
+        return FdLibm.Cos.compute(a);
+    }
 
     /**
      * Returns the trigonometric tangent of an angle. Special cases:
@@ -151,11 +175,13 @@ public final class StrictMath {
      * @param   a   an angle, in radians.
      * @return  the tangent of the argument.
      */
-    public static native double tan(double a);
+    public static double tan(double a) {
+        return FdLibm.Tan.compute(a);
+    }
 
     /**
      * Returns the arc sine of a value; the returned angle is in the
-     * range -<i>pi</i>/2 through <i>pi</i>/2.  Special cases:
+     * range &minus;<i>pi</i>/2 through <i>pi</i>/2.  Special cases:
      * <ul><li>If the argument is NaN or its absolute value is greater
      * than 1, then the result is NaN.
      * <li>If the argument is zero, then the result is a zero with the
@@ -185,7 +211,7 @@ public final class StrictMath {
 
     /**
      * Returns the arc tangent of a value; the returned angle is in the
-     * range -<i>pi</i>/2 through <i>pi</i>/2.  Special cases:
+     * range &minus;<i>pi</i>/2 through <i>pi</i>/2.  Special cases:
      * <ul><li>If the argument is NaN, then the result is NaN.
      * <li>If the argument is zero, then the result is a zero with the
      * same sign as the argument.
@@ -310,7 +336,9 @@ public final class StrictMath {
      * @return  the positive square root of {@code a}.
      */
     @IntrinsicCandidate
-    public static native double sqrt(double a);
+    public static double sqrt(double a) {
+        return FdLibm.Sqrt.compute(a);
+    }
 
     /**
      * Returns the cube root of a {@code double} value.  For
@@ -361,7 +389,9 @@ public final class StrictMath {
      * @return  the remainder when {@code f1} is divided by
      *          {@code f2}.
      */
-    public static native double IEEEremainder(double f1, double f2);
+    public static double IEEEremainder(double f1, double f2) {
+        return FdLibm.IEEEremainder.compute(f1, f2);
+    }
 
     /**
      * Returns the smallest (closest to negative infinity)
@@ -494,7 +524,7 @@ public final class StrictMath {
      * coordinates ({@code x},&nbsp;{@code y}) to polar
      * coordinates (r,&nbsp;<i>theta</i>).
      * This method computes the phase <i>theta</i> by computing an arc tangent
-     * of {@code y/x} in the range of -<i>pi</i> to <i>pi</i>. Special
+     * of {@code y/x} in the range of &minus;<i>pi</i> to <i>pi</i>. Special
      * cases:
      * <ul><li>If either argument is NaN, then the result is NaN.
      * <li>If the first argument is positive zero and the second argument
@@ -547,7 +577,9 @@ public final class StrictMath {
      *          in polar coordinates that corresponds to the point
      *          (<i>x</i>,&nbsp;<i>y</i>) in Cartesian coordinates.
      */
-    public static native double atan2(double y, double x);
+    public static double atan2(double y, double x) {
+        return FdLibm.Atan2.compute(y, x);
+    }
 
     /**
      * Returns the value of the first argument raised to the power of the
@@ -2061,7 +2093,7 @@ public final class StrictMath {
     /**
      * Returns the hyperbolic sine of a {@code double} value.
      * The hyperbolic sine of <i>x</i> is defined to be
-     * (<i>e<sup>x</sup>&nbsp;-&nbsp;e<sup>-x</sup></i>)/2
+     * (<i>e<sup>x</sup>&nbsp;&minus;&nbsp;e<sup>&minus;x</sup></i>)/2
      * where <i>e</i> is {@linkplain Math#E Euler's number}.
      *
      * <p>Special cases:
@@ -2088,7 +2120,7 @@ public final class StrictMath {
     /**
      * Returns the hyperbolic cosine of a {@code double} value.
      * The hyperbolic cosine of <i>x</i> is defined to be
-     * (<i>e<sup>x</sup>&nbsp;+&nbsp;e<sup>-x</sup></i>)/2
+     * (<i>e<sup>x</sup>&nbsp;+&nbsp;e<sup>&minus;x</sup></i>)/2
      * where <i>e</i> is {@linkplain Math#E Euler's number}.
      *
      * <p>Special cases:
@@ -2114,7 +2146,7 @@ public final class StrictMath {
     /**
      * Returns the hyperbolic tangent of a {@code double} value.
      * The hyperbolic tangent of <i>x</i> is defined to be
-     * (<i>e<sup>x</sup>&nbsp;-&nbsp;e<sup>-x</sup></i>)/(<i>e<sup>x</sup>&nbsp;+&nbsp;e<sup>-x</sup></i>),
+     * (<i>e<sup>x</sup>&nbsp;&minus;&nbsp;e<sup>&minus;x</sup></i>)/(<i>e<sup>x</sup>&nbsp;+&nbsp;e<sup>&minus;x</sup></i>),
      * in other words, {@linkplain Math#sinh
      * sinh(<i>x</i>)}/{@linkplain Math#cosh cosh(<i>x</i>)}.  Note
      * that the absolute value of the exact tanh is always less than
@@ -2171,7 +2203,7 @@ public final class StrictMath {
     }
 
     /**
-     * Returns <i>e</i><sup>x</sup>&nbsp;-1.  Note that for values of
+     * Returns <i>e</i><sup>x</sup>&nbsp;&minus;1.  Note that for values of
      * <i>x</i> near 0, the exact sum of
      * {@code expm1(x)}&nbsp;+&nbsp;1 is much closer to the true
      * result of <i>e</i><sup>x</sup> than {@code exp(x)}.
@@ -2192,7 +2224,7 @@ public final class StrictMath {
      * </ul>
      *
      * @param   x   the exponent to raise <i>e</i> to in the computation of
-     *              <i>e</i><sup>{@code x}</sup>&nbsp;-1.
+     *              <i>e</i><sup>{@code x}</sup>&nbsp;&minus;1.
      * @return  the value <i>e</i><sup>{@code x}</sup>&nbsp;-&nbsp;1.
      * @since 1.5
      */

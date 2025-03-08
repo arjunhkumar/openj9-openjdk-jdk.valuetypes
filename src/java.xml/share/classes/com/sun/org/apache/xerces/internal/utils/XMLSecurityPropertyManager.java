@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -224,14 +224,14 @@ public final class XMLSecurityPropertyManager {
      */
     private void getSystemProperty(Property property, String systemProperty) {
         try {
-            String value = SecuritySupport.getSystemProperty(systemProperty);
+            String value = System.getProperty(systemProperty);
             if (value != null) {
                 values[property.ordinal()] = value;
                 states[property.ordinal()] = State.SYSTEMPROPERTY;
                 return;
             }
 
-            value = SecuritySupport.readJAXPProperty(systemProperty);
+            value = SecuritySupport.readConfig(systemProperty);
             if (value != null) {
                 values[property.ordinal()] = value;
                 states[property.ordinal()] = State.JAXPDOTPROPERTIES;

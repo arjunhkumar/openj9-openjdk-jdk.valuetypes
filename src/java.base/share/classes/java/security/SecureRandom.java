@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,12 @@
 
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 2022, 2022 All Rights Reserved
+ * (c) Copyright IBM Corp. 2022, 2023 All Rights Reserved
  * ===========================================================================
  */
 
 package java.security;
 
-import jdk.internal.util.random.RandomSupport.RandomGeneratorProperties;
 import sun.security.jca.GetInstance;
 import sun.security.jca.GetInstance.Instance;
 import sun.security.jca.Providers;
@@ -43,7 +42,7 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import openj9.internal.security.FIPSConfigurator;
+import openj9.internal.security.RestrictedSecurity;
 
 /**
  * This class provides a cryptographically strong random number
@@ -149,6 +148,11 @@ import openj9.internal.security.FIPSConfigurator;
  * <li>{@link SecureRandomSpi#engineReseed(SecureRandomParameters)}
  * </ul>
  *
+ * @spec https://www.rfc-editor.org/info/rfc4086
+ *      RFC 4086: Randomness Requirements for Security
+ * @spec https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.140-2.pdf
+ *      Security Requirements for Cryptographic Modules
+ * @spec security/standard-names.html Java Security Standard Algorithm Names
  * @see java.security.SecureRandomSpi
  * @see java.util.Random
  *
@@ -157,10 +161,6 @@ import openj9.internal.security.FIPSConfigurator;
  * @since 1.1
  */
 
-@RandomGeneratorProperties(
-        name = "SecureRandom",
-        isStochastic = true
-)
 public class SecureRandom extends java.util.Random {
 
     private static final Debug pdebug =
@@ -222,6 +222,7 @@ public class SecureRandom extends java.util.Random {
      * "{@docRoot}/../specs/security/standard-names.html#securerandom-number-generation-algorithms">
      * Java Security Standard Algorithm Names Specification</a>
      * for information about standard RNG algorithm names.
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      */
     public SecureRandom() {
         /*
@@ -238,8 +239,8 @@ public class SecureRandom extends java.util.Random {
         if (provider == null || algorithm == null) {
             return false;
         } else {
-            return Boolean.parseBoolean(provider.getProperty(
-                    "SecureRandom." + algorithm + " ThreadSafe", "false"));
+            Service service = provider.getService("SecureRandom", algorithm);
+            return Boolean.parseBoolean(service.getAttribute("ThreadSafe"));
         }
     }
 
@@ -265,9 +266,12 @@ public class SecureRandom extends java.util.Random {
      * for information about standard RNG algorithm names.
      *
      * @param seed the seed.
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
+     * @throws NullPointerException if {@code seed} is {@code null}
      */
     public SecureRandom(byte[] seed) {
         super(0);
+        Objects.requireNonNull(seed);
         getDefaultPRNG(true, seed);
         this.threadSafe = getThreadSafe();
     }
@@ -276,36 +280,33 @@ public class SecureRandom extends java.util.Random {
         Service prngService = null;
         String prngAlgorithm = null;
 
-        // If in FIPS mode, use the SecureRandom from the FIPS provider.
-        if (FIPSConfigurator.enableFIPS()) {
-            Provider p = Security.getProvider("SunPKCS11-NSS-FIPS");
-            prngAlgorithm = "PKCS11";
-            if (p == null) {
-                throw new RuntimeException("could not find SunPKCS11-NSS-FIPS provider for FIPS mode");
-            }
-            prngService = p.getService("SecureRandom", prngAlgorithm);
-            if (prngService == null) {
-                throw new RuntimeException("could not find SecureRandom implementation from SunPKCS11-NSS-FIPS");
-            }
-        } else {
-            for (Provider p : Providers.getProviderList().providers()) {
-                // SUN provider uses the SunEntries.DEF_SECURE_RANDOM_ALGO
-                // as the default SecureRandom algorithm; for other providers,
-                // Provider.getDefaultSecureRandom() will use the 1st
-                // registered SecureRandom algorithm
-                if (p.getName().equals("SUN")) {
-                    prngAlgorithm = SunEntries.DEF_SECURE_RANDOM_ALGO;
+        for (Provider p : Providers.getProviderList().providers()) {
+            // In restricted security mode, use the SecureRandom from restricted security provider.
+            if (RestrictedSecurity.isEnabled()) {
+                String srProvider = RestrictedSecurity.getRandomProvider();
+                if (p.getName().equals(srProvider)) {
+                    prngAlgorithm = RestrictedSecurity.getRandomAlgorithm();
                     prngService = p.getService("SecureRandom", prngAlgorithm);
                     break;
-                } else {
-                    prngService = p.getDefaultSecureRandomService();
-                    if (prngService != null) {
-                        prngAlgorithm = prngService.getAlgorithm();
-                        break;
-                    }
+                }
+            }
+            // SUN provider uses the SunEntries.DEF_SECURE_RANDOM_ALGO
+            // as the default SecureRandom algorithm; for other providers,
+            // Provider.getDefaultSecureRandom() will use the 1st
+            // registered SecureRandom algorithm
+            else if (p.getName().equals("SUN")) {
+                prngAlgorithm = SunEntries.DEF_SECURE_RANDOM_ALGO;
+                prngService = p.getService("SecureRandom", prngAlgorithm);
+                break;
+            } else {
+                prngService = p.getDefaultSecureRandomService();
+                if (prngService != null) {
+                    prngAlgorithm = prngService.getAlgorithm();
+                    break;
                 }
             }
         }
+
         // per javadoc, if none of the Providers support an RNG algorithm,
         // then an implementation-specific default is returned.
         if (prngService == null) {
@@ -391,6 +392,7 @@ public class SecureRandom extends java.util.Random {
      * Java Security Standard Algorithm Names Specification</a>
      * for information about standard RNG algorithm names.
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return the new {@code SecureRandom} object
      *
      * @throws NoSuchAlgorithmException if no {@code Provider} supports a
@@ -432,6 +434,7 @@ public class SecureRandom extends java.util.Random {
      *
      * @param provider the name of the provider.
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return the new {@code SecureRandom} object
      *
      * @throws IllegalArgumentException if the provider name is {@code null}
@@ -476,6 +479,7 @@ public class SecureRandom extends java.util.Random {
      *
      * @param provider the provider.
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return the new {@code SecureRandom} object
      *
      * @throws IllegalArgumentException if the specified provider is
@@ -531,6 +535,7 @@ public class SecureRandom extends java.util.Random {
      * @param params the {@code SecureRandomParameters}
      *               the newly created {@code SecureRandom} object must support.
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return the new {@code SecureRandom} object
      *
      * @throws IllegalArgumentException if the specified params is
@@ -583,6 +588,7 @@ public class SecureRandom extends java.util.Random {
      *
      * @param provider the name of the provider.
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return the new {@code SecureRandom} object
      *
      * @throws IllegalArgumentException if the provider name is {@code null}
@@ -635,6 +641,7 @@ public class SecureRandom extends java.util.Random {
      *
      * @param provider the provider.
      *
+     * @spec security/standard-names.html Java Security Standard Algorithm Names
      * @return the new {@code SecureRandom} object
      *
      * @throws IllegalArgumentException if the specified provider or params
@@ -728,10 +735,12 @@ public class SecureRandom extends java.util.Random {
      * contains enough entropy for the security of this {@code SecureRandom}.
      *
      * @param seed the seed.
+     * @throws NullPointerException if {@code seed} is {@code null}
      *
      * @see #getSeed
      */
     public void setSeed(byte[] seed) {
+        Objects.requireNonNull(seed);
         if (threadSafe) {
             secureRandomSpi.engineSetSeed(seed);
         } else {
@@ -777,9 +786,11 @@ public class SecureRandom extends java.util.Random {
      * Generates a user-specified number of random bytes.
      *
      * @param bytes the array to be filled in with random bytes.
+     * @throws NullPointerException if {@code bytes} is {@code null}
      */
     @Override
     public void nextBytes(byte[] bytes) {
+        Objects.requireNonNull(bytes);
         if (threadSafe) {
             secureRandomSpi.engineNextBytes(bytes);
         } else {
@@ -795,7 +806,7 @@ public class SecureRandom extends java.util.Random {
      *
      * @param bytes the array to be filled in with random bytes
      * @param params additional parameters
-     * @throws NullPointerException if {@code bytes} is null
+     * @throws NullPointerException if {@code bytes} is {@code null}
      * @throws UnsupportedOperationException if the underlying provider
      *         implementation has not overridden this method
      * @throws IllegalArgumentException if {@code params} is {@code null},
@@ -807,13 +818,12 @@ public class SecureRandom extends java.util.Random {
         if (params == null) {
             throw new IllegalArgumentException("params cannot be null");
         }
+        Objects.requireNonNull(bytes);
         if (threadSafe) {
-            secureRandomSpi.engineNextBytes(
-                    Objects.requireNonNull(bytes), params);
+            secureRandomSpi.engineNextBytes(bytes, params);
         } else {
             synchronized (this) {
-                secureRandomSpi.engineNextBytes(
-                        Objects.requireNonNull(bytes), params);
+                secureRandomSpi.engineNextBytes(bytes, params);
             }
         }
     }
@@ -959,11 +969,7 @@ public class SecureRandom extends java.util.Random {
     public static SecureRandom getInstanceStrong()
             throws NoSuchAlgorithmException {
 
-        @SuppressWarnings("removal")
-        String property = AccessController.doPrivileged(
-                (PrivilegedAction<String>) () -> Security.getProperty(
-                    "securerandom.strongAlgorithms"));
-
+        String property = Security.getProperty("securerandom.strongAlgorithms");
         if (property == null || property.isEmpty()) {
             throw new NoSuchAlgorithmException(
                 "Null/empty securerandom.strongAlgorithms Security Property");

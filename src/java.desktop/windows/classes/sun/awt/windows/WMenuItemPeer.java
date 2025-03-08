@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,11 +29,8 @@ import java.util.MissingResourceException;
 import java.awt.*;
 import java.awt.peer.*;
 import java.awt.event.ActionEvent;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import sun.util.logging.PlatformLogger;
 
-@SuppressWarnings("removal")
 class WMenuItemPeer extends WObjectPeer implements MenuItemPeer {
     private static final PlatformLogger log = PlatformLogger.getLogger("sun.awt.WMenuItemPeer");
 
@@ -75,9 +72,9 @@ class WMenuItemPeer extends WObjectPeer implements MenuItemPeer {
     public void setLabel(String label) {
         //Fix for 6288578: PIT. Windows: Shortcuts displayed for the menuitems in a popup menu
         readShortcutLabel();
-        _setLabel(label);
+        _setLabel();
     }
-    public native void _setLabel(String label);
+    public native void _setLabel();
 
     // Toolkit & peer internals
 
@@ -146,20 +143,15 @@ class WMenuItemPeer extends WObjectPeer implements MenuItemPeer {
     private static Font defaultMenuFont;
 
     static {
-        defaultMenuFont = AccessController.doPrivileged(
-            new PrivilegedAction <Font> () {
-                public Font run() {
-                    try {
-                        ResourceBundle rb = ResourceBundle.getBundle("sun.awt.windows.awtLocalization");
-                        return Font.decode(rb.getString("menuFont"));
-                    } catch (MissingResourceException e) {
-                        if (log.isLoggable(PlatformLogger.Level.FINE)) {
-                            log.fine("WMenuItemPeer: " + e.getMessage()+". Using default MenuItem font.", e);
-                        }
-                        return new Font("SanSerif", Font.PLAIN, 11);
-                    }
-                }
-            });
+        try {
+            ResourceBundle rb = ResourceBundle.getBundle("sun.awt.windows.awtLocalization");
+            defaultMenuFont = Font.decode(rb.getString("menuFont"));
+        } catch (MissingResourceException e) {
+            if (log.isLoggable(PlatformLogger.Level.FINE)) {
+                log.fine("WMenuItemPeer: " + e.getMessage()+". Using default MenuItem font.", e);
+            }
+            defaultMenuFont = new Font("SanSerif", Font.PLAIN, 11);
+        }
     }
 
     static Font getDefaultFont() {

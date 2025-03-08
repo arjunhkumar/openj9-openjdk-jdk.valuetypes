@@ -1,6 +1,6 @@
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 2019, 2019 All Rights Reserved
+ * (c) Copyright IBM Corp. 2019, 2024 All Rights Reserved
  * ===========================================================================
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,7 +20,7 @@
  * 2 along with this work; if not, see <http://www.gnu.org/licenses/>.
  *
  * ===========================================================================
-*/
+ */
 
 def VERBOSE = ""
 def ROOTDIR = ""
@@ -40,8 +40,21 @@ timeout(time: 6, unit: 'HOURS') {
                     if ( params.rootDir != "") {
                         ROOTDIR="ROOTDIR=${params.rootDir}"
                     }
-                    checkout scm
+                    checkout changelog: false, poll: false,
+                            scm: [$class: 'GitSCM',
+                                branches: [[name: scm.branches[0].name]],
+                                doGenerateSubmoduleConfigurations: false,
+                                extensions: [[$class: 'CloneOption',
+                                                depth: 0,
+                                                noTags: true,
+                                                reference: "${env.HOME}/openjdk_cache",
+                                                shallow: false,
+                                                timeout: 30]],
+                                userRemoteConfigs: [[url: scm.getUserRemoteConfigs().get(0).getUrl()]]]
                     sh (script: "sh buildenv/jenkins/jobs/infrastructure/copyrightCheckDir.sh REPO=${params.ghprbGhRepository} ${VERBOSE} ${ROOTDIR}")
+                } catch (e) {
+                    slackSend channel: '#jenkins-sandbox', color: 'danger', message: "Failed: ${JOB_NAME} #${BUILD_NUMBER} (<${BUILD_URL}|Open>)"
+                    throw e
                 } finally {
                     cleanWs()
                 }
@@ -49,4 +62,3 @@ timeout(time: 6, unit: 'HOURS') {
         } // timestamps
     } // stage
 } // timeout
-

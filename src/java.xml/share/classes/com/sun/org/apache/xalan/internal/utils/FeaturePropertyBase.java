@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@ import jdk.xml.internal.SecuritySupport;
 /**
  * This is the base class for features and properties
  *
- * @LastModified: May 2021
+ * @LastModified: Nov 2024
  */
 public abstract class FeaturePropertyBase {
 
@@ -198,14 +198,14 @@ public abstract class FeaturePropertyBase {
      */
     void getSystemProperty(Enum<?> property, String systemProperty) {
         try {
-            String value = SecuritySupport.getSystemProperty(systemProperty);
+            String value = System.getProperty(systemProperty);
             if (value != null) {
                 values[property.ordinal()] = value;
                 states[property.ordinal()] = State.SYSTEMPROPERTY;
                 return;
             }
 
-            value = SecuritySupport.readJAXPProperty(systemProperty);
+            value = SecuritySupport.readConfig(systemProperty);
             if (value != null) {
                 values[property.ordinal()] = value;
                 states[property.ordinal()] = State.JAXPDOTPROPERTIES;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,15 +25,19 @@ package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
-import jdk.experimental.bytecode.TypeTag;
 import test.java.lang.invoke.lib.InstructionHelper;
+
+import java.util.Objects;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 
-import jdk.internal.value.PrimitiveClass;
+import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.ImplicitlyConstructible;
+import jdk.internal.vm.annotation.LooselyConsistentValue;
+import jdk.internal.vm.annotation.NullRestricted;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
@@ -41,13 +45,14 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
 /*
  * @test
  * @key randomness
- * @summary Test correct handling of nullable inline types.
- * @modules java.base/jdk.internal.value
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
+ * @summary Test correct handling of nullable value classes.
+ * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDenablePrimitiveClasses TestNullableInlineTypes.java
- * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestNullableInlineTypes
+ * @enablePreview
+ * @modules java.base/jdk.internal.value
+ *          java.base/jdk.internal.vm.annotation
+ * @build test.java.lang.invoke.lib.InstructionHelper
+ * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestNullableInlineTypes
  */
 
 @ForceCompileClassInitializer
@@ -56,7 +61,7 @@ public class TestNullableInlineTypes {
     public static void main(String[] args) {
 
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
-        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1");
+        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:+UseArrayFlattening");
         scenarios[4].addFlags("-XX:-MonomorphicArrayCheck");
 
         InlineTypes.getFramework()
@@ -76,11 +81,11 @@ public class TestNullableInlineTypes {
             Class<?> clazz = TestNullableInlineTypes.class;
             MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-            MethodType test18_mt = MethodType.methodType(void.class, MyValue1.ref.class);
+            MethodType test18_mt = MethodType.methodType(void.class, MyValue1.class);
             test18_mh1 = lookup.findStatic(clazz, "test18_target1", test18_mt);
             test18_mh2 = lookup.findStatic(clazz, "test18_target2", test18_mt);
 
-            MethodType test19_mt = MethodType.methodType(void.class, MyValue1.ref.class);
+            MethodType test19_mt = MethodType.methodType(void.class, MyValue1.class);
             test19_mh1 = lookup.findStatic(clazz, "test19_target1", test19_mt);
             test19_mh2 = lookup.findStatic(clazz, "test19_target2", test19_mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
@@ -89,17 +94,23 @@ public class TestNullableInlineTypes {
         }
     }
 
+    @NullRestricted
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
-    private static final MyValue1[] testValue1Array = new MyValue1[] {testValue1,
-                                                                      testValue1,
-                                                                      testValue1};
 
-    MyValue1.ref nullField;
+    private static final MyValue1[] testValue1Array = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 3);
+    static {
+        for (int i = 0; i < 3; ++i) {
+            testValue1Array[i] = testValue1;
+        }
+    }
+
+    MyValue1 nullField;
+    @NullRestricted
     MyValue1 valueField1 = testValue1;
 
     @Test
     @IR(failOn = {ALLOC})
-    public long test1(MyValue1.ref vt) {
+    public long test1(MyValue1 vt) {
         long result = 0;
         try {
             result = vt.hash();
@@ -118,7 +129,7 @@ public class TestNullableInlineTypes {
 
     @Test
     @IR(failOn = {ALLOC})
-    public long test2(MyValue1.ref vt) {
+    public long test2(MyValue1 vt) {
         long result = 0;
         try {
             result = vt.hashInterpreted();
@@ -131,7 +142,7 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test2")
     public void test2_verifier() {
-        long result = test2(nullField);
+        long result = test2(null);
         Asserts.assertEquals(result, 0L);
     }
 
@@ -161,7 +172,7 @@ public class TestNullableInlineTypes {
     @IR(failOn = {ALLOC})
     public void test4() {
         try {
-            valueField1 = (MyValue1) nullField;
+            valueField1 = nullField;
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -177,16 +188,9 @@ public class TestNullableInlineTypes {
     // TODO 8284443 When passing vt to test5_inline and incrementally inlining, we lose the oop
     @IR(applyIfOr = {"InlineTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
         failOn = {ALLOC})
-    public MyValue1.ref test5(MyValue1.ref vt) {
-        try {
-            Object o = vt;
-            vt = (MyValue1)o;
-            throw new RuntimeException("NullPointerException expected");
-        } catch (NullPointerException e) {
-            // Expected
-        }
-
-        // Should not throw
+    public MyValue1 test5(MyValue1 vt) {
+        Object o = vt;
+        vt = (MyValue1)o;
         vt = test5_dontinline(vt);
         vt = test5_inline(vt);
         return vt;
@@ -195,27 +199,25 @@ public class TestNullableInlineTypes {
     @Run(test = "test5")
     public void test5_verifier() {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1.ref vt = test5(nullField);
-        Asserts.assertEquals(vt, null);
+        Asserts.assertEquals(test5(val), val);
+        Asserts.assertEquals(test5(null), null);
     }
 
     @DontInline
-    public MyValue1.ref test5_dontinline(MyValue1.ref vt) {
+    public MyValue1 test5_dontinline(MyValue1 vt) {
         return vt;
     }
 
     @ForceInline
-    public MyValue1.ref test5_inline(MyValue1.ref vt) {
+    public MyValue1 test5_inline(MyValue1 vt) {
         return vt;
     }
 
     @Test
-    @IR(failOn = {ALLOC})
     public MyValue1 test6(Object obj) {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         try {
-            vt = (MyValue1)obj;
-            throw new RuntimeException("NullPointerException expected");
+            vt = (MyValue1)Objects.requireNonNull(obj);
         } catch (NullPointerException e) {
             // Expected
         }
@@ -229,12 +231,12 @@ public class TestNullableInlineTypes {
     }
 
     @ForceInline
-    public MyValue1.ref getNullInline() {
+    public MyValue1 getNullInline() {
         return null;
     }
 
     @DontInline
-    public MyValue1.ref getNullDontInline() {
+    public MyValue1 getNullDontInline() {
         return null;
     }
 
@@ -244,13 +246,13 @@ public class TestNullableInlineTypes {
         nullField = getNullInline();     // Should not throw
         nullField = getNullDontInline(); // Should not throw
         try {
-            valueField1 = (MyValue1) getNullInline();
+            valueField1 = getNullInline();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
         try {
-            valueField1 = (MyValue1) getNullDontInline();
+            valueField1 = getNullDontInline();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -266,7 +268,7 @@ public class TestNullableInlineTypes {
     @IR(failOn = {ALLOC})
     public void test8() {
         try {
-            valueField1 = (MyValue1) nullField;
+            valueField1 = nullField;
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -278,7 +280,7 @@ public class TestNullableInlineTypes {
         test8();
     }
 
-    // merge of 2 inline types, one being null
+    // Merge of two value objects, one being null
     @Test
     @IR(failOn = {ALLOC})
     public void test9(boolean flag) {
@@ -286,7 +288,7 @@ public class TestNullableInlineTypes {
         if (flag) {
             v = valueField1;
         } else {
-            v = (MyValue1) nullField;
+            v = nullField;
         }
         valueField1 = v;
     }
@@ -306,8 +308,8 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC})
     public void test10(boolean flag) {
-        MyValue1.ref val = flag ? valueField1 : null;
-        valueField1 = (MyValue1) val;
+        MyValue1 val = flag ? valueField1 : null;
+        valueField1 = val;
     }
 
     @Run(test = "test10")
@@ -325,8 +327,8 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC})
     public void test11(boolean flag) {
-        MyValue1.ref val = flag ? null : valueField1;
-        valueField1 = (MyValue1) val;
+        MyValue1 val = flag ? null : valueField1;
+        valueField1 = val;
     }
 
     @Run(test = "test11")
@@ -344,7 +346,7 @@ public class TestNullableInlineTypes {
     int test12_cnt;
 
     @DontInline
-    public MyValue1.ref test12_helper() {
+    public MyValue1 test12_helper() {
         test12_cnt++;
         return nullField;
     }
@@ -352,7 +354,7 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC})
     public void test12() {
-        valueField1 = (MyValue1) test12_helper();
+        valueField1 = test12_helper();
     }
 
     @Run(test = "test12")
@@ -371,33 +373,33 @@ public class TestNullableInlineTypes {
 
     // null return at virtual call
     class A {
-        public MyValue1.ref test13_helper() {
+        public MyValue1 test13_helper() {
             return nullField;
         }
     }
 
     class B extends A {
         public MyValue1 test13_helper() {
-            return (MyValue1) nullField;
+            return nullField;
         }
     }
 
     class C extends A {
-        public MyValue1.ref test13_helper() {
+        public MyValue1 test13_helper() {
             return nullField;
         }
     }
 
     class D extends C {
         public MyValue1 test13_helper() {
-            return (MyValue1) nullField;
+            return nullField;
         }
     }
 
     @Test
     @IR(failOn = {ALLOC})
     public void test13(A a) {
-        valueField1 = (MyValue1) a.test13_helper();
+        valueField1 = a.test13_helper();
     }
 
     @Run(test = "test13")
@@ -432,7 +434,7 @@ public class TestNullableInlineTypes {
         }
     }
 
-    // Test writing null to a (flattened) inline type array
+    // Test writing null to a (flat) value class array
     @ForceInline
     public void test14_inline(Object[] oa, Object o, int index) {
         oa[index] = o;
@@ -457,13 +459,13 @@ public class TestNullableInlineTypes {
     }
 
     @DontInline
-    MyValue1.ref getNullField1() {
+    MyValue1 getNullField1() {
         return nullField;
     }
 
     @DontInline
     MyValue1 getNullField2() {
-        return (MyValue1) nullField;
+        return null;
     }
 
     @Test
@@ -471,7 +473,7 @@ public class TestNullableInlineTypes {
     public void test15() {
         nullField = getNullField1(); // should not throw
         try {
-            valueField1 = (MyValue1) getNullField1();
+            valueField1 = getNullField1();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -490,15 +492,15 @@ public class TestNullableInlineTypes {
     }
 
     @DontInline
-    public boolean test16_dontinline(MyValue1.ref vt) {
+    public boolean test16_dontinline(MyValue1 vt) {
         return vt == null;
     }
 
-    // Test c2c call passing null for an inline type
+    // Test c2c call passing null for a value class
     @Test
     @IR(failOn = {ALLOC})
     public boolean test16(Object arg) throws Exception {
-        Method test16method = getClass().getMethod("test16_dontinline", MyValue1.ref.class);
+        Method test16method = getClass().getMethod("test16_dontinline", MyValue1.class);
         return (boolean)test16method.invoke(this, arg);
     }
 
@@ -509,12 +511,14 @@ public class TestNullableInlineTypes {
         Asserts.assertTrue(res);
     }
 
-    // Test scalarization of default inline type with non-flattenable field
-    final primitive class Test17Value {
-        public final MyValue1.ref valueField;
+    // Test scalarization of default value class with non-flattenable field
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    final value class Test17Value {
+        public final MyValue1 valueField;
 
         @ForceInline
-        public Test17Value(MyValue1.ref valueField) {
+        public Test17Value(MyValue1 valueField) {
             this.valueField = valueField;
         }
     }
@@ -524,7 +528,7 @@ public class TestNullableInlineTypes {
     @IR(applyIfOr = {"InlineTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
         failOn = {ALLOC})
     public Test17Value test17(boolean b) {
-        Test17Value vt1 = Test17Value.default;
+        Test17Value vt1 = new Test17Value(null);
         Test17Value vt2 = new Test17Value(testValue1);
         return b ? vt1 : vt2;
     }
@@ -538,19 +542,19 @@ public class TestNullableInlineTypes {
     static final MethodHandle test18_mh1;
     static final MethodHandle test18_mh2;
 
-    static MyValue1.ref nullValue;
+    static MyValue1 nullValue;
 
     @DontInline
-    static void test18_target1(MyValue1.ref vt) {
+    static void test18_target1(MyValue1 vt) {
         nullValue = vt;
     }
 
     @ForceInline
-    static void test18_target2(MyValue1.ref vt) {
+    static void test18_target2(MyValue1 vt) {
         nullValue = vt;
     }
 
-    // Test passing null for an inline type
+    // Test passing null for a value class
     @Test
     @IR(failOn = {ALLOC})
     public void test18() throws Throwable {
@@ -572,12 +576,12 @@ public class TestNullableInlineTypes {
     static MethodHandle test19_mh2;
 
     @DontInline
-    static void test19_target1(MyValue1.ref vt) {
+    static void test19_target1(MyValue1 vt) {
         nullValue = vt;
     }
 
     @ForceInline
-    static void test19_target2(MyValue1.ref vt) {
+    static void test19_target2(MyValue1 vt) {
         nullValue = vt;
     }
 
@@ -619,26 +623,28 @@ public class TestNullableInlineTypes {
         }
     }
 
-    // Test writing null to a flattenable/non-flattenable inline type field in an inline type
-    final primitive class Test21Value {
-        final MyValue1.ref valueField1;
-        final MyValue1 valueField2;
-        final MyValue1.ref alwaysNull = null;
+    // Test writing null to a flattenable/non-flattenable value class field in a value class
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    value class Test21Value {
+        MyValue1 valueField1;
+        @NullRestricted
+        MyValue1 valueField2;
 
         @ForceInline
-        public Test21Value(MyValue1.ref valueField1, MyValue1 valueField2) {
-            this.valueField1 = testValue1;
-            this.valueField2 = testValue1;
+        public Test21Value(MyValue1 valueField1, MyValue1 valueField2) {
+            this.valueField1 = valueField1;
+            this.valueField2 = valueField2;
         }
 
         @ForceInline
         public Test21Value test1() {
-            return new Test21Value(alwaysNull, this.valueField2); // Should not throw NPE
+            return new Test21Value(null, this.valueField2); // Should not throw NPE
         }
 
         @ForceInline
         public Test21Value test2() {
-            return new Test21Value(this.valueField1, (MyValue1) alwaysNull); // Should throw NPE
+            return new Test21Value(this.valueField1, null); // Should throw NPE
         }
     }
 
@@ -657,12 +663,12 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test21")
     public void test21_verifier() {
-        test21(Test21Value.default);
+        test21(new Test21Value(null, MyValue1.createDefaultInline()));
     }
 
     @DontInline
     public MyValue1 test22_helper() {
-        return (MyValue1) nullField;
+        return nullField;
     }
 
     @Test
@@ -682,32 +688,32 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(applyIfAnd = {"FlatArrayElementMaxSize", "= -1", "InlineTypePassFieldsAsArgs", "true"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "true", "InlineTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC})
-    @IR(applyIfAnd = {"FlatArrayElementMaxSize", "= 0", "InlineTypePassFieldsAsArgs", "false"},
+    @IR(applyIfAnd = {"UseArrayFlattening", "false", "InlineTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC})
-    public void test23(MyValue1[] arr, MyValue1.ref b) {
-        arr[0] = (MyValue1) b;
+    public void test23(MyValue1 val) {
+        MyValue1[] arr = (MyValue1[])ValueClass.newNullRestrictedArray(MyValue1.class, 2);
+        arr[0] = val;
     }
 
     @Run(test = "test23")
     public void test23_verifier() {
-        MyValue1[] arr = new MyValue1[2];
-        MyValue1.ref b = null;
+        MyValue1 val = null;
         try {
-            test23(arr, b);
+            test23(val);
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
     }
 
-    static MyValue1.ref nullBox;
+    static MyValue1 nullBox;
 
     @Test
     @IR(failOn = {ALLOC})
     public MyValue1 test24() {
-        return (MyValue1) nullBox;
+        return Objects.requireNonNull(nullBox);
     }
 
     @Run(test = "test24")
@@ -724,10 +730,10 @@ public class TestNullableInlineTypes {
     public void test25_callee(MyValue1 val) { }
 
     // Test that when checkcasting from null-ok to null-free and back to null-ok we
-    // keep track of the information that the inline type can never be null.
+    // keep track of the information that the value object can never be null.
     @Test
     @IR(failOn = {ALLOC, STORE})
-    public int test25(boolean b, MyValue1.ref vt1, MyValue1 vt2) {
+    public int test25(boolean b, MyValue1 vt1, MyValue1 vt2) {
         vt1 = (MyValue1)vt1;
         Object obj = b ? vt1 : vt2; // We should not allocate here
         test25_callee((MyValue1) vt1);
@@ -742,7 +748,7 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(res, testValue1.x);
         if (!info.isWarmUp()) {
             try {
-                test25(false, null, testValue1);
+                test25(true, null, testValue1);
                 throw new RuntimeException("NullPointerException expected");
             } catch (NullPointerException e) {
                 // Expected
@@ -754,7 +760,7 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC, STORE})
     public MyValue3 test26(MyValue3 vt) {
-        return ((MyValue3)((Object)((MyValue3.ref)(MyValue3)((MyValue3.ref)((Object)vt)))));
+        return ((MyValue3)((Object)((MyValue3)(MyValue3)((MyValue3)((Object)vt)))));
     }
 
     @Run(test = "test26")
@@ -766,8 +772,8 @@ public class TestNullableInlineTypes {
 
     @Test
     @IR(failOn = {ALLOC, STORE})
-    public MyValue3.ref test27(MyValue3.ref vt) {
-        return ((MyValue3.ref)((Object)((MyValue3)(MyValue3.ref)((MyValue3)((Object)vt)))));
+    public MyValue3 test27(MyValue3 vt) {
+        return ((MyValue3)((Object)((MyValue3)(MyValue3)((MyValue3)((Object)vt)))));
     }
 
     @Run(test = "test27")
@@ -779,13 +785,13 @@ public class TestNullableInlineTypes {
 
     // Some more casting tests
     @Test
-    public MyValue1.ref test28(MyValue1 vt, MyValue1.ref vtBox, int i) {
-        MyValue1.ref result = null;
+    public MyValue1 test28(MyValue1 vt, MyValue1 vtBox, int i) {
+        MyValue1 result = null;
         if (i == 0) {
-            result = (MyValue1.ref)vt;
+            result = (MyValue1)vt;
             result = null;
         } else if (i == 1) {
-            result = (MyValue1.ref)vt;
+            result = (MyValue1)vt;
         } else if (i == 2) {
             result = vtBox;
         }
@@ -794,7 +800,7 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test28")
     public void test28_verifier() {
-        MyValue1.ref result = test28(testValue1, null, 0);
+        MyValue1 result = test28(testValue1, null, 0);
         Asserts.assertEquals(result, null);
         result = test28(testValue1, testValue1, 1);
         Asserts.assertEquals(result, testValue1);
@@ -806,15 +812,15 @@ public class TestNullableInlineTypes {
 
     @Test
     @IR(failOn = {ALLOC})
-    public long test29(MyValue1 vt, MyValue1.ref vtBox) {
+    public long test29(MyValue1 vt, MyValue1 vtBox) {
         long result = 0;
         for (int i = 0; i < 100; ++i) {
-            MyValue1.ref box;
+            MyValue1 box;
             if (i == 0) {
-                box = (MyValue1.ref)vt;
+                box = (MyValue1)vt;
                 box = null;
             } else if (i < 99) {
-                box = (MyValue1.ref)vt;
+                box = (MyValue1)vt;
             } else {
                 box = vtBox;
             }
@@ -833,8 +839,8 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(result, testValue1.hash()*99);
     }
 
-    // Test null check of inline type receiver with incremental inlining
-    public long test30_callee(MyValue1.ref vt) {
+    // Test null check of value object receiver with incremental inlining
+    public long test30_callee(MyValue1 vt) {
         long result = 0;
         try {
             result = vt.hashInterpreted();
@@ -857,20 +863,15 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(result, 0L);
     }
 
-    // Test casting null to unloaded inline type
-    final primitive class Test31Value {
-        private final int i = 0;
+    // Test casting null to unloaded value class
+    value class Test31Value {
+        private int i = 0;
     }
 
     @Test
     @IR(failOn = {ALLOC})
-    public void test31(Object o) {
-        try {
-            o = (Test31Value)o;
-            throw new RuntimeException("NullPointerException expected");
-        } catch (NullPointerException e) {
-            // Expected
-        }
+    public Object test31(Object o) {
+        return (Test31Value)o;
     }
 
     @Run(test = "test31")
@@ -878,32 +879,37 @@ public class TestNullableInlineTypes {
         test31(null);
     }
 
-    private static final MyValue1.ref constNullRefField = null;
+    private static final MyValue1 constNullRefField = null;
 
     @Test
     @IR(failOn = {ALLOC})
-    public MyValue1.ref test32() {
+    public MyValue1 test32() {
         return constNullRefField;
     }
 
     @Run(test = "test32")
     public void test32_verifier() {
-        MyValue1.ref result = test32();
+        MyValue1 result = test32();
         Asserts.assertEquals(result, null);
     }
 
-    static primitive class Test33Value1 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test33Value1 {
         int x = 0;
     }
 
-    static primitive class Test33Value2 {
-        Test33Value1.ref vt;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test33Value2 {
+        Test33Value1 vt;
 
         public Test33Value2() {
             vt = new Test33Value1();
         }
     }
 
+    @NullRestricted
     public static final Test33Value2 test33Val = new Test33Value2();
 
     @Test
@@ -920,7 +926,7 @@ public class TestNullableInlineTypes {
 
     // Verify that static nullable inline-type fields are not
     // treated as never-null by C2 when initialized at compile time.
-    private static MyValue1.ref test34Val;
+    private static MyValue1 test34Val;
 
     @Test
     public void test34(MyValue1 vt) {
@@ -939,10 +945,10 @@ public class TestNullableInlineTypes {
         }
     }
 
-    // Same as test17 but with non-allocated inline type at withfield
+    // Same as test17 but with non-allocated value object
     @Test
     public Test17Value test35(boolean b) {
-        Test17Value vt1 = Test17Value.default;
+        Test17Value vt1 = new Test17Value(null);
         if ((Object)vt1.valueField != null) {
             throw new RuntimeException("Should be null");
         }
@@ -957,11 +963,11 @@ public class TestNullableInlineTypes {
         test35(false);
     }
 
-    // Test that when explicitly null checking an inline type, we keep
-    // track of the information that the inline type can never be null.
+    // Test that when explicitly null checking a value object, we keep
+    // track of the information that the value object can never be null.
     @Test
     @IR(failOn = {ALLOC, STORE})
-    public int test37(boolean b, MyValue1.ref vt1, MyValue1.val vt2) {
+    public int test37(boolean b, MyValue1 vt1, MyValue1 vt2) {
         if (vt1 == null) {
             return 0;
         }
@@ -979,11 +985,11 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(res, testValue1.x);
     }
 
-    // Test that when explicitly null checking an inline type receiver,
-    // we keep track of the information that the inline type can never be null.
+    // Test that when explicitly null checking a value object receiver,
+    // we keep track of the information that the value object can never be null.
     @Test
     @IR(failOn = {ALLOC, STORE})
-    public int test38(boolean b, MyValue1.ref vt1, MyValue1.val vt2) {
+    public int test38(boolean b, MyValue1 vt1, MyValue1 vt2) {
         vt1.hash(); // Inlined - Explicit null check
         // vt1 should be scalarized because it's always non-null
         Object obj = b ? vt1 : vt2; // We should not allocate vt2 here
@@ -999,11 +1005,11 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(res, testValue1.x);
     }
 
-    // Test that when implicitly null checking an inline type receiver,
-    // we keep track of the information that the inline type can never be null.
+    // Test that when implicitly null checking a value object receiver,
+    // we keep track of the information that the value object can never be null.
     @Test
     @IR(failOn = {ALLOC, STORE})
-    public int test39(boolean b, MyValue1.ref vt1, MyValue1.val vt2) {
+    public int test39(boolean b, MyValue1 vt1, MyValue1 vt2) {
         vt1.hashInterpreted(); // Not inlined - Implicit null check
         // vt1 should be scalarized because it's always non-null
         Object obj = b ? vt1 : vt2; // We should not allocate vt2 here
@@ -1019,12 +1025,13 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(res, testValue1.x);
     }
 
-    // Test NPE when casting constant null to inline type
+    // Test NPE when casting constant null to a value class
     @Test
     @IR(failOn = {ALLOC})
     public MyValue1 test40() {
         Object NULL = null;
-        return (MyValue1)NULL;
+        MyValue1 val = (MyValue1)NULL;
+        return Objects.requireNonNull(val);
     }
 
     @Run(test = "test40")
@@ -1037,14 +1044,15 @@ public class TestNullableInlineTypes {
         }
     }
 
-    MyValue1.ref refField;
+    MyValue1 refField;
+    @NullRestricted
     MyValue1 flatField;
 
     // Test scalarization of .ref
     @Test
     @IR(failOn = {ALLOC_G, STORE, TRAP})
     public int test41(boolean b) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
             val = refField;
         }
@@ -1072,7 +1080,7 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC, STORE, TRAP})
     public long test42(boolean b) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
             val = refField;
         }
@@ -1097,8 +1105,8 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    public MyValue1.ref test43(boolean b) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+    public MyValue1 test43(boolean b) {
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
             val = refField;
         }
@@ -1120,7 +1128,7 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC, STORE})
     public int test44(boolean b1, boolean b2, Method m) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
             val = refField;
         }
@@ -1152,8 +1160,8 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    public MyValue1.ref test45(boolean b1, boolean b2, Method m) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+    public MyValue1 test45(boolean b1, boolean b2, Method m) {
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
             val = refField;
         }
@@ -1181,7 +1189,7 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
     public int test46(boolean b) {
-        MyValue1.ref val = null;
+        MyValue1 val = null;
         if (b) {
             val = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -1200,8 +1208,8 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    public MyValue1.ref test47(boolean b) {
-        MyValue1.ref val = null;
+    public MyValue1 test47(boolean b) {
+        MyValue1 val = null;
         if (b) {
             val = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -1217,7 +1225,7 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
     public int test48(boolean b) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
             val = null;
         }
@@ -1236,8 +1244,8 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    public MyValue1.ref test49(boolean b) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+    public MyValue1 test49(boolean b) {
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
             val = null;
         }
@@ -1277,11 +1285,13 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(flatField.hash(), testValue1.hash());
     }
 
-    static final primitive class MyValue1Wrapper {
-        final MyValue1.ref vt;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue1Wrapper {
+        MyValue1 vt;
 
         @ForceInline
-        public MyValue1Wrapper(MyValue1.ref vt) {
+        public MyValue1Wrapper(MyValue1 vt) {
             this.vt = vt;
         }
 
@@ -1291,12 +1301,13 @@ public class TestNullableInlineTypes {
         }
     }
 
+    @NullRestricted
     MyValue1Wrapper wrapperField;
 
     @Test
     @IR(failOn = {ALLOC_G, STORE, TRAP})
     public long test51(boolean b) {
-        MyValue1Wrapper.ref val = MyValue1Wrapper.default;
+        MyValue1Wrapper val = new MyValue1Wrapper(null);
         if (b) {
             val = wrapperField;
         }
@@ -1307,17 +1318,17 @@ public class TestNullableInlineTypes {
     public void test51_verifier() {
         wrapperField = new MyValue1Wrapper(testValue1);
         Asserts.assertEquals(test51(true), wrapperField.hash());
-        Asserts.assertEquals(test51(false), MyValue1Wrapper.default.hash());
+        Asserts.assertEquals(test51(false), (new MyValue1Wrapper(null)).hash());
     }
 
     @Test
     @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
     public boolean test52(boolean b) {
-        MyValue1.ref val = MyValue1.default;
+        MyValue1 val = MyValue1.createDefaultInline();
         if (b) {
             val = null;
         }
-        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+        MyValue1Wrapper w = new MyValue1Wrapper(val);
         return w.vt == null;
     }
 
@@ -1330,11 +1341,11 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
     public boolean test53(boolean b) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
             val = null;
         }
-        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+        MyValue1Wrapper w = new MyValue1Wrapper(val);
         return w.vt == null;
     }
 
@@ -1347,11 +1358,11 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
     public long test54(boolean b1, boolean b2) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
             val = null;
         }
-        MyValue1Wrapper.ref w = MyValue1Wrapper.default;
+        MyValue1Wrapper w = new MyValue1Wrapper(null);
         if (b2) {
             w = new MyValue1Wrapper(val);
         }
@@ -1361,17 +1372,17 @@ public class TestNullableInlineTypes {
     @Run(test = "test54")
     public void test54_verifier() {
         MyValue1Wrapper w = new MyValue1Wrapper(MyValue1.createWithFieldsInline(rI, rL));
-        Asserts.assertEquals(test54(false, false), MyValue1Wrapper.default.hash());
+        Asserts.assertEquals(test54(false, false), (new MyValue1Wrapper(null)).hash());
         Asserts.assertEquals(test54(false, true), w.hash());
-        Asserts.assertEquals(test54(true, false), MyValue1Wrapper.default.hash());
+        Asserts.assertEquals(test54(true, false), (new MyValue1Wrapper(null)).hash());
         Asserts.assertEquals(test54(true, true), 0L);
     }
 
     @Test
     @IR(failOn = {ALLOC_G, STORE, TRAP})
     public int test55(boolean b) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1Wrapper w = new MyValue1Wrapper(val);
         if (b) {
             w = new MyValue1Wrapper(refField);
         }
@@ -1398,8 +1409,8 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC, STORE, TRAP})
     public long test56(boolean b) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1Wrapper w = new MyValue1Wrapper(val);
         if (b) {
             w = new MyValue1Wrapper(refField);
         }
@@ -1424,9 +1435,9 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    public MyValue1.ref test57(boolean b) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+    public MyValue1 test57(boolean b) {
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1Wrapper w = new MyValue1Wrapper(val);
         if (b) {
             w = new MyValue1Wrapper(refField);
         }
@@ -1448,8 +1459,8 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC, STORE})
     public int test58(boolean b1, boolean b2, Method m) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1Wrapper w = new MyValue1Wrapper(val);
         if (b1) {
             w = new MyValue1Wrapper(refField);
         }
@@ -1481,9 +1492,9 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    public MyValue1.ref test59(boolean b1, boolean b2, Method m) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+    public MyValue1 test59(boolean b1, boolean b2, Method m) {
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1Wrapper w = new MyValue1Wrapper(val);
         if (b1) {
             w = new MyValue1Wrapper(refField);
         }
@@ -1511,9 +1522,9 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
     public int test60(boolean b) {
-        MyValue1Wrapper.ref w = new MyValue1Wrapper(null);
+        MyValue1Wrapper w = new MyValue1Wrapper(null);
         if (b) {
-            MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+            MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
             w = new MyValue1Wrapper(val);
         }
         return w.vt.x;
@@ -1531,10 +1542,10 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    public MyValue1.ref test61(boolean b) {
-        MyValue1Wrapper.ref w = new MyValue1Wrapper(null);
+    public MyValue1 test61(boolean b) {
+        MyValue1Wrapper w = new MyValue1Wrapper(null);
         if (b) {
-            MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+            MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
             w = new MyValue1Wrapper(val);
         }
         return w.vt;
@@ -1549,8 +1560,8 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
     public int test62(boolean b) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1Wrapper w = new MyValue1Wrapper(val);
         if (b) {
             w = new MyValue1Wrapper(null);
         }
@@ -1569,9 +1580,9 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    public MyValue1.ref test63(boolean b) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+    public MyValue1 test63(boolean b) {
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1Wrapper w = new MyValue1Wrapper(val);
         if (b) {
             w = new MyValue1Wrapper(null);
         }
@@ -1585,14 +1596,14 @@ public class TestNullableInlineTypes {
     }
 
     @ForceInline
-    public MyValue1.ref test64_helper() {
+    public MyValue1 test64_helper() {
         return flatField;
     }
 
     @Test
     @IR(failOn = {ALLOC_G, TRAP})
     public void test64(boolean b) {
-        MyValue1Wrapper.ref w = new MyValue1Wrapper(null);
+        MyValue1Wrapper w = new MyValue1Wrapper(null);
         if (b) {
             w = new MyValue1Wrapper(testValue1);
         } else {
@@ -1614,7 +1625,7 @@ public class TestNullableInlineTypes {
     @Test
     @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
     public long test65(boolean b) {
-        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
             val = null;
         }
@@ -1638,7 +1649,7 @@ public class TestNullableInlineTypes {
     // Test that .ref arg does not block scalarization
     @Test
     @IR(failOn = {ALLOC, STORE})
-    public int test66(boolean b1, boolean b2, MyValue1.ref arg, Method m) {
+    public int test66(boolean b1, boolean b2, MyValue1 arg, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
             val = test66_helper(arg);
@@ -1669,7 +1680,7 @@ public class TestNullableInlineTypes {
     }
 
     @DontInline
-    public MyValue1.ref test67_helper1() {
+    public MyValue1 test67_helper1() {
         return refField;
     }
 
@@ -1715,7 +1726,7 @@ public class TestNullableInlineTypes {
 
     @ForceInline
     public Object test68_helper(Object arg) {
-        MyValue1.ref tmp = (MyValue1)arg; // Result of cast is unused
+        MyValue1 tmp = (MyValue1)arg; // Result of cast is unused
         return arg;
     }
 
@@ -1754,7 +1765,7 @@ public class TestNullableInlineTypes {
 
     @ForceInline
     public Object test69_helper(Object arg) {
-        MyValue1.ref tmp = (MyValue1)arg; // Result of cast is unused
+        MyValue1 tmp = (MyValue1)arg; // Result of cast is unused
         return arg;
     }
 
@@ -1800,7 +1811,7 @@ public class TestNullableInlineTypes {
 
     @ForceInline
     public Object test70_helper(Object arg) {
-        MyValue1.ref tmp = (MyValue1)arg; // Result of cast is unused
+        MyValue1 tmp = (MyValue1)arg; // Result of cast is unused
         return arg;
     }
 
@@ -1846,7 +1857,7 @@ public class TestNullableInlineTypes {
 
     @ForceInline
     public Object test71_helper(Object arg) {
-        MyValue1.ref tmp = (MyValue1.ref)arg; // Result of cast is unused
+        MyValue1 tmp = (MyValue1)arg; // Result of cast is unused
         return arg;
     }
 
@@ -1862,7 +1873,7 @@ public class TestNullableInlineTypes {
             // Uncommon trap
             TestFramework.deoptimize(m);
         }
-        return ((MyValue1.ref)val).x;
+        return ((MyValue1)val).x;
     }
 
     @Run(test = "test71")
@@ -1885,7 +1896,7 @@ public class TestNullableInlineTypes {
 
     @ForceInline
     public Object test72_helper(Object arg) {
-        MyValue1.ref tmp = (MyValue1.ref)arg; // Result of cast is unused
+        MyValue1 tmp = (MyValue1)arg; // Result of cast is unused
         return arg;
     }
 
@@ -1901,7 +1912,7 @@ public class TestNullableInlineTypes {
             // Uncommon trap
             TestFramework.deoptimize(m);
         }
-        return ((MyValue1.ref)val).hash();
+        return ((MyValue1)val).hash();
     }
 
     @Run(test = "test72")
@@ -1931,7 +1942,7 @@ public class TestNullableInlineTypes {
 
     @ForceInline
     public Object test73_helper(Object arg) {
-        MyValue1.ref tmp = (MyValue1.ref)arg; // Result of cast is unused
+        MyValue1 tmp = (MyValue1)arg; // Result of cast is unused
         return arg;
     }
 
@@ -1947,7 +1958,7 @@ public class TestNullableInlineTypes {
             // Uncommon trap
             TestFramework.deoptimize(m);
         }
-        return ((MyValue1.ref)val).x;
+        return ((MyValue1)val).x;
     }
 
     @Run(test = "test73")
@@ -1977,7 +1988,7 @@ public class TestNullableInlineTypes {
 
     @ForceInline
     public Object test74_helper(Object arg) {
-        return (MyValue1.ref)arg;
+        return (MyValue1)arg;
     }
 
     // Same as test73 but result of cast is used and hash() is called
@@ -1992,7 +2003,7 @@ public class TestNullableInlineTypes {
             // Uncommon trap
             TestFramework.deoptimize(m);
         }
-        return ((MyValue1.ref)val).hash();
+        return ((MyValue1)val).hash();
     }
 
     @Run(test = "test74")
@@ -2023,9 +2034,9 @@ public class TestNullableInlineTypes {
     // Test new merge path being added for exceptional control flow
     @Test
     @IR(failOn = {ALLOC})
-    public MyValue1.ref test75(MyValue1.ref vt, Object obj) {
+    public MyValue1 test75(MyValue1 vt, Object obj) {
         try {
-            vt = (MyValue1.ref)obj;
+            vt = (MyValue1)obj;
             throw new RuntimeException("ClassCastException expected");
         } catch (ClassCastException e) {
             // Expected
@@ -2035,8 +2046,8 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test75")
     public void test75_verifier() {
-        MyValue1.ref vt = testValue1;
-        MyValue1.ref result = test75(vt, Integer.valueOf(rI));
+        MyValue1 vt = testValue1;
+        MyValue1 result = test75(vt, Integer.valueOf(rI));
         Asserts.assertEquals(result.hash(), vt.hash());
     }
 
@@ -2045,7 +2056,7 @@ public class TestNullableInlineTypes {
         return constNullRefField;
     }
 
-    // Test that constant null .ref field does not block scalarization
+    // Test that constant null field does not block scalarization
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE})
     public long test76(boolean b1, boolean b2, Method m) {
@@ -2057,6 +2068,7 @@ public class TestNullableInlineTypes {
             // Uncommon trap
             TestFramework.deoptimize(m);
         }
+        val = Objects.requireNonNull(val);
         return ((MyValue1)val).hash();
     }
 
@@ -2087,7 +2099,7 @@ public class TestNullableInlineTypes {
         return constObjectValField;
     }
 
-    // Test that constant object field with inline type content does not block scalarization
+    // Test that constant object field with value class content does not block scalarization
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE})
     public long test77(boolean b1, boolean b2, Method m) {
@@ -2129,6 +2141,7 @@ public class TestNullableInlineTypes {
             // Uncommon trap
             TestFramework.deoptimize(m);
         }
+        val = Objects.requireNonNull(val);
         return ((MyValue1)val).hash();
     }
 
@@ -2169,6 +2182,7 @@ public class TestNullableInlineTypes {
             // Uncommon trap
             TestFramework.deoptimize(m);
         }
+        val = Objects.requireNonNull(val);
         return ((MyValue1)val).hash();
     }
 
@@ -2192,6 +2206,8 @@ public class TestNullableInlineTypes {
         }
     }
 
+// TODO 8325632 Fails with -XX:+UnlockExperimentalVMOptions -XX:PerMethodSpecTrapLimit=0 -XX:PerMethodTrapLimit=0
+/*
     @ForceInline
     public Object test80_helper(Object obj, int i) {
         if ((i % 2) == 0) {
@@ -2208,7 +2224,7 @@ public class TestNullableInlineTypes {
         for (int i = 0; i < 100; ++i) {
             val = test80_helper(val, i);
         }
-        return ((MyValue1.ref)val).hash();
+        return ((MyValue1)val).hash();
     }
 
     private long test80Result = 0;
@@ -2243,7 +2259,7 @@ public class TestNullableInlineTypes {
             }
             val = test81_helper(val, i);
         }
-        return ((MyValue1.ref)val).hash();
+        return ((MyValue1)val).hash();
     }
 
     private long test81Result = 0;
@@ -2280,7 +2296,7 @@ public class TestNullableInlineTypes {
             }
             val = test82_helper(val, i);
         }
-        return ((MyValue1.ref)val).hash();
+        return ((MyValue1)val).hash();
     }
 
     private long test82Result = 0;
@@ -2292,6 +2308,7 @@ public class TestNullableInlineTypes {
         }
         Asserts.assertEquals(test82(), test82Result);
     }
+*/
 
     @ForceInline
     public Object test83_helper(boolean b) {
@@ -2309,7 +2326,7 @@ public class TestNullableInlineTypes {
         if (val != null) {
             // Uncommon trap
             TestFramework.deoptimize(m);
-            return ((MyValue1.ref)val).hash();
+            return ((MyValue1)val).hash();
         }
         return 0;
     }
@@ -2338,7 +2355,7 @@ public class TestNullableInlineTypes {
         for (int i = 0; i < 100; ++i) {
             val = test84_helper(val, i);
         }
-        return ((MyValue1Wrapper.ref)val).vt.hash();
+        return ((MyValue1Wrapper)val).vt.hash();
     }
 
     private long test84Result = 0;
@@ -2373,7 +2390,9 @@ public class TestNullableInlineTypes {
             }
             val = test85_helper(val, i);
         }
-        return ((MyValue1Wrapper.ref)val).vt.hash();
+        MyValue1 vt = ((MyValue1Wrapper)val).vt;
+        vt = Objects.requireNonNull(vt);
+        return vt.hash();
     }
 
     private long test85Result = 0;
@@ -2409,7 +2428,7 @@ public class TestNullableInlineTypes {
                 val.obj = val.obj;
             }
         }
-        return ((MyValue1.ref)val.obj).hash();
+        return ((MyValue1)val.obj).hash();
     }
 
     @Run(test = "test86")
@@ -2418,21 +2437,29 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(test86(testValue1), testValue1.hash());
     }
 
-    public static primitive class Test87C0 {
-        int x = rI;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public static value class Test87C0 {
+        int x = 0;
     }
 
-    public static primitive class Test87C1 {
-        Test87C0 field = Test87C0.default;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public static value class Test87C1 {
+        @NullRestricted
+        Test87C0 field = new Test87C0();
     }
 
-    public static primitive class Test87C2 {
-        Test87C1 field = Test87C1.default;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    public static value class Test87C2 {
+        @NullRestricted
+        Test87C1 field = new Test87C1();
     }
 
-    // Test merging .val and .ref in return
+    // Test merging field loads in return
     @Test
-    public Test87C1 test87(boolean b, Test87C2.val v1, Test87C2.ref v2) {
+    public Test87C1 test87(boolean b, Test87C2 v1, Test87C2 v2) {
         if (b) {
             return v1.field;
         } else {
@@ -2447,7 +2474,9 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(test87(false, v, v), v.field);
     }
 
-    static primitive class Test88Value {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class Test88Value {
         int x = 0;
     }
 
@@ -2502,7 +2531,7 @@ public class TestNullableInlineTypes {
     }
 
     @ForceInline
-    public boolean test90_inline(MyValue1.ref vt) {
+    public boolean test90_inline(MyValue1 vt) {
         return vt == null;
     }
 
@@ -2517,7 +2546,7 @@ public class TestNullableInlineTypes {
     @Run(test = "test90")
     @Warmup(10000)
     public void test90_verifier() throws Exception {
-        Method m = getClass().getMethod("test90_inline", MyValue1.ref.class);
+        Method m = getClass().getMethod("test90_inline", MyValue1.class);
         Asserts.assertTrue(test90(m));
     }
 
@@ -2525,7 +2554,7 @@ public class TestNullableInlineTypes {
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC, CMPP})
-    public Object test91(MyValue1.ref vt) {
+    public Object test91(MyValue1 vt) {
         return vt;
     }
 
@@ -2534,7 +2563,7 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(test91(testValue1), testValue1);
     }
 
-    MyValue1.ref test92Field = testValue1;
+    MyValue1 test92Field = testValue1;
 
     // Same as test91 but with field access
     @Test
@@ -2548,19 +2577,19 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(test92(), testValue1);
     }
 
-    private static final MethodHandle refCheckCast = InstructionHelper.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle refCheckCast = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
         "refCheckCast",
-        MethodType.methodType(PrimitiveClass.asPrimaryType(MyValue2.class), TestNullableInlineTypes.class, PrimitiveClass.asPrimaryType(MyValue1.class)),
+        MethodType.methodType(MyValue2.class, TestNullableInlineTypes.class, MyValue1.class),
         CODE -> {
             CODE.
-            aload_1().
-            checkcast(PrimitiveClass.asPrimaryType(MyValue2.class)).
-            return_(TypeTag.A);
+            aload(1).
+            checkcast(MyValue2.class.describeConstable().orElseThrow()).
+            areturn();
         });
 
     // Test checkcast that only passes with null
     @Test
-    public Object test93(MyValue1.ref vt) throws Throwable {
+    public Object test93(MyValue1 vt) throws Throwable {
         return refCheckCast.invoke(this, vt);
     }
 
@@ -2571,28 +2600,28 @@ public class TestNullableInlineTypes {
     }
 
     @DontInline
-    public MyValue1.ref test94_helper1(MyValue1.ref vt) {
+    public MyValue1 test94_helper1(MyValue1 vt) {
         return vt;
     }
 
     @ForceInline
-    public MyValue1.ref test94_helper2(MyValue1.ref vt) {
+    public MyValue1 test94_helper2(MyValue1 vt) {
         return test94_helper1(vt);
     }
 
     @ForceInline
-    public MyValue1.ref test94_helper3(Object vt) {
-        return test94_helper2((MyValue1.ref)vt);
+    public MyValue1 test94_helper3(Object vt) {
+        return test94_helper2((MyValue1)vt);
     }
 
     // Test that calling convention optimization prevents buffering of arguments
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC_G, " = 2"}) // 1 MyValue2 allocation + 1 Integer allocation
+        counts = {ALLOC_G, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not the default value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_G, " = 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation
-    public MyValue1.ref test94(MyValue1.ref vt) {
-        MyValue1.ref res = test94_helper1(vt);
+        counts = {ALLOC_G, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not the default value)
+    public MyValue1 test94(MyValue1 vt) {
+        MyValue1 res = test94_helper1(vt);
         vt = MyValue1.createWithFieldsInline(rI, rL);
         test94_helper1(vt);
         test94_helper2(vt);
@@ -2607,28 +2636,28 @@ public class TestNullableInlineTypes {
     }
 
     @DontInline
-    public static MyValue1.ref test95_helper1(MyValue1.ref vt) {
+    public static MyValue1 test95_helper1(MyValue1 vt) {
         return vt;
     }
 
     @ForceInline
-    public static MyValue1.ref test95_helper2(MyValue1.ref vt) {
+    public static MyValue1 test95_helper2(MyValue1 vt) {
         return test95_helper1(vt);
     }
 
     @ForceInline
-    public static MyValue1.ref test95_helper3(Object vt) {
-        return test95_helper2((MyValue1.ref)vt);
+    public static MyValue1 test95_helper3(Object vt) {
+        return test95_helper2((MyValue1)vt);
     }
 
     // Same as test94 but with static methods to trigger simple adapter logic
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC_G, " = 2"}) // 1 MyValue2 allocation + 1 Integer allocation
+        counts = {ALLOC_G, " <= 2"}) // 1 MyValue2 allocation + 1 Integer allocation (if not the default value)
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_G, " = 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation
-    public static MyValue1.ref test95(MyValue1.ref vt) {
-        MyValue1.ref res = test95_helper1(vt);
+        counts = {ALLOC_G, " <= 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation (if not the default value)
+    public static MyValue1 test95(MyValue1 vt) {
+        MyValue1 res = test95_helper1(vt);
         vt = MyValue1.createWithFieldsInline(rI, rL);
         test95_helper1(vt);
         test95_helper2(vt);
@@ -2643,17 +2672,17 @@ public class TestNullableInlineTypes {
     }
 
     @DontInline
-    public MyValue2.ref test96_helper1(boolean b) {
+    public MyValue2 test96_helper1(boolean b) {
         return b ? null : MyValue2.createWithFieldsInline(rI, rD);
     }
 
     @ForceInline
-    public MyValue2.ref test96_helper2() {
+    public MyValue2 test96_helper2() {
         return null;
     }
 
     @ForceInline
-    public MyValue2.ref test96_helper3(boolean b) {
+    public MyValue2 test96_helper3(boolean b) {
         return b ? null : MyValue2.createWithFieldsInline(rI, rD);
     }
 
@@ -2662,9 +2691,9 @@ public class TestNullableInlineTypes {
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
         failOn = {ALLOC_G})
     @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
-        counts = {ALLOC_G, " = 1"})
-    public MyValue2.ref test96(int c, boolean b) {
-        MyValue2.ref res = null;
+        counts = {ALLOC_G, " <= 1"}) // No allocation required if the MyValue2 return is the default value
+    public MyValue2 test96(int c, boolean b) {
+        MyValue2 res = null;
         if (c == 1) {
             res = test96_helper1(b);
         } else if (c == 2) {
@@ -2686,21 +2715,23 @@ public class TestNullableInlineTypes {
     }
 
     @DontInline
-    public MyValue3.ref test97_helper1(boolean b) {
+    public MyValue3 test97_helper1(boolean b) {
         return b ? null: MyValue3.create();
     }
 
     @ForceInline
-    public MyValue3.ref test97_helper2() {
+    public MyValue3 test97_helper2() {
         return null;
     }
 
     @ForceInline
-    public MyValue3.ref test97_helper3(boolean b) {
+    public MyValue3 test97_helper3(boolean b) {
         return b ? null: MyValue3.create();
     }
 
+    @NullRestricted
     MyValue3 test97_res1;
+    @NullRestricted
     MyValue3 test97_res3;
 
     // Same as test96 but with MyValue3 return
@@ -2709,8 +2740,8 @@ public class TestNullableInlineTypes {
         counts = {ALLOC_G, " = 1"}) // 1 Object allocation
     @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
         counts = {ALLOC_G, " = 2"}) // 1 MyValue3 allocation + 1 Object allocation
-    public MyValue3.ref test97(int c, boolean b) {
-        MyValue3.ref res = null;
+    public MyValue3 test97(int c, boolean b) {
+        MyValue3 res = null;
         if (c == 1) {
             res = test97_helper1(b);
             if (res != null) {
@@ -2737,18 +2768,20 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(test97(3, true), null);
     }
 
-    static primitive class CircularValue1 {
-        CircularValue1.ref val;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class CircularValue1 {
+        CircularValue1 val;
         int x;
 
         @ForceInline
-        public CircularValue1(CircularValue1.ref val) {
+        public CircularValue1(CircularValue1 val) {
             this.val = val;
             this.x = rI;
         }
     }
 
-    // Test scalarization of primitive class with circularity in fields
+    // Test scalarization of value class with circularity in fields
     @Test
     public CircularValue1 test98(CircularValue1 val) {
         return new CircularValue1(val);
@@ -2762,7 +2795,10 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(res.val, val);
     }
 
-    static primitive class CircularValue2 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class CircularValue2 {
+        @NullRestricted
         CircularValue1 val;
 
         @ForceInline
@@ -2785,18 +2821,23 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(res.val, val1);
     }
 
-    static primitive class CircularValue3 {
-        CircularValue4.ref val;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class CircularValue3 {
+        CircularValue4 val;
         int x;
 
         @ForceInline
-        public CircularValue3(CircularValue4.ref val, int x) {
+        public CircularValue3(CircularValue4 val, int x) {
             this.val = val;
             this.x = x;
         }
     }
 
-    static primitive class CircularValue4 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class CircularValue4 {
+        @NullRestricted
         CircularValue3 val;
 
         @ForceInline
@@ -2819,7 +2860,10 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(res.val, new CircularValue3(val4, rI));
     }
 
-    static primitive class CircularValue5 {
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class CircularValue5 {
+        @NullRestricted
         CircularValue6 val;
         int x;
 
@@ -2830,16 +2874,18 @@ public class TestNullableInlineTypes {
         }
     }
 
-    static primitive class CircularValue6 {
-        CircularValue5.ref val;
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class CircularValue6 {
+        CircularValue5 val;
 
         @ForceInline
-        public CircularValue6(CircularValue5.ref val) {
+        public CircularValue6(CircularValue5 val) {
             this.val = val;
         }
     }
 
-    // Same as test100 but with different combination of .ref/.val fields
+    // Same as test100 but with different combination of field types
     @Test
     public CircularValue6 test101(CircularValue6 val) {
         return new CircularValue6(new CircularValue5(val, rI));
@@ -2847,7 +2893,7 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test101")
     public void test101_verifier()  {
-        CircularValue5 val5 = new CircularValue5(CircularValue6.default, 42);
+        CircularValue5 val5 = new CircularValue5(new CircularValue6(null), 42);
         CircularValue6 val6 = new CircularValue6(val5);
         CircularValue6 res = test101(val6);
         Asserts.assertEQ(res.val, new CircularValue5(val6, rI));
@@ -2855,8 +2901,8 @@ public class TestNullableInlineTypes {
 
     // Test merging of fields with different scalarization depth
     @Test
-    public CircularValue1.ref test102(boolean b) {
-        CircularValue1.ref val = new CircularValue1(CircularValue1.default);
+    public CircularValue1 test102(boolean b) {
+        CircularValue1 val = new CircularValue1(new CircularValue1(null));
         if (b) {
             val = null;
         }
@@ -2865,7 +2911,436 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test102")
     public void test102_verifier() {
-        Asserts.assertEQ(test102(false), new CircularValue1(CircularValue1.default));
+        Asserts.assertEQ(test102(false), new CircularValue1(new CircularValue1(null)));
         Asserts.assertEQ(test102(true), null);
     }
+
+    // Might be incrementally inlined
+    public static Object hide(Object obj) {
+        return (MyValue1)obj;
+    }
+
+    // Test that the ConstraintCastNode::Ideal transformation propagates null-free information
+    @Test
+    public MyValue1 test103() {
+        Object obj = hide(null);
+        return (MyValue1)obj;
+    }
+
+    @Run(test = "test103")
+    public void test103_verifier() {
+        Asserts.assertEQ(test103(), null);
+    }
+
+    // Test null restricted fields
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue104 {
+        @NullRestricted
+        static MyValue105 field1;
+
+        @NullRestricted
+        MyValue105 field2;
+
+        @NullRestricted
+        static MyValueEmpty field3;
+
+        @NullRestricted
+        MyValueEmpty field4;
+
+        @ForceInline
+        public MyValue104() {
+            this.field1 = new MyValue105();
+            this.field2 = new MyValue105();
+            this.field3 = new MyValueEmpty();
+            this.field4 = new MyValueEmpty();
+        }
+
+        @ForceInline
+        public MyValue104(MyValue105 val1, MyValue105 val2, MyValueEmpty val3, MyValueEmpty val4) {
+            this.field1 = val1;
+            this.field2 = val2;
+            this.field3 = val3;
+            this.field4 = val4;
+        }
+    }
+
+    @ImplicitlyConstructible
+    @LooselyConsistentValue
+    static value class MyValue105 {
+        int x = 42;
+    }
+
+    @NullRestricted
+    static MyValue104 field1;
+
+    @NullRestricted
+    MyValue104 field2;
+
+    @NullRestricted
+    static MyValueEmpty field3;
+
+    @NullRestricted
+    MyValueEmpty field4;
+
+    @Test
+    void test105(MyValue104 arg) {
+        field1 = arg;
+    }
+
+    @Run(test = "test105")
+    public void test105_verifier() {
+        try {
+            test105(null);
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test106() {
+        field1 = null;
+    }
+
+    @Run(test = "test106")
+    public void test106_verifier() {
+        try {
+            test106();
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test107(MyValue104 arg) {
+        field2 = arg;
+    }
+
+    @Run(test = "test107")
+    public void test107_verifier() {
+        try {
+            test107(null);
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test108(TestNullableInlineTypes t, MyValue104 arg) {
+        t.field2 = arg;
+    }
+
+    @Run(test = "test108")
+    public void test108_verifier() {
+        try {
+            test108(null, new MyValue104());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test109(MyValue104 arg) {
+        TestNullableInlineTypes t = null;
+        t.field2 = null;
+    }
+
+    @Run(test = "test109")
+    public void test109_verifier() {
+        try {
+            test109(new MyValue104());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test110() {
+        field2 = null;
+    }
+
+    @Run(test = "test110")
+    public void test110_verifier() {
+        try {
+            test110();
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test111(MyValueEmpty arg) {
+        field3 = arg;
+    }
+
+    @Run(test = "test111")
+    public void test111_verifier() {
+        try {
+            test111(null);
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test112() {
+        field3 = null;
+    }
+
+    @Run(test = "test112")
+    public void test112_verifier() {
+        try {
+            test112();
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test113(MyValueEmpty arg) {
+        field4 = arg;
+    }
+
+    @Run(test = "test113")
+    public void test113_verifier() {
+        try {
+            test113(null);
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test114(TestNullableInlineTypes t, MyValueEmpty arg) {
+        t.field4 = arg;
+    }
+
+    @Run(test = "test114")
+    public void test114_verifier() {
+        try {
+            test114(null, new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test115(MyValueEmpty arg) {
+        TestNullableInlineTypes t = null;
+        t.field4 = arg;
+    }
+
+    @Run(test = "test115")
+    public void test115_verifier() {
+        try {
+            test115(new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    void test116() {
+        field4 = null;
+    }
+
+    @Run(test = "test116")
+    public void test116_verifier() {
+        try {
+            test116();
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    MyValue104 test117(MyValue105 val1, MyValue105 val2, MyValueEmpty val3, MyValueEmpty val4) {
+        return new MyValue104(val1, val2, val3, val4);
+    }
+
+    @Run(test = "test117")
+    public void test117_verifier() {
+        try {
+            test117(null, new MyValue105(), new MyValueEmpty(), new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    MyValue104 test118(MyValue105 val1, MyValue105 val2, MyValueEmpty val3, MyValueEmpty val4) {
+        return new MyValue104(val1, val2, val3, val4);
+    }
+
+    @Run(test = "test118")
+    public void test118_verifier() {
+        try {
+            test118(new MyValue105(), null, new MyValueEmpty(), new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    MyValue104 test119(MyValue105 val1, MyValue105 val2, MyValueEmpty val3, MyValueEmpty val4) {
+        return new MyValue104(val1, val2, val3, val4);
+    }
+
+    @Run(test = "test119")
+    public void test119_verifier() {
+        try {
+            test119(new MyValue105(), new MyValue105(), null, new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    MyValue104 test120(MyValue105 val1, MyValue105 val2, MyValueEmpty val3, MyValueEmpty val4) {
+        return new MyValue104(val1, val2, val3, val4);
+    }
+
+    @Run(test = "test120")
+    public void test120_verifier() {
+        try {
+            test120(new MyValue105(), new MyValue105(), new MyValueEmpty(), null);
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    MyValue104 test121(MyValue105 val2, MyValueEmpty val3, MyValueEmpty val4) {
+        return new MyValue104(null, val2, val3, val4);
+    }
+
+    @Run(test = "test121")
+    public void test121_verifier() {
+        try {
+            test121(new MyValue105(), new MyValueEmpty(), new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    MyValue104 test122(MyValue105 val1, MyValueEmpty val3, MyValueEmpty val4) {
+        return new MyValue104(val1, null, val3, val4);
+    }
+
+    @Run(test = "test122")
+    public void test122_verifier() {
+        try {
+            test122(new MyValue105(), new MyValueEmpty(), new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    MyValue104 test123(MyValue105 val1, MyValue105 val2, MyValueEmpty val4) {
+        return new MyValue104(val1, val2, null, val4);
+    }
+
+    @Run(test = "test123")
+    public void test123_verifier() {
+        try {
+            test123(new MyValue105(), new MyValue105(), new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    MyValue104 test124(MyValue105 val1, MyValue105 val2, MyValueEmpty val3) {
+        return new MyValue104(val1, val2, val3, null);
+    }
+
+    @Run(test = "test124")
+    public void test124_verifier() {
+        try {
+            test124(new MyValue105(), new MyValue105(), new MyValueEmpty());
+            throw new RuntimeException("No exception thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    static value class CircularValue7 {
+        CircularValue7 v;
+        int i;
+
+        public CircularValue7(int i) {
+            this.v = new CircularValue7(); // When <init> is incrementally inlined: StoreN into object
+            dontInline(); // Not inlined -> safepoint which also saves StoreN.
+            this.i = i;
+        }
+
+        public CircularValue7(boolean ignored) {
+            this.v = new CircularValue7();
+            this.i = 23;
+        }
+
+        public CircularValue7() {
+            this.v = null;
+            this.i = 34;
+        }
+
+        @DontInline
+        static void dontInline() {}
+    }
+
+    @Test
+    @IR(failOn = ALLOC_G)
+    int testCircularSafepointUse() {
+        CircularValue7 v = new CircularValue7(true);  // v is non escaping -> EA can remove allocation
+        dontInline(); // Not inlined -> safepoint
+        return v.i; // Use v such that it is still required in the safepoint at dontInline()
+    }
+
+    @DontInline
+    void dontInline() {}
+
+    @Run(test = "testCircularSafepointUse")
+    public void testCircularSafepointUse_verifier() {
+        Asserts.assertEQ(testCircularSafepointUse(), new CircularValue7(true).i);
+    }
+
+
+    @Test
+    @IR(failOn = ALLOC_G)
+    int testCircularSafepointUse2(int i) {
+        // With AlwaysIncrementalInline:
+        // We allocate here because <init> is not inlined at parsing.
+        // At late inline: The store of v.v is done with a StoreN into the allocation to make the effect visible.
+        CircularValue7 v = new CircularValue7(i);
+        return v.i;
+    }
+
+    @Run(test = "testCircularSafepointUse2")
+    public void testCircularSafepointUse2_verifier() {
+        int rand = rI;
+        Asserts.assertEQ(testCircularSafepointUse2(rand), new CircularValue7(rand).i);
+    }
+
 }

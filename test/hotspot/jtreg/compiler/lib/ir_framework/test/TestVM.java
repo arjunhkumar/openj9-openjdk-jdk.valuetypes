@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,8 @@ import java.lang.reflect.*;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static compiler.lib.ir_framework.shared.TestFrameworkSocket.PRINT_TIMES_TAG;
 
 /**
  * This class' main method is called from {@link TestFramework} and represents the so-called "test VM". The class is
@@ -108,6 +110,7 @@ public class TestVM {
     private final HashMap<Method, DeclaredTest> declaredTests = new HashMap<>();
     private final List<AbstractTest> allTests = new ArrayList<>();
     private final HashMap<String, Method> testMethodMap = new HashMap<>();
+    private final HashMap<String, Method> setupMethodMap = new HashMap<>();
     private final List<String> excludeList;
     private final List<String> testList;
     private Set<Class<?>> helperClasses = null; // Helper classes that contain framework annotations to be processed.
@@ -226,6 +229,8 @@ public class TestVM {
                                     "Cannot use @Run annotation in " + clazzType + " " + c + " at " + m);
             TestFormat.checkNoThrow(getAnnotation(m, Check.class) == null,
                                     "Cannot use @Check annotation in " + clazzType + " " + c + " at " + m);
+            TestFormat.checkNoThrow(getAnnotation(m, Setup.class) == null,
+                                    "Cannot use @Setup annotation in " + clazzType + " " + c + " at " + m);
         }
     }
 
@@ -260,6 +265,11 @@ public class TestVM {
         if (DUMP_REPLAY) {
             addReplay();
         }
+
+        // Collect the @Setup methods so we can reference them
+        // from the test methods
+        collectSetupMethods();
+
         // Make sure to first setup test methods and make them non-inlineable and only then process compile commands.
         setupDeclaredTests();
         processControlAnnotations(testClass);
@@ -270,6 +280,7 @@ public class TestVM {
         addBaseTests();
         if (PRINT_VALID_IR_RULES) {
             irMatchRulePrinter.emit();
+            VMInfoPrinter.emit();
         }
         TestFormat.throwIfAnyFailures();
         declaredTests.clear();
@@ -498,6 +509,35 @@ public class TestVM {
         }
     }
 
+
+    /**
+     *  Collect all @Setup annotated methods and add them to setupMethodMap, for convenience to reference later from
+     *  tests with @Arguments(setup = "setupMethodName").
+     */
+    private void collectSetupMethods() {
+        for (Method m : testClass.getDeclaredMethods()) {
+            Setup setupAnnotation = getAnnotation(m, Setup.class);
+            if (setupAnnotation != null) {
+                addSetupMethod(m);
+            }
+        }
+    }
+
+    private void addSetupMethod(Method m) {
+        TestFormat.checkNoThrow(getAnnotation(m, Test.class) == null,
+                                "@Setup method cannot have @Test annotation: " + m);
+        TestFormat.checkNoThrow(getAnnotation(m, Check.class) == null,
+                                "@Setup method cannot have @Check annotation: " + m);
+        TestFormat.checkNoThrow(getAnnotation(m, Arguments.class) == null,
+                                "@Setup method cannot have @Arguments annotation: " + m);
+        TestFormat.checkNoThrow(getAnnotation(m, Run.class) == null,
+                                "@Setup method cannot have @Run annotation: " + m);
+        Method mOverloaded = setupMethodMap.put(m.getName(), m);
+        TestFormat.checkNoThrow(mOverloaded == null,
+                                "@Setup method cannot be overloaded: " + mOverloaded + " with " + m);
+        m.setAccessible(true);
+    }
+
     /**
      * Setup @Test annotated method an add them to the declaredTests map to have a convenient way of accessing them
      * once setting up a framework test (base  checked, or custom run test).
@@ -543,7 +583,8 @@ public class TestVM {
         if (EXCLUDE_RANDOM) {
             compLevel = compLevel.excludeCompilationRandomly(m);
         }
-        DeclaredTest test = new DeclaredTest(m, ArgumentValue.getArguments(m), compLevel, warmupIterations);
+        ArgumentsProvider argumentsProvider = ArgumentsProviderBuilder.build(m, setupMethodMap);
+        DeclaredTest test = new DeclaredTest(m, argumentsProvider, compLevel, warmupIterations);
         declaredTests.put(m, test);
         testMethodMap.put(m.getName(), m);
     }
@@ -732,7 +773,8 @@ public class TestVM {
         TestFormat.check(attachedMethod == null,
                          "Cannot use @Test " + testMethod + " for more than one @Run/@Check method. Found: "
                          + m + ", " + attachedMethod);
-        TestFormat.check(!test.hasArguments(),
+        Arguments argumentsAnno = getAnnotation(testMethod, Arguments.class);
+        TestFormat.check(argumentsAnno == null,
                          "Cannot use @Arguments at test method " + testMethod + " in combination with @Run method " + m);
         Warmup warmupAnno = getAnnotation(testMethod, Warmup.class);
         TestFormat.checkNoThrow(warmupAnno == null,
@@ -847,9 +889,10 @@ public class TestVM {
 
         // Print execution times
         if (VERBOSE || PRINT_TIMES) {
-            System.out.println(System.lineSeparator() + System.lineSeparator() + "Test execution times:");
+            TestFrameworkSocket.write("Test execution times:", PRINT_TIMES_TAG, true);
             for (Map.Entry<Long, String> entry : durations.entrySet()) {
-                System.out.format("%-10s%15d ns%n", entry.getValue() + ":", entry.getKey());
+                TestFrameworkSocket.write(String.format("%-25s%15d ns%n", entry.getValue() + ":", entry.getKey()),
+                        PRINT_TIMES_TAG, true);
             }
         }
 

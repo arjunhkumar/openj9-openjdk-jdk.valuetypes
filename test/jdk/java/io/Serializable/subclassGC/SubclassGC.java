@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,15 @@
  * @summary this test checks that replacing SoftCache class with ConcurrentMap
  *          in ObjectInputStream/ObjectOutputStream gives an opportunity to
  *          classes which are inherited from OIS and OOS and loaded through
- *          separete ClassLoaders be available for garbage collection
+ *          separate ClassLoaders be available for garbage collection
  *
  * @author Andrey Ozerov
- * @run main/othervm/policy=security.policy SubclassGC
+ * @run main/othervm SubclassGC
+ */
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2024, 2024 All Rights Reserved
+ * ===========================================================================
  */
 
 import java.io.*;
@@ -45,9 +50,6 @@ public class SubclassGC {
 
         public static final void main(String[] args) throws Exception {
                 System.err.println("\n Regression test for bug 6232010\n");
-                if (System.getSecurityManager() == null) {
-                        System.setSecurityManager(new SecurityManager());
-                }
 
                 ClassLoader systemLoader = ClassLoader.getSystemClassLoader();
                 URL testClassesURL = new File(System.getProperty("test.classes")).toURI().toURL();
@@ -73,6 +75,7 @@ public class SubclassGC {
                 systemLoader = null;
 
                 System.err.println("\nStart Garbage Collection right now");
+                System.gc();
                 System.gc();
 
                 Reference<? extends Class<?>> dequeued = queue.remove(TIMEOUT);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  */
 
 /* Copyright  (c) 2002 Graz University of Technology. All rights reserved.
@@ -45,6 +45,12 @@
  *  POSSIBILITY  OF SUCH DAMAGE.
  */
 
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2024, 2024 All Rights Reserved
+ * ===========================================================================
+ */
+
 package sun.security.pkcs11.wrapper;
 
 import java.math.BigInteger;
@@ -84,14 +90,6 @@ public class CK_MECHANISM {
      */
     public Object pParameter = null;
 
-    // pointer to native CK_MECHANISM structure
-    // For mechanisms which have only mechanism id, the native structure
-    // can be freed right after init and this field will not be used. However,
-    // for mechanisms which have both mechanism id and parameters, it can
-    // only be freed after operation is finished. Thus, the native pointer
-    // will be stored here and then be explicitly freed by caller.
-    private long pHandle = 0L;
-
     public CK_MECHANISM(long mechanism) {
         this.mechanism = mechanism;
     }
@@ -119,6 +117,10 @@ public class CK_MECHANISM {
         init(mechanism, params);
     }
 
+    public CK_MECHANISM(long mechanism, CK_NSS_TLS_EXTENDED_MASTER_KEY_DERIVE_PARAMS params) {
+        init(mechanism, params);
+    }
+
     public CK_MECHANISM(long mechanism, CK_SSL3_KEY_MAT_PARAMS params) {
         init(mechanism, params);
     }
@@ -132,6 +134,14 @@ public class CK_MECHANISM {
     }
 
     public CK_MECHANISM(long mechanism, CK_TLS_MAC_PARAMS params) {
+        init(mechanism, params);
+    }
+
+    public CK_MECHANISM(long mechanism, CK_HKDF_PARAMS params) {
+        init(mechanism, params);
+    }
+
+    public CK_MECHANISM(long mechanism, CK_KEY_DERIVATION_STRING_DATA params) {
         init(mechanism, params);
     }
 
@@ -160,6 +170,18 @@ public class CK_MECHANISM {
         init(mechanism, params);
     }
 
+    public CK_MECHANISM(long mechanism, CK_PBE_PARAMS params) {
+        init(mechanism, params);
+    }
+
+    public CK_MECHANISM(long mechanism, CK_PKCS5_PBKD2_PARAMS params) {
+        init(mechanism, params);
+    }
+
+    public CK_MECHANISM(long mechanism, CK_PKCS5_PBKD2_PARAMS2 params) {
+        init(mechanism, params);
+    }
+
     // For PSS. the parameter may be set multiple times, use the
     // CK_MECHANISM(long) constructor and setParameter(CK_RSA_PKCS_PSS_PARAMS)
     // methods instead of creating yet another constructor
@@ -168,14 +190,7 @@ public class CK_MECHANISM {
         if (this.pParameter != null && this.pParameter.equals(params)) {
             return;
         }
-        freeHandle();
         this.pParameter = params;
-    }
-
-    public void freeHandle() {
-        if (this.pHandle != 0L) {
-            this.pHandle = PKCS11.freeMechanism(pHandle);
-        }
     }
 
     private void init(long mechanism, Object pParameter) {
@@ -193,11 +208,12 @@ public class CK_MECHANISM {
 
         sb.append(Constants.INDENT);
         sb.append("mechanism: ");
-        sb.append(mechanism);
+        sb.append(Functions.getMechanismName(mechanism));
         sb.append(Constants.NEWLINE);
 
         sb.append(Constants.INDENT);
-        sb.append("pParameter: ");
+        sb.append("pParameter:");
+        sb.append(Constants.NEWLINE);
         sb.append(pParameter.toString());
         sb.append(Constants.NEWLINE);
 
@@ -206,12 +222,6 @@ public class CK_MECHANISM {
         sb.append("ulParameterLen: ??");
         sb.append(Constants.NEWLINE);
         */
-        if (pHandle != 0L) {
-            sb.append(Constants.INDENT);
-            sb.append("pHandle: ");
-            sb.append(pHandle);
-            sb.append(Constants.NEWLINE);
-        }
         return sb.toString() ;
     }
 }

@@ -77,9 +77,27 @@ class FloatRegister(Register):
     def __str__(self):
         return self.astr("v")
 
+    def generate(self):
+        self.number = random.randint(0, 31)
+        return self
+
     def nextReg(self):
         next = FloatRegister()
         next.number = (self.number + 1) % 32
+        return next
+
+class LowFloatRegister(Register):
+
+    def __str__(self):
+        return self.astr("v")
+
+    def generate(self):
+        self.number = random.randint(0, 15)
+        return self
+
+    def nextReg(self):
+        next = FloatRegister()
+        next.number = (self.number + 1) % 16
         return next
 
 class GeneralRegister(Register):
@@ -544,6 +562,33 @@ class SVEComparisonWithZero(Instruction):
           val = ("%s%s\t%s%s, %s/z, %s%s, #0.0"
                  % (self._name, self.condition.lower(), str(self.dest), self._width.astr(),
                     str(self.preg), str(self.reg), self._width.astr()))
+          return val
+
+class SVEComparisonWithImm(Instruction):
+    def __init__(self, arg):
+          Instruction.__init__(self, "cmp")
+          self.condition = arg
+          self.dest = OperandFactory.create('p').generate()
+          self.reg = SVEVectorRegister().generate()
+          self._width = RegVariant(0, 3)
+          self.preg = OperandFactory.create('P').generate()
+
+    def generate(self):
+          if self.condition in ['HI', 'HS', 'LO', 'LS']:
+            self.immed = random.randint(0, 127)
+          else:
+            self.immed = random.randint(-16, 15)
+          return Instruction.generate(self)
+
+    def cstr(self):
+          return ("%s(%s, %s, %s, %s, %s, %d);"
+                  % ("__ sve_" + self._name, "Assembler::" + self.condition,
+                     str(self.dest), self._width.cstr(), str(self.preg), str(self.reg), self.immed))
+
+    def astr(self):
+          val = ("%s%s\t%s%s, %s/z, %s%s, #%d"
+                 % (self._name, self.condition.lower(), str(self.dest), self._width.astr(),
+                    str(self.preg), str(self.reg), self._width.astr(), self.immed))
           return val
 
 class MultiOp():
@@ -1244,6 +1289,75 @@ class CommonNEONInstruction(Instruction):
     def aname(self):
         return self._name
 
+class VectorScalarNEONInstruction(Instruction):
+    def __init__(self, args):
+        self._name, self.insname, self.arrangement = args
+
+    def generate(self):
+        vectorLength = {"8B" : 8, "16B" : 16, "4H" : 4, "8H" : 8, "2S" : 2, "4S" : 4, "1D" : 1, "2D" : 2} [self.arrangement]
+        self.elemIndex = random.randrange(0, vectorLength)
+        self.elemSizeSpecifier = self.arrangement[len(self.arrangement) - 1:]
+        self._firstSIMDreg = LowFloatRegister().generate()
+        self.numRegs = 3
+        return self
+
+    def cstr(self):
+        buf = Instruction.cstr(self) + str(self._firstSIMDreg)
+        buf = '%s, __ T%s' % (buf, self.arrangement)
+        current = self._firstSIMDreg
+        for cnt in range(1, self.numRegs - 1):
+            buf = '%s, %s' % (buf, current.nextReg())
+            current = current.nextReg()
+        buf = '%s, %s, %d' % (buf, current.nextReg(), self.elemIndex)
+        return '%s);' % (buf)
+
+    def astr(self):
+        buf = '%s\t%s.%s' % (self.insname, self._firstSIMDreg, self.arrangement)
+        current = self._firstSIMDreg
+        for cnt in range(1, self.numRegs - 1):
+            buf = '%s, %s.%s' % (buf, current.nextReg(), self.arrangement)
+            current = current.nextReg()
+        buf = '%s, %s.%s[%d]' % (buf, current.nextReg(), self.elemSizeSpecifier, self.elemIndex)
+        return buf
+
+    def aname(self):
+        return self._name
+
+class WideningNEONInstruction(Instruction):
+    def __init__(self, args):
+        self._name, self.insname, self.widerArrangement, self.narrowerArrangement = args
+
+    def generate(self):
+        self._firstSIMDreg = FloatRegister().generate()
+        return self
+
+    def cstr(self):
+        buf = Instruction.cstr(self) + str(self._firstSIMDreg)
+        current = self._firstSIMDreg
+        for cnt in range(1, self.numWiderRegs):
+            buf = '%s, %s' % (buf, current.nextReg())
+            current = current.nextReg()
+        buf = '%s, __ T%s' % (buf, self.widerArrangement)
+        for cnt in range(0, self.numNarrowerRegs):
+            buf = '%s, %s' % (buf, current.nextReg())
+            current = current.nextReg()
+        buf = '%s, __ T%s' % (buf, self.narrowerArrangement)
+        return '%s);' % (buf)
+
+    def astr(self):
+        buf = '%s\t%s.%s' % (self.insname, self._firstSIMDreg, self.widerArrangement)
+        current = self._firstSIMDreg
+        for cnt in range(1, self.numWiderRegs):
+            buf = '%s, %s.%s' % (buf, current.nextReg(), self.widerArrangement)
+            current = current.nextReg()
+        for cnt in range(0, self.numNarrowerRegs):
+            buf = '%s, %s.%s' % (buf, current.nextReg(), self.narrowerArrangement)
+            current = current.nextReg()
+        return buf
+
+    def aname(self):
+        return self._name
+
 class SHA512SIMDOp(Instruction):
 
     def generate(self):
@@ -1362,6 +1476,56 @@ class TwoRegNEONOp(CommonNEONInstruction):
 
 class ThreeRegNEONOp(TwoRegNEONOp):
     numRegs = 3
+
+class AddWideNEONOp(WideningNEONInstruction):
+    numWiderRegs = 2
+    numNarrowerRegs = 1
+
+class NEONFloatCompareWithZero(TwoRegNEONOp):
+    def __init__(self, args):
+        self._name = 'fcm'
+        self.arrangement, self.condition = args
+        self.insname = self._name + (self.condition).lower()
+
+    def cstr(self):
+        return ("%s(%s, %s, %s, %s);"
+                % ("__ " + self._name,
+                   "Assembler::" + self.condition,
+                   self._firstSIMDreg,
+                   "__ T" + self.arrangement,
+                   self._firstSIMDreg.nextReg()))
+
+    def astr(self):
+        return ("%s\t%s.%s, %s.%s, #0.0"
+                % (self.insname,
+                   self._firstSIMDreg,
+                   self.arrangement,
+                   self._firstSIMDreg.nextReg(),
+                   self.arrangement))
+
+class NEONVectorCompare(ThreeRegNEONOp):
+    def __init__(self, args):
+        self._name, self.arrangement, self.condition = args
+        self.insname = self._name + (self.condition).lower()
+
+    def cstr(self):
+        return ("%s(%s, %s, %s, %s, %s);"
+                % ("__ " + self._name,
+                   "Assembler::" + self.condition,
+                   self._firstSIMDreg,
+                   "__ T" + self.arrangement,
+                   self._firstSIMDreg.nextReg(),
+                   self._firstSIMDreg.nextReg().nextReg()))
+
+    def astr(self):
+        return ("%s\t%s.%s, %s.%s, %s.%s"
+                % (self.insname,
+                   self._firstSIMDreg,
+                   self.arrangement,
+                   self._firstSIMDreg.nextReg(),
+                   self.arrangement,
+                   self._firstSIMDreg.nextReg().nextReg(),
+                   self.arrangement))
 
 class SpecialCases(Instruction):
     def __init__(self, data):
@@ -1596,6 +1760,16 @@ generate(NEONReduceInstruction,
           ["fminp", "fminp", "2S"], ["fminp", "fminp", "2D"],
           ])
 
+neonFloatCompareWithZeroConditions = ['GT', 'GE', 'EQ', 'LT', 'LE']
+neonFloatArrangement = ['2S', '4S', '2D']
+neonFloatCompareWithZeroArgs = []
+for condition in neonFloatCompareWithZeroConditions:
+    for currentArrangement in neonFloatArrangement:
+        currentArgs = [currentArrangement, condition]
+        neonFloatCompareWithZeroArgs.append(currentArgs)
+
+generate(NEONFloatCompareWithZero, neonFloatCompareWithZeroArgs)
+
 generate(TwoRegNEONOp,
          [["absr", "abs", "8B"], ["absr", "abs", "16B"],
           ["absr", "abs", "4H"], ["absr", "abs", "8H"],
@@ -1659,39 +1833,47 @@ generate(ThreeRegNEONOp,
           ["sminp", "sminp", "8B"], ["sminp", "sminp", "16B"],
           ["sminp", "sminp", "4H"], ["sminp", "sminp", "8H"],
           ["sminp", "sminp", "2S"], ["sminp", "sminp", "4S"],
+          ["sqdmulh", "sqdmulh", "4H"], ["sqdmulh", "sqdmulh", "8H"],
+          ["sqdmulh", "sqdmulh", "2S"], ["sqdmulh", "sqdmulh", "4S"],
+          ["shsubv", "shsub", "8B"], ["shsubv", "shsub", "16B"],
+          ["shsubv", "shsub", "4H"], ["shsubv", "shsub", "8H"],
+          ["shsubv", "shsub", "2S"], ["shsubv", "shsub", "4S"],
           ["fmin", "fmin", "2S"], ["fmin", "fmin", "4S"],
           ["fmin", "fmin", "2D"],
-          ["cmeq", "cmeq", "8B"], ["cmeq", "cmeq", "16B"],
-          ["cmeq", "cmeq", "4H"], ["cmeq", "cmeq", "8H"],
-          ["cmeq", "cmeq", "2S"], ["cmeq", "cmeq", "4S"],
-          ["cmeq", "cmeq", "2D"],
-          ["fcmeq", "fcmeq", "2S"], ["fcmeq", "fcmeq", "4S"],
-          ["fcmeq", "fcmeq", "2D"],
-          ["cmgt", "cmgt", "8B"], ["cmgt", "cmgt", "16B"],
-          ["cmgt", "cmgt", "4H"], ["cmgt", "cmgt", "8H"],
-          ["cmgt", "cmgt", "2S"], ["cmgt", "cmgt", "4S"],
-          ["cmgt", "cmgt", "2D"],
-          ["cmhi", "cmhi", "8B"], ["cmhi", "cmhi", "16B"],
-          ["cmhi", "cmhi", "4H"], ["cmhi", "cmhi", "8H"],
-          ["cmhi", "cmhi", "2S"], ["cmhi", "cmhi", "4S"],
-          ["cmhi", "cmhi", "2D"],
-          ["cmhs", "cmhs", "8B"], ["cmhs", "cmhs", "16B"],
-          ["cmhs", "cmhs", "4H"], ["cmhs", "cmhs", "8H"],
-          ["cmhs", "cmhs", "2S"], ["cmhs", "cmhs", "4S"],
-          ["cmhs", "cmhs", "2D"],
-          ["fcmgt", "fcmgt", "2S"], ["fcmgt", "fcmgt", "4S"],
-          ["fcmgt", "fcmgt", "2D"],
-          ["cmge", "cmge", "8B"], ["cmge", "cmge", "16B"],
-          ["cmge", "cmge", "4H"], ["cmge", "cmge", "8H"],
-          ["cmge", "cmge", "2S"], ["cmge", "cmge", "4S"],
-          ["cmge", "cmge", "2D"],
-          ["fcmge", "fcmge", "2S"], ["fcmge", "fcmge", "4S"],
-          ["fcmge", "fcmge", "2D"],
           ["facgt", "facgt", "2S"], ["facgt", "facgt", "4S"],
           ["facgt", "facgt", "2D"],
           ])
 
+generate(VectorScalarNEONInstruction,
+         [["fmlavs", "fmla", "2S"], ["mulvs", "mul", "4S"],
+          ["fmlavs", "fmla", "2D"],
+          ["fmlsvs", "fmls", "2S"], ["mulvs", "mul", "4S"],
+          ["fmlsvs", "fmls", "2D"],
+          ["fmulxvs", "fmulx", "2S"], ["mulvs", "mul", "4S"],
+          ["fmulxvs", "fmulx", "2D"],
+          ["mulvs", "mul", "4H"], ["mulvs", "mul", "8H"],
+          ["mulvs", "mul", "2S"], ["mulvs", "mul", "4S"],
+          ])
+
+neonVectorCompareInstructionPrefix = ['cm', 'fcm']
+neonIntegerVectorCompareConditions = ['GT', 'GE', 'EQ', 'HI', 'HS']
+neonFloatVectorCompareConditions = ['EQ', 'GT', 'GE']
+neonIntegerArrangement = ['8B', '16B', '4H', '8H', '2S', '4S', '2D']
+neonFloatArrangement = ['2S', '4S', '2D']
+neonVectorCompareArgs = []
+for pre in neonVectorCompareInstructionPrefix:
+    conditions = neonFloatVectorCompareConditions if pre == 'fcm' else neonIntegerVectorCompareConditions
+    arrangements = neonFloatArrangement if pre == 'fcm' else neonIntegerArrangement
+    for condition in conditions:
+        for currentArrangement in arrangements:
+            currentArgs = [pre, currentArrangement, condition]
+            neonVectorCompareArgs.append(currentArgs)
+
+generate(NEONVectorCompare, neonVectorCompareArgs)
+
 generate(SVEComparisonWithZero, ["EQ", "GT", "GE", "LT", "LE", "NE"])
+
+generate(SVEComparisonWithImm, ["EQ", "GT", "GE", "LT", "LE", "NE", "HS", "HI", "LS", "LO"])
 
 generate(SpecialCases, [["ccmn",   "__ ccmn(zr, zr, 3u, Assembler::LE);",                "ccmn\txzr, xzr, #3, LE"],
                         ["ccmnw",  "__ ccmnw(zr, zr, 5u, Assembler::EQ);",               "ccmn\twzr, wzr, #5, EQ"],
@@ -2005,6 +2187,15 @@ generate(SVEVectorOp, [["add", "ZZZ"],
 
 generate(SVEReductionOp, [["andv", 0], ["orv", 0], ["eorv", 0], ["smaxv", 0], ["sminv", 0],
                           ["fminv", 2], ["fmaxv", 2], ["fadda", 2], ["uaddv", 0]])
+
+generate(AddWideNEONOp,
+         [["saddwv", "saddw", "8H", "8B"], ["saddwv2", "saddw2", "8H", "16B"],
+          ["saddwv", "saddw", "4S", "4H"], ["saddwv2", "saddw2", "4S", "8H"],
+          ["saddwv", "saddw", "2D", "2S"], ["saddwv2", "saddw2", "2D", "4S"],
+          ["uaddwv", "uaddw", "8H", "8B"], ["uaddwv2", "uaddw2", "8H", "16B"],
+          ["uaddwv", "uaddw", "4S", "4H"], ["uaddwv2", "uaddw2", "4S", "8H"],
+          ["uaddwv", "uaddw", "2D", "2S"], ["uaddwv2", "uaddw2", "2D", "4S"],
+          ])
 
 print "\n    __ bind(forth);"
 outfile.write("forth:\n")

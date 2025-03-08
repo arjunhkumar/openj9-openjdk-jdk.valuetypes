@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,10 @@
 # or visit www.oracle.com if you need additional information or have any
 # questions.
 #
+
+# ===========================================================================
+# (c) Copyright IBM Corp. 2024, 2024 All Rights Reserved
+# ===========================================================================
 
 ################################################################################
 # Check if a potential freeype library match is correct and usable
@@ -73,11 +77,11 @@ AC_DEFUN_ONCE([LIB_SETUP_FREETYPE],
 [
   AC_ARG_WITH(freetype, [AS_HELP_STRING([--with-freetype],
       [specify whether to use 'system' or 'bundled' freetype.
-       The selected option applies to both build time and run time.
-       The default behaviour can be platform dependent.
-       If using 'system' and either the include files or libraries cannot be
-       located automatically, then additionally specify both using
-       --with-freetype-include and --with-freetype-lib.])])
+      The selected option applies to both build time and run time.
+      The default behaviour can be platform dependent.
+      If using 'system' and either the include files or libraries cannot be
+      located automatically, then additionally specify both using
+      --with-freetype-include and --with-freetype-lib.])])
   AC_ARG_WITH(freetype-include, [AS_HELP_STRING([--with-freetype-include],
       [specify directory for the freetype include files])])
   AC_ARG_WITH(freetype-lib, [AS_HELP_STRING([--with-freetype-lib],
@@ -95,17 +99,14 @@ AC_DEFUN_ONCE([LIB_SETUP_FREETYPE],
   FREETYPE_CFLAGS=
   FREETYPE_LIBS=
 
-  if (test "x$with_freetype_include" = "x" && test "x$with_freetype_lib" != "x") || \
-     (test "x$with_freetype_include" != "x" && test "x$with_freetype_lib" = "x"); then
+  if (test "x$with_freetype_include" = "x" && \
+      test "x$with_freetype_lib" != "x") || \
+      (test "x$with_freetype_include" != "x" && \
+      test "x$with_freetype_lib" = "x"); then
     AC_MSG_ERROR([Must specify both or neither of --with-freetype-include and --with-freetype-lib])
   fi
 
   FREETYPE_TO_USE=bundled
-  if test "x$OPENJDK_TARGET_OS" != "xwindows" && \
-      test "x$OPENJDK_TARGET_OS" != "xmacosx" && \
-      test "x$OPENJDK_TARGET_OS" != "xaix"; then
-    FREETYPE_TO_USE=system
-  fi
   if test "x$with_freetype" != "x" ; then
     if test "x$with_freetype" = "xsystem" ; then
       FREETYPE_TO_USE=system
@@ -126,8 +127,8 @@ AC_DEFUN_ONCE([LIB_SETUP_FREETYPE],
   fi
 
   if test "x$FREETYPE_TO_USE" = "xsystem" && \
-     (test "x$OPENJDK_TARGET_OS" = "xwindows" || \
-     test "x$OPENJDK_TARGET_OS" = "xmacosx"); then
+      (test "x$OPENJDK_TARGET_OS" = "xwindows" || \
+      test "x$OPENJDK_TARGET_OS" = "xmacosx"); then
     AC_MSG_ERROR([Only bundled freetype can be specified on Mac and Windows])
   fi
 

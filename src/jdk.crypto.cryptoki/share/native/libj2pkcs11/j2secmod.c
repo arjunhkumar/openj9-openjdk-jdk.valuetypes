@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,12 @@
  * questions.
  */
 
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2024, 2024 All Rights Reserved
+ * ===========================================================================
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,7 +46,7 @@ JNIEXPORT jboolean JNICALL Java_sun_security_pkcs11_Secmod_nssVersionCheck
     FPTR_VersionCheck versionCheck;
     const char *requiredVersion;
 
-    versionCheck = (FPTR_VersionCheck)findFunction(env, jHandle,
+    versionCheck = (FPTR_VersionCheck)p11FindFunction(env, jHandle,
         "NSS_VersionCheck");
     if (versionCheck == NULL) {
         return JNI_FALSE;
@@ -52,7 +58,7 @@ JNIEXPORT jboolean JNICALL Java_sun_security_pkcs11_Secmod_nssVersionCheck
     }
 
     res = versionCheck(requiredVersion);
-    dprintf2("-version >=%s: %d\n", requiredVersion, res);
+    debug_printf("-version >=%s: %d\n", requiredVersion, res);
     (*env)->ReleaseStringUTFChars(env, jVersion, requiredVersion);
 
     return (res == 0) ? JNI_FALSE : JNI_TRUE;
@@ -68,10 +74,10 @@ JNIEXPORT jboolean JNICALL Java_sun_security_pkcs11_Secmod_nssInitialize
 {
     int res = 0;
     FPTR_Initialize initialize =
-        (FPTR_Initialize)findFunction(env, jHandle, "NSS_Initialize");
+        (FPTR_Initialize)p11FindFunction(env, jHandle, "NSS_Initialize");
     #ifdef SECMOD_DEBUG
     FPTR_GetError getError =
-        (FPTR_GetError)findFunction(env, jHandle, "PORT_GetError");
+        (FPTR_GetError)p11FindFunction(env, jHandle, "PORT_GetError");
     #endif // SECMOD_DEBUG
     unsigned int flags = 0x00;
     const char *configDir = NULL;
@@ -146,11 +152,11 @@ cleanup:
     if (configDir != NULL) {
         (*env)->ReleaseStringUTFChars(env, jConfigDir, configDir);
     }
-    dprintf1("-res: %d\n", res);
+    debug_printf("-res: %d\n", res);
     #ifdef SECMOD_DEBUG
     if (res == -1) {
         if (getError != NULL) {
-            dprintf1("-NSS error: %d\n", getError());
+            debug_printf("-NSS error: %d\n", getError());
         }
     }
     #endif // SECMOD_DEBUG
@@ -162,7 +168,7 @@ JNIEXPORT jobject JNICALL Java_sun_security_pkcs11_Secmod_nssGetModuleList
   (JNIEnv *env, jclass thisClass, jlong jHandle, jstring jLibDir)
 {
     FPTR_GetDBModuleList getModuleList =
-        (FPTR_GetDBModuleList)findFunction(env, jHandle, "SECMOD_GetDefaultModuleList");
+        (FPTR_GetDBModuleList)p11FindFunction(env, jHandle, "SECMOD_GetDefaultModuleList");
 
     SECMODModuleList *list;
     SECMODModule *module;
@@ -173,12 +179,12 @@ JNIEXPORT jobject JNICALL Java_sun_security_pkcs11_Secmod_nssGetModuleList
     jint i, jSlotID;
 
     if (getModuleList == NULL) {
-        dprintf("-getmodulelist function not found\n");
+        debug_printf("-getmodulelist function not found\n");
         return NULL;
     }
     list = getModuleList();
     if (list == NULL) {
-        dprintf("-module list is null\n");
+        debug_printf("-module list is null\n");
         return NULL;
     }
 
@@ -211,12 +217,12 @@ JNIEXPORT jobject JNICALL Java_sun_security_pkcs11_Secmod_nssGetModuleList
     while (list != NULL) {
         module = list->module;
         // assert module != null
-        dprintf1("-commonname: %s\n", module->commonName);
-        dprintf1("-dllname: %s\n", (module->dllName != NULL) ? module->dllName : "NULL");
-        dprintf1("-slots: %d\n", module->slotCount);
-        dprintf1("-loaded: %d\n", module->loaded);
-        dprintf1("-internal: %d\n", module->internal);
-        dprintf1("-fips: %d\n", module->isFIPS);
+        debug_printf("-commonname: %s\n", module->commonName);
+        debug_printf("-dllname: %s\n", (module->dllName != NULL) ? module->dllName : "NULL");
+        debug_printf("-slots: %d\n", module->slotCount);
+        debug_printf("-loaded: %d\n", module->loaded);
+        debug_printf("-internal: %d\n", module->internal);
+        debug_printf("-fips: %d\n", module->isFIPS);
         jCommonName = (*env)->NewStringUTF(env, module->commonName);
         if (jCommonName == NULL) {
             return NULL;
@@ -241,14 +247,14 @@ JNIEXPORT jobject JNICALL Java_sun_security_pkcs11_Secmod_nssGetModuleList
             if (jModule == NULL) {
                 return NULL;
             }
-            (*env)->CallVoidMethod(env, jList, jAdd, jModule);
+            (*env)->CallBooleanMethod(env, jList, jAdd, jModule);
             if ((*env)->ExceptionCheck(env)) {
                 return NULL;
             }
         }
         list = list->next;
     }
-    dprintf("-ok\n");
+    debug_printf("-ok\n");
 
     return jList;
 }

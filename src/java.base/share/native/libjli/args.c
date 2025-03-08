@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,12 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ */
+
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2023, 2023 All Rights Reserved
+ * ===========================================================================
  */
 
 #include <stdlib.h>
@@ -78,11 +84,15 @@ static jboolean expectingNoDashArg = JNI_FALSE;
 static size_t argsCount = 1;
 static jboolean stopExpansion = JNI_FALSE;
 static jboolean relaunch = JNI_FALSE;
+static jboolean parsingOpenJ9Args = JNI_FALSE;
 
 /*
  * Prototypes for internal functions.
  */
 static jboolean expand(JLI_List args, const char *str, const char *var_name);
+#ifdef _WIN32
+static char * winGetEnv(const char * var_name);
+#endif
 
 JNIEXPORT void JNICALL
 JLI_InitArgProcessing(jboolean hasJavaArgs, jboolean disableArgFile) {
@@ -366,6 +376,12 @@ static JLI_List expandArgFile(const char *arg) {
 
     /* arg file cannot be opened */
     if (fptr == NULL || fstat(fileno(fptr), &st) != 0) {
+        if (parsingOpenJ9Args) {
+            if (fptr != NULL) {
+                fclose(fptr);
+            }
+            return NULL;
+        }
         JLI_ReportMessage(CFG_ERROR6, arg);
         exit(1);
     } else {
@@ -378,8 +394,8 @@ static JLI_List expandArgFile(const char *arg) {
     rv = readArgFile(fptr);
 
     /* error occurred reading the file */
-    if (rv == NULL) {
-        JLI_ReportMessage(DLL_ERROR4, arg);
+    if (rv == NULL && !parsingOpenJ9Args) {
+        JLI_ReportMessage(ARG_ERROR18, arg);
         exit(1);
     }
     fclose(fptr);
@@ -420,6 +436,10 @@ JLI_PreprocessArg(const char *arg, jboolean expandSourceOpt) {
             && JLI_StrCCmp(arg, "--source") == 0
             && JLI_StrChr(arg, ' ') != NULL) {
         return expandArg(arg);
+    }
+
+    if (parsingOpenJ9Args && (JLI_StrCCmp(arg, "-Xoptionsfile=") == 0)) {
+        return expandArgFile(arg + 14);
     }
 
     if (arg[0] != '@') {
@@ -465,8 +485,6 @@ int isTerminalOpt(char *arg) {
 
 JNIEXPORT jboolean JNICALL
 JLI_AddArgsFromEnvVar(JLI_List args, const char *var_name) {
-    char *env = getenv(var_name);
-
     if (firstAppArgIndex == 0) {
         // Not 'java', return
         return JNI_FALSE;
@@ -476,12 +494,92 @@ JLI_AddArgsFromEnvVar(JLI_List args, const char *var_name) {
         return JNI_FALSE;
     }
 
+#ifdef _WIN32
+    char *env = winGetEnv(var_name);
+#else
+    char *env = getenv(var_name);
+#endif
+
+    jboolean ret = JNI_FALSE;
+
+    if (NULL != env) {
+        JLI_ReportMessage(ARG_INFO_ENVVAR, var_name, env);
+        ret = expand(args, env, var_name);
+    }
+
+#ifdef _WIN32
+    if (NULL != env) {
+        JLI_MemFree(env);
+    }
+#endif
+    return ret;
+}
+
+JNIEXPORT jboolean JNICALL
+JLI_ParseOpenJ9ArgsFromEnvVar(JLI_List args, const char *var_name) {
+    const char *env = getenv(var_name);
+    jboolean result = JNI_FALSE;
+
+    /* Save the state. */
+    int savedFirstAppArgIndex = firstAppArgIndex;
+    jboolean savedExpectingNoDashArg = expectingNoDashArg;
+    size_t savedArgsCount = argsCount;
+    jboolean savedStopExpansion = stopExpansion;
+    jboolean savedRelaunch = relaunch;
+
     if (NULL == env) {
         return JNI_FALSE;
     }
 
-    JLI_ReportMessage(ARG_INFO_ENVVAR, var_name, env);
-    return expand(args, env, var_name);
+    parsingOpenJ9Args = JNI_TRUE;
+    firstAppArgIndex = NOT_FOUND;
+    expectingNoDashArg = JNI_FALSE;
+    argsCount = 1;
+    stopExpansion = JNI_FALSE;
+    relaunch = JNI_FALSE;
+
+    result = expand(args, env, var_name);
+
+    /* Restore the state. */
+    parsingOpenJ9Args = JNI_FALSE;
+    firstAppArgIndex = savedFirstAppArgIndex;
+    expectingNoDashArg = savedExpectingNoDashArg;
+    argsCount = savedArgsCount;
+    stopExpansion = savedStopExpansion;
+    relaunch = savedRelaunch;
+
+    return result;
+}
+
+JNIEXPORT JLI_List JNICALL
+JLI_ParseOpenJ9ArgsFile(const char *filename) {
+    JLI_List result = NULL;
+
+    /* Save the state. */
+    int savedFirstAppArgIndex = firstAppArgIndex;
+    jboolean savedExpectingNoDashArg = expectingNoDashArg;
+    size_t savedArgsCount = argsCount;
+    jboolean savedStopExpansion = stopExpansion;
+    jboolean savedRelaunch = relaunch;
+
+    parsingOpenJ9Args = JNI_TRUE;
+    firstAppArgIndex = NOT_FOUND;
+    expectingNoDashArg = JNI_FALSE;
+    argsCount = 1;
+    stopExpansion = JNI_FALSE;
+    relaunch = JNI_FALSE;
+
+    result = expandArgFile(filename);
+
+    /* Restore the state. */
+    parsingOpenJ9Args = JNI_FALSE;
+    firstAppArgIndex = savedFirstAppArgIndex;
+    expectingNoDashArg = savedExpectingNoDashArg;
+    argsCount = savedArgsCount;
+    stopExpansion = savedStopExpansion;
+    relaunch = savedRelaunch;
+
+    return result;
 }
 
 /*
@@ -497,11 +595,15 @@ static jboolean expand(JLI_List args, const char *str, const char *var_name) {
     char *p, *arg;
     char quote;
     JLI_List argsInFile;
+    char *argMem = NULL;
 
     // This is retained until the process terminates as it is saved as the args
     p = JLI_MemAlloc(JLI_StrLen(str) + 1);
+    if (parsingOpenJ9Args) {
+        argMem = p;
+    }
     while (*str != '\0') {
-        while (*str != '\0' && isspace(*str)) {
+        while (*str != '\0' && isspace((unsigned char) *str)) {
             str++;
         }
 
@@ -511,7 +613,7 @@ static jboolean expand(JLI_List args, const char *str, const char *var_name) {
         }
 
         arg = p;
-        while (*str != '\0' && !isspace(*str)) {
+        while (*str != '\0' && !isspace((unsigned char) *str)) {
             if (inEnvVar && (*str == '"' || *str == '\'')) {
                 quote = *str++;
                 while (*str != quote && *str != '\0') {
@@ -540,6 +642,10 @@ static jboolean expand(JLI_List args, const char *str, const char *var_name) {
                     JLI_ReportMessage(ARG_ERROR15, arg);
                 }
                 exit(1);
+            }
+            if (parsingOpenJ9Args) {
+                /* Dup the string so it can easily be freed later. */
+                arg = JLI_StringDup(arg);
             }
             JLI_List_add(args, arg);
         } else {
@@ -577,11 +683,47 @@ static jboolean expand(JLI_List args, const char *str, const char *var_name) {
             exit(1);
         }
 
-        assert (*str == '\0' || isspace(*str));
+        assert (*str == '\0' || isspace((unsigned char) *str));
     }
 
+    if (parsingOpenJ9Args) {
+        JLI_MemFree(argMem);
+    }
     return JNI_TRUE;
 }
+
+#ifdef _WIN32
+/*
+ * getenv() without best-fit mapping. The return value is constructed by converting
+ * _wgetenv()'s return encoded in wide char to ANSI code page without best-fit map.
+ */
+static char * winGetEnv(const char * var_name) {
+    char * mbEnvVar = NULL;
+
+    int wcCount = MultiByteToWideChar(CP_ACP, 0, var_name, -1, NULL, 0);
+    if (wcCount > 0) {
+        LPWSTR wcVarName = JLI_MemAlloc(wcCount * sizeof(wchar_t));
+        if (MultiByteToWideChar(CP_ACP, 0, var_name, -1, wcVarName, wcCount) != 0) {
+            LPWSTR wcEnvVar = _wgetenv(wcVarName);
+            if (wcEnvVar != NULL) {
+                int mbSize = WideCharToMultiByte(CP_ACP,
+                    WC_NO_BEST_FIT_CHARS | WC_COMPOSITECHECK | WC_DEFAULTCHAR,
+                    wcEnvVar, -1, NULL, 0, NULL, NULL);
+                if (mbSize > 0) {
+                    mbEnvVar = JLI_MemAlloc(mbSize);
+                    if (WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS | WC_COMPOSITECHECK | WC_DEFAULTCHAR,
+                        wcEnvVar, -1, mbEnvVar, mbSize, NULL, NULL) == 0) {
+                        JLI_MemFree(mbEnvVar);
+                        mbEnvVar = NULL;
+                    }
+                }
+            }
+        }
+        JLI_MemFree(wcVarName);
+    }
+    return mbEnvVar;
+}
+#endif
 
 #ifdef DEBUG_ARGFILE
 /*

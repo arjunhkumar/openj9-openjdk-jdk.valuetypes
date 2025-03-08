@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -119,7 +119,6 @@ public class TestFramework {
                     "Trace",
                     "Print",
                     "Verify",
-                    "TLAB",
                     "UseNewCode",
                     "Xmn",
                     "Xms",
@@ -136,17 +135,20 @@ public class TestFramework {
                     "CompileThreshold",
                     "Xmixed",
                     "server",
+                    "AlignVector",
                     "UseAVX",
                     "UseSSE",
                     "UseSVE",
                     "UseZbb",
                     "UseRVV",
                     "Xlog",
-                    "LogCompilation"
+                    "LogCompilation",
+                    "UseCompactObjectHeaders"
             )
     );
 
     public static final boolean VERBOSE = Boolean.getBoolean("Verbose");
+    public static final boolean PRINT_RULE_MATCHING_TIME = Boolean.getBoolean("PrintRuleMatchingTime");
     public static final boolean TESTLIST = !System.getProperty("Test", "").isEmpty();
     public static final boolean EXCLUDELIST = !System.getProperty("Exclude", "").isEmpty();
     private static final boolean REPORT_STDOUT = Boolean.getBoolean("ReportStdout");
@@ -172,6 +174,7 @@ public class TestFramework {
     private Set<Integer> scenarioIndices;
     private List<String> flags;
     private int defaultWarmup = -1;
+    private boolean testClassesOnBootClassPath;
 
     /*
      * Public interface methods
@@ -190,7 +193,7 @@ public class TestFramework {
     /**
      * Creates an instance acting as a builder to test {@code testClass}.
      * Use this constructor if you want to use multiple run options (flags, helper classes, scenarios).
-     * Use the associated add methods ({@link #addFlags(String...)}, @link #addScenarios(Scenario...)},
+     * Use the associated add methods ({@link #addFlags(String...)}, {@link #addScenarios(Scenario...)},
      * {@link #addHelperClasses(Class...)}) to set up everything and then start the testing by invoking {@link #start()}.
      *
      * @param testClass the class to be tested by the framework.
@@ -320,6 +323,15 @@ public class TestFramework {
             this.scenarios.add(scenario);
         }
         TestFormat.throwIfAnyFailures();
+        return this;
+    }
+
+    /**
+     * Add test classes to boot classpath. This adds all classes found on path {@link jdk.test.lib.Utils#TEST_CLASSES}
+     * to the boot classpath with "-Xbootclasspath/a". This is useful when trying to run tests in a privileged mode.
+     */
+    public TestFramework addTestClassesToBootClassPath() {
+        this.testClassesOnBootClassPath = true;
         return this;
     }
 
@@ -756,7 +768,8 @@ public class TestFramework {
     }
 
     private void runTestVM(List<String> additionalFlags) {
-        TestVMProcess testVMProcess = new TestVMProcess(additionalFlags, testClass, helperClasses, defaultWarmup);
+        TestVMProcess testVMProcess = new TestVMProcess(additionalFlags, testClass, helperClasses, defaultWarmup,
+                                                        testClassesOnBootClassPath);
         if (shouldVerifyIR) {
             try {
                 TestClassParser testClassParser = new TestClassParser(testClass);

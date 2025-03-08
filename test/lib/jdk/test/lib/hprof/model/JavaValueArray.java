@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -33,6 +31,7 @@
 package jdk.test.lib.hprof.model;
 
 import java.io.IOException;
+import java.nio.ByteOrder;
 import java.util.Objects;
 
 /**
@@ -360,10 +359,6 @@ public class JavaValueArray extends JavaLazyReadObject
                         result.append(val);
                         break;
                     }
-                    case 'Q': {
-                        InlinedJavaObject obj = (InlinedJavaObject)things[i];
-                        result.append(obj);
-                    }
                     default: {
                         throw new RuntimeException("unknown primitive type?");
                     }
@@ -372,5 +367,41 @@ public class JavaValueArray extends JavaLazyReadObject
             result.append('}');
         }
         return result.toString();
+    }
+
+    private static final int STRING_HI_BYTE_SHIFT;
+    private static final int STRING_LO_BYTE_SHIFT;
+    static {
+        if (ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN) {
+            STRING_HI_BYTE_SHIFT = 8;
+            STRING_LO_BYTE_SHIFT = 0;
+        } else {
+            STRING_HI_BYTE_SHIFT = 0;
+            STRING_LO_BYTE_SHIFT = 8;
+        }
+    }
+
+    // Tries to represent the value as string (used by JavaObject.toString).
+    public String valueAsString(boolean compact) {
+        if (getElementType() == 'B')  {
+            JavaThing[] things = getValue();
+            if (compact) {
+                byte[] bytes = new byte[things.length];
+                for (int i = 0; i < things.length; i++) {
+                    bytes[i] = ((JavaByte)things[i]).value;
+                }
+                return new String(bytes);
+            } else {
+                char[] chars = new char[things.length / 2];
+                for (int i = 0; i < things.length; i += 2) {
+                    int b1 = ((JavaByte)things[i]).value     << STRING_HI_BYTE_SHIFT;
+                    int b2 = ((JavaByte)things[i + 1]).value << STRING_LO_BYTE_SHIFT;
+                    chars[i / 2] = (char)(b1 | b2);
+                }
+                return new String(chars);
+            }
+        }
+        // fallback
+        return valueString();
     }
 }

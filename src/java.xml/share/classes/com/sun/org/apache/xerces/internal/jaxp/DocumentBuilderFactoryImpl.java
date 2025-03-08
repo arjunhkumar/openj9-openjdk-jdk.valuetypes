@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -22,7 +22,6 @@ package com.sun.org.apache.xerces.internal.jaxp;
 
 import com.sun.org.apache.xerces.internal.parsers.DOMParser;
 import com.sun.org.apache.xerces.internal.util.SAXMessageFormatter;
-import com.sun.org.apache.xerces.internal.utils.XMLSecurityManager;
 import com.sun.org.apache.xerces.internal.utils.XMLSecurityPropertyManager;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,6 +31,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.validation.Schema;
 import jdk.xml.internal.JdkProperty;
+import jdk.xml.internal.XMLSecurityManager;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXNotRecognizedException;
 import org.xml.sax.SAXNotSupportedException;
@@ -39,7 +39,7 @@ import org.xml.sax.SAXNotSupportedException;
 /**
  * @author Rajiv Mordani
  * @author Edwin Goei
- * @LastModified: May 2021
+ * @LastModified: Nov 2024
  */
 public class DocumentBuilderFactoryImpl extends DocumentBuilderFactory {
     /** These are DocumentBuilderFactory attributes not DOM attributes */
@@ -79,6 +79,8 @@ public class DocumentBuilderFactoryImpl extends DocumentBuilderFactory {
         }
 
         try {
+            // read system properties for compatibility
+            fSecurityManager.readSystemProperties();
             return new DocumentBuilderImpl(this, attributes, features, fSecureProcess);
         } catch (SAXException se) {
             // Handles both SAXNotSupportedException, SAXNotRecognizedException
@@ -148,7 +150,7 @@ public class DocumentBuilderFactoryImpl extends DocumentBuilderFactory {
         //check if the property is managed by security manager
         String pName;
         if ((pName = fSecurityManager.find(name)) != null) {
-            return attributes.get(pName);
+            return fSecurityManager.getLimitAsString(pName);
         } else if ((pName = fSecurityPropertyMgr.find(name)) != null) {
             return attributes.get(pName);
         }
@@ -218,7 +220,6 @@ public class DocumentBuilderFactoryImpl extends DocumentBuilderFactory {
         }
     }
 
-    @SuppressWarnings("removal")
     public void setFeature(String name, boolean value)
         throws ParserConfigurationException {
         if (features == null) {
@@ -226,12 +227,8 @@ public class DocumentBuilderFactoryImpl extends DocumentBuilderFactory {
         }
         // If this is the secure processing feature, save it then return.
         if (name.equals(XMLConstants.FEATURE_SECURE_PROCESSING)) {
-            if (System.getSecurityManager() != null && (!value)) {
-                throw new ParserConfigurationException(
-                        SAXMessageFormatter.formatMessage(null,
-                        "jaxp-secureprocessing-feature", null));
-            }
             fSecureProcess = value;
+            fSecurityManager.setSecureProcessing(fSecureProcess);
             features.put(name, value ? Boolean.TRUE : Boolean.FALSE);
             return;
         }

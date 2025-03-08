@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,9 +55,11 @@ void getBundle(JNIEnv* env) {
     // msg = b.getString("message");
     jstring msg = (jstring) m_ResourceBundle_getString.callReturnNotNull(b, env->NewStringUTF("message"));
 
-    if (std::string("Hello!") != env->GetStringUTFChars(msg, NULL)) {
+    const char* chars = env->GetStringUTFChars(msg, nullptr);
+    if (std::string("Hello!") != chars) {
         emitErrorMessageAndExit("Bundle didn't contain expected content");
     }
+    env->ReleaseStringUTFChars(msg, chars);
 
     // ResourceBundle.clearCache()
     m_ResourceBundle_clearCache.callVoidMethod();
@@ -129,9 +131,9 @@ void getResourceAsStream(JNIEnv *env) {
 
     // fetch the open and closed classes
     jclass class_OpenResources = env->FindClass("open/OpenResources");
-    assert(class_OpenResources != NULL);
+    assert(class_OpenResources != nullptr);
     jclass class_ClosedResources = env->FindClass("closed/ClosedResources");
-    assert(class_ClosedResources != NULL);
+    assert(class_ClosedResources != nullptr);
 
     // Fetch the Module from one of the classes in the module
     jobject n = m_Class_getModule.callReturnNotNull(class_OpenResources);
@@ -200,7 +202,7 @@ int main(int argc, char *argv[]) {
       fprintf(stderr, "Error: pthread_create failed with error code %d \n", result);
       return -1;
     }
-    pthread_join(id, NULL);
+    pthread_join(id, nullptr);
 #else
     run(&argv);
 #endif //AIX

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -104,11 +104,18 @@ import java.util.Objects;
  * in an {@code OffsetTime}.
  * <p>
  * This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
- * class; programmers should treat instances that are
- * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may
- * occur. For example, in a future release, synchronization may fail.
- * The {@code equals} method should be used for comparisons.
+ * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
+ * as interchangeable and should not use instances for synchronization, mutexes, or
+ * with {@linkplain java.lang.ref.Reference object references}.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          When preview features are enabled, {@code OffsetTime} is a {@linkplain Class#isValue value class}.
+ *          Use of value class instances for synchronization, mutexes, or with
+ *          {@linkplain java.lang.ref.Reference object references} result in
+ *          {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * @implSpec
  * This class is immutable and thread-safe.
@@ -116,6 +123,7 @@ import java.util.Objects;
  * @since 1.8
  */
 @jdk.internal.ValueBased
+@jdk.internal.MigratedValueClass
 public final class OffsetTime
         implements Temporal, TemporalAdjuster, Comparable<OffsetTime>, Serializable {
 
@@ -143,11 +151,11 @@ public final class OffsetTime
     private static final long serialVersionUID = 7264499704384272492L;
 
     /**
-     * The local date-time.
+     * @serial The local date-time.
      */
     private final LocalTime time;
     /**
-     * The offset from UTC/Greenwich.
+     * @serial The offset from UTC/Greenwich.
      */
     private final ZoneOffset offset;
 
@@ -1281,7 +1289,11 @@ public final class OffsetTime
      * use {@link ChronoField#NANO_OF_DAY} as a comparator.
      *
      * @param other  the other time to compare to, not null
-     * @return the comparator value, negative if less, positive if greater
+     * @return the comparator value, that is the comparison of the UTC equivalent {@code other} instant,
+     *          if they are not equal, and if the UTC equivalent {@code other} instant is equal,
+     *          the comparison of this local time with {@code other} local time
+     * @see #isBefore
+     * @see #isAfter
      */
     @Override
     public int compareTo(OffsetTime other) {
@@ -1394,7 +1406,10 @@ public final class OffsetTime
      */
     @Override
     public String toString() {
-        return time.toString() + offset.toString();
+        var offsetStr = offset.toString();
+        var buf = new StringBuilder(18 + offsetStr.length());
+        time.formatTo(buf);
+        return buf.append(offsetStr).toString();
     }
 
     //-----------------------------------------------------------------------

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,20 +22,27 @@
  */
 package runtime.valhalla.inlinetypes;
 
+import jdk.internal.vm.annotation.NullRestricted;
 import jdk.test.lib.Asserts;
 
 /*
  * @test InlineTypeGetField
  * @summary Inline Type get field test
  * @library /test/lib
- * @compile -XDenablePrimitiveClasses Point.java InlineTypeGetField.java
- * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.InlineTypeGetField
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile Point.java InlineTypeGetField.java
+ * @run main/othervm runtime.valhalla.inlinetypes.InlineTypeGetField
  */
 public class InlineTypeGetField {
 
+    @NullRestricted
     static Point staticPoint0;
+    @NullRestricted
     static Point staticPoint1;
+    @NullRestricted
     Point instancePoint0;
+    @NullRestricted
     Point instancePoint1;
 
     static {
