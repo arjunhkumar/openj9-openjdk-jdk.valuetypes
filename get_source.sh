@@ -71,8 +71,8 @@ add_source() {
 #
 configure_defaults() {
 	local current_branch="$(git rev-parse --abbrev-ref HEAD)"
-	local openj9_branch=master
-	local omr_branch=openj9
+	local openj9_branch=dev-baseline
+	local omr_branch=dev-baseline
 
 	# If this repository is on a release branch, use the same branch names
 	# for OpenJ9 and OMR.
@@ -83,8 +83,8 @@ configure_defaults() {
 
 	#          folder       URL                                               branch          options
 	#          ------       ---                                               ------          -------
-	add_source openj9       https://github.com/eclipse-openj9/openj9.git      $openj9_branch
-	add_source omr          https://github.com/eclipse-openj9/openj9-omr.git  $omr_branch
+	add_source openj9       git@github.com:arjunhkumar/OpenJ9.git      $openj9_branch
+	add_source omr          git@github.com:arjunhkumar/omr.git  $omr_branch
 
 	add_source OpenJCEPlus  https://github.com/ibmruntimes/OpenJCEPlus.git
 	add_source openssl      https://github.com/openssl/openssl.git            ""              "--depth=1"
